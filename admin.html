@@ -11,6 +11,11 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script>tailwind.config={theme:{extend:{fontFamily:{sans:['"Plus Jakarta Sans"','system-ui','sans-serif']}}}}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<!-- Cropper.js CSS & JS (para mover, rotar y hacer zoom en imágenes) -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+
 <style>
   .inp{width:100%;border-radius:.75rem;border:1px solid rgba(255,255,255,.08);background:#09090b;padding:.6rem .8rem;font-size:.875rem;color:#f4f4f5;transition:all .2s ease-out;outline:none}
   .inp:hover{border-color:rgba(255,255,255,.15)}
@@ -113,40 +118,44 @@
         <textarea id="bio" rows="2" class="inp" placeholder="Escribe un mensaje para tu comunidad..."></textarea>
       </div>
 
-      <!-- Foto de Perfil & Banner -->
+      <!-- Foto de Perfil & Banner con Editor de Recorte -->
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 border-y border-white/[0.08] py-4">
         
         <!-- Foto de Perfil -->
         <div class="space-y-2">
           <label class="lbl font-semibold text-zinc-200">Foto de Perfil</label>
-          <p class="text-[11px] text-zinc-400">Recomendado: 400x400 px. Máximo 2 MB.</p>
+          <p class="text-[11px] text-zinc-400">Formato cuadrado (1:1). Máximo 2 MB.</p>
           
           <div class="flex items-center gap-3">
-            <img id="avatarPreview" src="https://via.placeholder.com/150" class="h-12 w-12 rounded-full border border-white/10 object-cover bg-zinc-800" alt="Vista previa avatar">
+            <img id="avatarPreview" src="https://via.placeholder.com/150" class="h-14 w-14 rounded-full border border-white/10 object-cover bg-zinc-800 shrink-0" alt="Vista previa avatar">
             <input id="avatarFile" type="file" accept="image/png, image/jpeg, image/webp" class="block w-full text-xs text-zinc-400 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-zinc-800 file:text-zinc-200 hover:file:bg-zinc-700 cursor-pointer">
           </div>
 
           <div>
-            <label class="lbl text-[10px]" for="avatar_url">O usa un enlace directo (URL):</label>
-            <input id="avatar_url" placeholder="https://..." class="inp text-xs py-1">
+            <div class="flex items-center gap-2">
+              <input id="avatar_url" placeholder="O pega enlace directo (URL)..." class="inp text-xs py-1">
+              <button type="button" id="cropAvatarUrlBtn" class="rounded-lg bg-zinc-800 border border-white/10 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-700">Ajustar</button>
+            </div>
           </div>
         </div>
 
         <!-- Banner -->
         <div class="space-y-2">
           <label class="lbl font-semibold text-zinc-200">Banner de Canal / Perfil</label>
-          <p class="text-[11px] text-zinc-400">Recomendado: 1200x400 px. Máximo 5 MB.</p>
+          <p class="text-[11px] text-zinc-400">Formato panorámico (3:1). Máximo 5 MB.</p>
           
           <div class="space-y-2">
-            <div class="h-12 w-full rounded-lg border border-white/10 overflow-hidden bg-zinc-800">
+            <div class="h-14 w-full rounded-lg border border-white/10 overflow-hidden bg-zinc-800">
               <img id="bannerPreview" src="https://via.placeholder.com/600x200" class="h-full w-full object-cover" alt="Vista previa banner">
             </div>
             <input id="bannerFile" type="file" accept="image/png, image/jpeg, image/webp" class="block w-full text-xs text-zinc-400 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-zinc-800 file:text-zinc-200 hover:file:bg-zinc-700 cursor-pointer">
           </div>
 
           <div>
-            <label class="lbl text-[10px]" for="banner_url">O usa un enlace directo (URL):</label>
-            <input id="banner_url" placeholder="https://..." class="inp text-xs py-1">
+            <div class="flex items-center gap-2">
+              <input id="banner_url" placeholder="O pega enlace directo (URL)..." class="inp text-xs py-1">
+              <button type="button" id="cropBannerUrlBtn" class="rounded-lg bg-zinc-800 border border-white/10 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-700">Ajustar</button>
+            </div>
           </div>
         </div>
 
@@ -176,6 +185,24 @@
 
 </div>
 
+<!-- MODAL DE RECORTE / AJUSTE DE IMAGEN -->
+<div id="cropModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+  <div class="w-full max-w-xl rounded-3xl border border-white/10 bg-[#121215] p-6 space-y-4 shadow-2xl">
+    <div class="flex items-center justify-between">
+      <h3 id="cropModalTitle" class="text-lg font-bold">Ajustar Imagen</h3>
+      <button id="cropCancelBtn" class="text-zinc-400 hover:text-white">✕</button>
+    </div>
+    <div class="max-h-[60vh] overflow-hidden rounded-xl border border-white/10 bg-black flex justify-center items-center">
+      <img id="cropImage" src="" class="max-w-full max-h-[50vh] block">
+    </div>
+    <p class="text-xs text-zinc-400 text-center">Arrastra para mover la imagen y usa la rueda del ratón o el pellizco táctil para hacer zoom.</p>
+    <div class="flex justify-end gap-3 pt-2">
+      <button id="cropCloseBtn" type="button" class="rounded-xl border border-white/10 px-4 py-2 text-sm text-zinc-300 hover:bg-white/5">Cancelar</button>
+      <button id="cropSaveBtn" type="button" class="rounded-xl bg-emerald-400 px-5 py-2 text-sm font-semibold text-black hover:bg-emerald-300">Aplicar corte</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SUPABASE_URL = "https://bczbgryqhismhxkpjqak.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_HWeyLs26bxXzgA9SddyWsQ_OHEGcoqB";
@@ -186,10 +213,11 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const COLOR = { PENDIENTE: "text-amber-400 bg-amber-500/10", GANADA: "text-emerald-400 bg-emerald-500/10", PERDIDA: "text-rose-400 bg-rose-500/10", ANULADA: "text-zinc-400 bg-zinc-500/10", pendiente: "text-amber-400 bg-amber-500/10", ganada: "text-emerald-400 bg-emerald-500/10", perdida: "text-rose-400 bg-rose-500/10", anulada: "text-zinc-400 bg-zinc-500/10" };
 
-const MAX_AVATAR_SIZE = 2 * 1024 * 1024; // 2 MB
-const MAX_BANNER_SIZE = 5 * 1024 * 1024; // 5 MB
-
 let currentUser = null;
+let cropper = null;
+let currentCropType = null; // 'avatar' | 'banner'
+let avatarBlob = null;
+let bannerBlob = null;
 
 function show(el, msg, ok) {
   el.textContent = msg; el.classList.remove("hidden", "bg-rose-500/10", "text-rose-300", "bg-emerald-500/10", "text-emerald-300");
@@ -206,37 +234,99 @@ async function setOnlineStatus(isOnline) {
     .eq("id", currentUser.id);
 }
 
-// Desmarcar online si se cierra la pestaña
 window.addEventListener("beforeunload", () => {
-  if (currentUser) {
-    setOnlineStatus(false);
-  }
+  if (currentUser) setOnlineStatus(false);
 });
 
-// --- Previsualizaciones en Tiempo Real ---
+// --- LÓGICA DEL MODAL Y RECORTADOR (CROPPER.JS) ---
+function openCropper(imageSrc, type) {
+  currentCropType = type;
+  $("cropModalTitle").textContent = type === 'avatar' ? "Ajustar Foto de Perfil (1:1)" : "Ajustar Banner (3:1)";
+  $("cropImage").src = imageSrc;
+  $("cropModal").classList.remove("hidden");
+
+  if (cropper) cropper.destroy();
+
+  cropper = new Cropper($("cropImage"), {
+    aspectRatio: type === 'avatar' ? 1 : 3 / 1,
+    viewMode: 1,
+    dragMode: 'move',
+    autoCropArea: 1,
+    restore: false,
+    guides: true,
+    center: true,
+    highlight: false,
+    cropBoxMovable: true,
+    cropBoxResizable: true,
+    toggleDragModeOnDblclick: false
+  });
+}
+
+function closeCropper() {
+  $("cropModal").classList.add("hidden");
+  if (cropper) {
+    cropper.destroy();
+    cropper = null;
+  }
+}
+
+$("cropCancelBtn").addEventListener("click", closeCropper);
+$("cropCloseBtn").addEventListener("click", closeCropper);
+
+$("cropSaveBtn").addEventListener("click", () => {
+  if (!cropper) return;
+
+  const canvasOpts = currentCropType === 'avatar' 
+    ? { width: 400, height: 400 } 
+    : { width: 1200, height: 400 };
+
+  const canvas = cropper.getCroppedCanvas(canvasOpts);
+
+  canvas.toBlob((blob) => {
+    const previewUrl = URL.createObjectURL(blob);
+    if (currentCropType === 'avatar') {
+      avatarBlob = blob;
+      $("avatarPreview").src = previewUrl;
+    } else {
+      bannerBlob = blob;
+      $("bannerPreview").src = previewUrl;
+    }
+    closeCropper();
+  }, 'image/webp', 0.9);
+});
+
+// Detectar selección de archivo para Avatar
 $("avatarFile").addEventListener("change", (e) => {
   const file = e.target.files[0];
-  if (file) $("avatarPreview").src = URL.createObjectURL(file);
-});
-
-$("avatar_url").addEventListener("input", (e) => {
-  if (e.target.value.trim() && !$("avatarFile").files[0]) {
-    $("avatarPreview").src = e.target.value.trim();
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = (evt) => openCropper(evt.target.result, 'avatar');
+    reader.readAsDataURL(file);
   }
 });
 
+// Detectar selección de archivo para Banner
 $("bannerFile").addEventListener("change", (e) => {
   const file = e.target.files[0];
-  if (file) $("bannerPreview").src = URL.createObjectURL(file);
-});
-
-$("banner_url").addEventListener("input", (e) => {
-  if (e.target.value.trim() && !$("bannerFile").files[0]) {
-    $("bannerPreview").src = e.target.value.trim();
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = (evt) => openCropper(evt.target.result, 'banner');
+    reader.readAsDataURL(file);
   }
 });
 
-// --- Manejo de Pestañas ---
+// Detectar botón "Ajustar" desde URL
+$("cropAvatarUrlBtn").addEventListener("click", () => {
+  const url = $("avatar_url").value.trim();
+  if (url) openCropper(url, 'avatar');
+});
+
+$("cropBannerUrlBtn").addEventListener("click", () => {
+  const url = $("banner_url").value.trim();
+  if (url) openCropper(url, 'banner');
+});
+
+// --- Navegación de Pestañas ---
 $("tabPicksBtn").addEventListener("click", () => {
   $("tabPicks").classList.remove("hidden");
   $("tabPerfil").classList.add("hidden");
@@ -279,7 +369,7 @@ $("logout").addEventListener("click", async () => {
   await supabaseClient.auth.signOut();
 });
 
-// --- Publicar Pick (Asociado a user_id) ---
+// --- Publicar Pick ---
 $("pickForm").addEventListener("submit", async e => {
   e.preventDefault();
   const btn = $("pubBtn"); btn.disabled = true; btn.textContent = "Publicando…";
@@ -330,19 +420,10 @@ $("perfilForm").addEventListener("submit", async e => {
   let avatarUrl = $("avatar_url").value.trim() || null;
   let bannerUrl = $("banner_url").value.trim() || null;
 
-  const avatarFile = $("avatarFile").files[0];
-  const bannerFile = $("bannerFile").files[0];
-
-  // Si se adjunta archivo para Avatar, sube a Supabase Storage y toma la URL pública
-  if (avatarFile) {
-    if (avatarFile.size > MAX_AVATAR_SIZE) {
-      btn.disabled = false; btn.textContent = "Guardar perfil";
-      return show($("perfilMsg"), "La foto de perfil excede el tamaño máximo permitido de 2 MB.", false);
-    }
-    const ext = avatarFile.name.split('.').pop();
-    const avatarPath = `avatars/${currentUser.id}_${Date.now()}.${ext}`;
-    const { error: uploadErr } = await supabaseClient.storage.from('media').upload(avatarPath, avatarFile, { upsert: true });
-    
+  // Si se generó un recojo/recorte en Blob para Avatar, subirlo
+  if (avatarBlob) {
+    const avatarPath = `avatars/${currentUser.id}_${Date.now()}.webp`;
+    const { error: uploadErr } = await supabaseClient.storage.from('media').upload(avatarPath, avatarBlob, { upsert: true, contentType: 'image/webp' });
     if (uploadErr) {
       btn.disabled = false; btn.textContent = "Guardar perfil";
       return show($("perfilMsg"), "Error al subir la foto de perfil: " + uploadErr.message, false);
@@ -351,16 +432,10 @@ $("perfilForm").addEventListener("submit", async e => {
     avatarUrl = publicUrlData.publicUrl;
   }
 
-  // Si se adjunta archivo para Banner, sube a Supabase Storage y toma la URL pública
-  if (bannerFile) {
-    if (bannerFile.size > MAX_BANNER_SIZE) {
-      btn.disabled = false; btn.textContent = "Guardar perfil";
-      return show($("perfilMsg"), "El banner excede el tamaño máximo permitido de 5 MB.", false);
-    }
-    const ext = bannerFile.name.split('.').pop();
-    const bannerPath = `banners/${currentUser.id}_${Date.now()}.${ext}`;
-    const { error: uploadErr } = await supabaseClient.storage.from('media').upload(bannerPath, bannerFile, { upsert: true });
-    
+  // Si se generó un recojo/recorte en Blob para Banner, subirlo
+  if (bannerBlob) {
+    const bannerPath = `banners/${currentUser.id}_${Date.now()}.webp`;
+    const { error: uploadErr } = await supabaseClient.storage.from('media').upload(bannerPath, bannerBlob, { upsert: true, contentType: 'image/webp' });
     if (uploadErr) {
       btn.disabled = false; btn.textContent = "Guardar perfil";
       return show($("perfilMsg"), "Error al subir el banner: " + uploadErr.message, false);
@@ -392,13 +467,13 @@ $("perfilForm").addEventListener("submit", async e => {
 
   $("avatar_url").value = avatarUrl || "";
   $("banner_url").value = bannerUrl || "";
-  $("avatarFile").value = "";
-  $("bannerFile").value = "";
+  avatarBlob = null;
+  bannerBlob = null;
 
   show($("perfilMsg"), "¡Perfil actualizado con éxito!", true);
 });
 
-// --- Tabla Picks (Filtrados por user_id) ---
+// --- Tabla Picks ---
 async function load() {
   const { data, error } = await supabaseClient.from("picks").select("*").eq("user_id", currentUser.id).order("created_at", { ascending: false }).limit(50);
   if (error) { $("rows").innerHTML = `<p class="text-sm text-rose-300">No se pudo cargar: ${esc(error.message)}</p>`; return; }
