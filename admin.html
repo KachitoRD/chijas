@@ -45,6 +45,9 @@
       <h1 class="text-lg font-extrabold tracking-tight flex items-center gap-2">
         <span>Panel de Control</span>
         <span id="who" class="text-xs font-mono font-normal text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20"></span>
+        <span title="Sesión activa: mostrando EN VIVO público" class="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-400">
+          <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>EN VIVO
+        </span>
       </h1>
       <p class="text-xs text-zinc-500 mt-0.5">Gestiona tus publicaciones, perfil y enlaces públicos</p>
     </div>
@@ -110,15 +113,48 @@
         <textarea id="bio" rows="2" class="inp" placeholder="Escribe un mensaje para tu comunidad..."></textarea>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label class="lbl" for="avatar_url">URL Avatar / Foto</label>
-          <input id="avatar_url" placeholder="https://..." class="inp">
+      <!-- Foto de Perfil & Banner -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 border-y border-white/[0.08] py-4">
+        
+        <!-- Foto de Perfil -->
+        <div class="space-y-2">
+          <label class="lbl font-semibold text-zinc-200">Foto de Perfil</label>
+          <p class="text-[11px] text-zinc-400">Recomendado: 400x400 px. Máximo 2 MB.</p>
+          
+          <div class="flex items-center gap-3">
+            <img id="avatarPreview" src="https://via.placeholder.com/150" class="h-12 w-12 rounded-full border border-white/10 object-cover bg-zinc-800" alt="Vista previa avatar">
+            <input id="avatarFile" type="file" accept="image/png, image/jpeg, image/webp" class="block w-full text-xs text-zinc-400 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-zinc-800 file:text-zinc-200 hover:file:bg-zinc-700 cursor-pointer">
+          </div>
+
+          <div>
+            <label class="lbl text-[10px]" for="avatar_url">O usa un enlace directo (URL):</label>
+            <input id="avatar_url" placeholder="https://..." class="inp text-xs py-1">
+          </div>
         </div>
-        <div>
-          <label class="lbl" for="color_primario">Color Neón de Marca</label>
-          <input id="color_primario" type="color" value="#34d399" class="inp h-10 p-1 cursor-pointer">
+
+        <!-- Banner -->
+        <div class="space-y-2">
+          <label class="lbl font-semibold text-zinc-200">Banner de Canal / Perfil</label>
+          <p class="text-[11px] text-zinc-400">Recomendado: 1200x400 px. Máximo 5 MB.</p>
+          
+          <div class="space-y-2">
+            <div class="h-12 w-full rounded-lg border border-white/10 overflow-hidden bg-zinc-800">
+              <img id="bannerPreview" src="https://via.placeholder.com/600x200" class="h-full w-full object-cover" alt="Vista previa banner">
+            </div>
+            <input id="bannerFile" type="file" accept="image/png, image/jpeg, image/webp" class="block w-full text-xs text-zinc-400 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-zinc-800 file:text-zinc-200 hover:file:bg-zinc-700 cursor-pointer">
+          </div>
+
+          <div>
+            <label class="lbl text-[10px]" for="banner_url">O usa un enlace directo (URL):</label>
+            <input id="banner_url" placeholder="https://..." class="inp text-xs py-1">
+          </div>
         </div>
+
+      </div>
+
+      <div>
+        <label class="lbl" for="color_primario">Color Neón de Marca</label>
+        <input id="color_primario" type="color" value="#34d399" class="inp h-10 p-1 cursor-pointer">
       </div>
 
       <hr class="border-white/[0.08] my-2">
@@ -150,6 +186,9 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const COLOR = { PENDIENTE: "text-amber-400 bg-amber-500/10", GANADA: "text-emerald-400 bg-emerald-500/10", PERDIDA: "text-rose-400 bg-rose-500/10", ANULADA: "text-zinc-400 bg-zinc-500/10", pendiente: "text-amber-400 bg-amber-500/10", ganada: "text-emerald-400 bg-emerald-500/10", perdida: "text-rose-400 bg-rose-500/10", anulada: "text-zinc-400 bg-zinc-500/10" };
 
+const MAX_AVATAR_SIZE = 2 * 1024 * 1024; // 2 MB
+const MAX_BANNER_SIZE = 5 * 1024 * 1024; // 5 MB
+
 let currentUser = null;
 
 function show(el, msg, ok) {
@@ -157,6 +196,45 @@ function show(el, msg, ok) {
   el.classList.add(...(ok ? ["bg-emerald-500/10", "text-emerald-300"] : ["bg-rose-500/10", "text-rose-300"]));
 }
 const nowLocal = () => new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 16);
+
+// --- Actualizar Estado Online ---
+async function setOnlineStatus(isOnline) {
+  if (!currentUser) return;
+  await supabaseClient
+    .from("perfiles")
+    .update({ is_online: isOnline, last_active_at: new Date().toISOString() })
+    .eq("id", currentUser.id);
+}
+
+// Desmarcar online si se cierra la pestaña
+window.addEventListener("beforeunload", () => {
+  if (currentUser) {
+    setOnlineStatus(false);
+  }
+});
+
+// --- Previsualizaciones en Tiempo Real ---
+$("avatarFile").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (file) $("avatarPreview").src = URL.createObjectURL(file);
+});
+
+$("avatar_url").addEventListener("input", (e) => {
+  if (e.target.value.trim() && !$("avatarFile").files[0]) {
+    $("avatarPreview").src = e.target.value.trim();
+  }
+});
+
+$("bannerFile").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (file) $("bannerPreview").src = URL.createObjectURL(file);
+});
+
+$("banner_url").addEventListener("input", (e) => {
+  if (e.target.value.trim() && !$("bannerFile").files[0]) {
+    $("bannerPreview").src = e.target.value.trim();
+  }
+});
 
 // --- Manejo de Pestañas ---
 $("tabPicksBtn").addEventListener("click", () => {
@@ -174,14 +252,17 @@ $("tabPerfilBtn").addEventListener("click", () => {
 });
 
 // --- Auth ---
-supabaseClient.auth.onAuthStateChange((_e, session) => {
+supabaseClient.auth.onAuthStateChange(async (_e, session) => {
   $("login").classList.toggle("hidden", !!session);
   $("dash").classList.toggle("hidden", !session);
   if (session) { 
     currentUser = session.user;
     $("who").textContent = currentUser.email; 
     $("fecha").value ||= nowLocal(); 
+    await setOnlineStatus(true);
     setTimeout(() => { load(); loadPerfil(); }, 0); 
+  } else {
+    currentUser = null;
   }
 });
 
@@ -192,7 +273,11 @@ $("loginForm").addEventListener("submit", async e => {
   btn.disabled = false; btn.textContent = "Entrar";
   if (error) { $("loginErr").textContent = /invalid/i.test(error.message) ? "Correo o contraseña incorrectos." : "No se pudo iniciar sesión: " + error.message; $("loginErr").classList.remove("hidden"); }
 });
-$("logout").addEventListener("click", () => supabaseClient.auth.signOut());
+
+$("logout").addEventListener("click", async () => {
+  if (currentUser) await setOnlineStatus(false);
+  await supabaseClient.auth.signOut();
+});
 
 // --- Publicar Pick (Asociado a user_id) ---
 $("pickForm").addEventListener("submit", async e => {
@@ -223,6 +308,7 @@ async function loadPerfil() {
     $("nombre_publico").value = data.nombre_publico || "";
     $("bio").value = data.bio || "";
     $("avatar_url").value = data.avatar_url || "";
+    $("banner_url").value = data.banner_url || "";
     $("color_primario").value = data.color_primario || "#34d399";
     $("kick_url").value = data.kick_url || "";
     $("twitch_url").value = data.twitch_url || "";
@@ -230,6 +316,9 @@ async function loadPerfil() {
     $("telegram_url").value = data.telegram_url || "";
     $("twitter_url").value = data.twitter_url || "";
     $("instagram_url").value = data.instagram_url || "";
+
+    if (data.avatar_url) $("avatarPreview").src = data.avatar_url;
+    if (data.banner_url) $("bannerPreview").src = data.banner_url;
   }
 }
 
@@ -237,23 +326,75 @@ async function loadPerfil() {
 $("perfilForm").addEventListener("submit", async e => {
   e.preventDefault();
   const btn = $("perfilBtn"); btn.disabled = true; btn.textContent = "Guardando…";
+
+  let avatarUrl = $("avatar_url").value.trim() || null;
+  let bannerUrl = $("banner_url").value.trim() || null;
+
+  const avatarFile = $("avatarFile").files[0];
+  const bannerFile = $("bannerFile").files[0];
+
+  // Si se adjunta archivo para Avatar, sube a Supabase Storage y toma la URL pública
+  if (avatarFile) {
+    if (avatarFile.size > MAX_AVATAR_SIZE) {
+      btn.disabled = false; btn.textContent = "Guardar perfil";
+      return show($("perfilMsg"), "La foto de perfil excede el tamaño máximo permitido de 2 MB.", false);
+    }
+    const ext = avatarFile.name.split('.').pop();
+    const avatarPath = `avatars/${currentUser.id}_${Date.now()}.${ext}`;
+    const { error: uploadErr } = await supabaseClient.storage.from('media').upload(avatarPath, avatarFile, { upsert: true });
+    
+    if (uploadErr) {
+      btn.disabled = false; btn.textContent = "Guardar perfil";
+      return show($("perfilMsg"), "Error al subir la foto de perfil: " + uploadErr.message, false);
+    }
+    const { data: publicUrlData } = supabaseClient.storage.from('media').getPublicUrl(avatarPath);
+    avatarUrl = publicUrlData.publicUrl;
+  }
+
+  // Si se adjunta archivo para Banner, sube a Supabase Storage y toma la URL pública
+  if (bannerFile) {
+    if (bannerFile.size > MAX_BANNER_SIZE) {
+      btn.disabled = false; btn.textContent = "Guardar perfil";
+      return show($("perfilMsg"), "El banner excede el tamaño máximo permitido de 5 MB.", false);
+    }
+    const ext = bannerFile.name.split('.').pop();
+    const bannerPath = `banners/${currentUser.id}_${Date.now()}.${ext}`;
+    const { error: uploadErr } = await supabaseClient.storage.from('media').upload(bannerPath, bannerFile, { upsert: true });
+    
+    if (uploadErr) {
+      btn.disabled = false; btn.textContent = "Guardar perfil";
+      return show($("perfilMsg"), "Error al subir el banner: " + uploadErr.message, false);
+    }
+    const { data: publicUrlData } = supabaseClient.storage.from('media').getPublicUrl(bannerPath);
+    bannerUrl = publicUrlData.publicUrl;
+  }
+
   const perfil = {
     id: currentUser.id,
     username: $("username").value.trim().toLowerCase(),
     nombre_publico: $("nombre_publico").value.trim(),
     bio: $("bio").value.trim() || null,
-    avatar_url: $("avatar_url").value.trim() || null,
+    avatar_url: avatarUrl,
+    banner_url: bannerUrl,
     color_primario: $("color_primario").value,
     kick_url: $("kick_url").value.trim() || null,
     twitch_url: $("twitch_url").value.trim() || null,
     youtube_url: $("youtube_url").value.trim() || null,
     telegram_url: $("telegram_url").value.trim() || null,
     twitter_url: $("twitter_url").value.trim() || null,
-    instagram_url: $("instagram_url").value.trim() || null
+    instagram_url: $("instagram_url").value.trim() || null,
+    is_online: true
   };
+
   const { error } = await supabaseClient.from("perfiles").upsert(perfil);
   btn.disabled = false; btn.textContent = "Guardar perfil";
   if (error) return show($("perfilMsg"), "No se pudo guardar: " + error.message, false);
+
+  $("avatar_url").value = avatarUrl || "";
+  $("banner_url").value = bannerUrl || "";
+  $("avatarFile").value = "";
+  $("bannerFile").value = "";
+
   show($("perfilMsg"), "¡Perfil actualizado con éxito!", true);
 });
 
