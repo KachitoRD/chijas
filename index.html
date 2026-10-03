@@ -229,28 +229,33 @@ async function initStreamerSelect(targetUser) {
   const select = $("streamerSelect");
   if (!allProfiles.length) {
     select.innerHTML = `<option value="">Sin streamers</option>`;
-    return;
+    return null;
+  }
+
+  // Determinar streamer inicial
+  let selectedUser = targetUser;
+  if (!selectedUser || !allProfiles.some(p => p.username?.toLowerCase() === selectedUser)) {
+    selectedUser = allProfiles[0].username?.toLowerCase();
   }
 
   select.innerHTML = allProfiles
-    .map(p => `<option value="${esc(p.username)}"${p.username?.toLowerCase() === targetUser ? " selected" : ""}>${esc(p.nombre_publico || p.username)} (@${esc(p.username)})</option>`)
+    .map(p => `<option value="${esc(p.username)}"${p.username?.toLowerCase() === selectedUser ? " selected" : ""}>${esc(p.nombre_publico || p.username)} (@${esc(p.username)})</option>`)
     .join("");
+
+  return selectedUser;
 }
 
 async function loadPicksForUser(userParam) {
-  // 1. Obtener Perfil
-  let queryProf = supabaseClient.from("perfiles").select("*");
-  if (userParam) {
-    queryProf = queryProf.eq("username", userParam);
-  }
-  const { data: profData } = await queryProf.limit(1);
-  currentProfile = profData && profData.length ? profData[0] : null;
+  if (!userParam) return;
 
-  // Si no se encontró un streamer específico pero hay lista, toma el primero por defecto
-  if (!currentProfile && allProfiles.length) {
-    const { data: defaultProf } = await supabaseClient.from("perfiles").select("*").eq("username", allProfiles[0].username).limit(1);
-    currentProfile = defaultProf ? defaultProf[0] : null;
-  }
+  // 1. Obtener Perfil
+  const { data: profData } = await supabaseClient
+    .from("perfiles")
+    .select("*")
+    .ilike("username", userParam)
+    .limit(1);
+
+  currentProfile = profData && profData.length ? profData[0] : null;
 
   renderProfile(currentProfile);
 
@@ -262,7 +267,7 @@ async function loadPicksForUser(userParam) {
     return;
   }
 
-  // Actualizar el valor del selector si cambió programáticamente
+  // Sincronizar el selector si difiere
   if ($("streamerSelect").value !== currentProfile.username) {
     $("streamerSelect").value = currentProfile.username;
   }
@@ -290,8 +295,16 @@ async function start() {
   const urlParams = new URLSearchParams(window.location.search);
   const targetUser = urlParams.get('u')?.toLowerCase() || null;
 
-  await initStreamerSelect(targetUser);
-  await loadPicksForUser(targetUser);
+  const activeUser = await initStreamerSelect(targetUser);
+  
+  if (activeUser) {
+    // Sincronizar la URL si no tenía parámetro originalmente
+    if (!targetUser) {
+      const newUrl = `${window.location.pathname}?u=${encodeURIComponent(activeUser)}`;
+      window.history.replaceState({ path: newUrl }, '', newUrl);
+    }
+    await loadPicksForUser(activeUser);
+  }
 }
 
 // Evento al cambiar de streamer en el selector
@@ -299,11 +312,10 @@ $("streamerSelect").addEventListener("change", e => {
   const selectedUser = e.target.value;
   if (!selectedUser) return;
 
-  // Actualizar URL sin recargar
   const newUrl = `${window.location.pathname}?u=${encodeURIComponent(selectedUser)}`;
   window.history.pushState({ path: newUrl }, '', newUrl);
 
-  loadPicksForUser(selectedUser);
+  loadPicksForUser(selectedUser.toLowerCase());
 });
 
 $("filters").addEventListener("click", e => {
@@ -315,10 +327,12 @@ $("grid").innerHTML = Array.from({length: 3}, () => `<div class="h-40 animate-pu
 renderFilters(); 
 start();
 
-// Suscripción en tiempo real
+// Suscripción en tiempo real asociada al selector actual
 supabaseClient.channel("picks-live").on("postgres_changes", { event: "*", schema: "public", table: "picks" }, () => {
-  const urlParams = new URLSearchParams(window.location.search);
-  loadPicksForUser(urlParams.get('u')?.toLowerCase());
+  const selectedUser = $("streamerSelect").value;
+  if (selectedUser) {
+    loadPicksForUser(selectedUser.toLowerCase());
+  }
 }).subscribe();
 </script>
 </body>
