@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>Panel · Fijas</title>
+<title>Panel · Fijas Multi-Streamer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -16,16 +16,20 @@
   .inp:hover{border-color:rgba(255,255,255,.15)}
   .inp:focus{border-color:rgba(52,211,153,.5);box-shadow:0 0 0 3px rgba(52,211,153,.12)}
   .lbl{display:block;margin-bottom:.35rem;font-size:.75rem;font-weight:500;color:#a1a1aa}
+  .tab-btn{border-radius:.75rem;padding:.5rem 1rem;font-size:.875rem;font-weight:600;transition:all .2s ease-out}
+  .tab-active{background:rgba(52,211,153,.1);color:#34d399;border:1px solid rgba(52,211,153,.2)}
+  .tab-inactive{color:#71717a;border:1px solid transparent}
+  .tab-inactive:hover{color:#f4f4f5;background:rgba(255,255,255,.05)}
 </style>
 </head>
-<body class="bg-[#09090b] font-sans text-zinc-100 antialiased">
+<body class="bg-[#09090b] font-sans text-zinc-100 antialiased min-h-screen">
 
 <!-- Login -->
 <main id="login" class="grid min-h-screen place-items-center p-4">
-  <form id="loginForm" class="w-full max-w-sm space-y-4 rounded-3xl border border-white/[0.08] bg-[#121215] p-8 backdrop-blur-md">
+  <form id="loginForm" class="w-full max-w-sm space-y-4 rounded-3xl border border-white/[0.08] bg-[#121215] p-8 backdrop-blur-md shadow-2xl">
     <div>
       <h1 class="text-2xl font-extrabold tracking-tight">Iniciar sesión</h1>
-      <p class="mt-1 text-sm text-zinc-400">Acceso exclusivo para el streamer.</p>
+      <p class="mt-1 text-sm text-zinc-400">Acceso al panel de streamer.</p>
     </div>
     <div><label class="lbl" for="email">Correo</label><input id="email" type="email" required autocomplete="email" class="inp"></div>
     <div><label class="lbl" for="password">Contraseña</label><input id="password" type="password" required autocomplete="current-password" class="inp"></div>
@@ -36,13 +40,26 @@
 
 <!-- Dashboard -->
 <div id="dash" class="mx-auto hidden max-w-6xl space-y-4 px-4 py-8">
-  <header class="flex items-center justify-between rounded-2xl border border-white/[0.08] bg-[#121215] px-5 py-4">
-    <div><h1 class="text-lg font-extrabold tracking-tight">Panel de fijas</h1><p id="who" class="text-xs text-zinc-500"></p></div>
-    <button id="logout" class="rounded-xl border border-white/[0.08] px-4 py-2 text-sm text-zinc-300 transition-all duration-200 ease-out hover:border-white/15 hover:bg-white/5">Cerrar sesión</button>
+  <header class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-2xl border border-white/[0.08] bg-[#121215] px-5 py-4">
+    <div>
+      <h1 class="text-lg font-extrabold tracking-tight flex items-center gap-2">
+        <span>Panel de Control</span>
+        <span id="who" class="text-xs font-mono font-normal text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20"></span>
+      </h1>
+      <p class="text-xs text-zinc-500 mt-0.5">Gestiona tus publicaciones, perfil y enlaces públicos</p>
+    </div>
+    <button id="logout" class="rounded-xl border border-white/[0.08] px-4 py-2 text-sm text-zinc-300 transition-all duration-200 ease-out hover:border-white/15 hover:bg-white/5 self-start sm:self-auto">Cerrar sesión</button>
   </header>
 
-  <div class="grid gap-4 lg:grid-cols-5">
-    <form id="pickForm" class="space-y-3 rounded-3xl border border-white/[0.08] bg-[#121215] p-6 lg:col-span-2">
+  <!-- Navegación de Pestañas -->
+  <div class="flex gap-2 border-b border-white/[0.08] pb-3">
+    <button id="tabPicksBtn" class="tab-btn tab-active">Fijas / Apuestas</button>
+    <button id="tabPerfilBtn" class="tab-btn tab-inactive">Mi Perfil & Redes</button>
+  </div>
+
+  <!-- PESTAÑA 1: GESTIÓN DE PICKS -->
+  <div id="tabPicks" class="grid gap-4 lg:grid-cols-5">
+    <form id="pickForm" class="space-y-3 rounded-3xl border border-white/[0.08] bg-[#121215] p-6 lg:col-span-2 h-fit">
       <h2 class="font-bold">Publicar fija</h2>
       <div class="grid grid-cols-2 gap-3">
         <div><label class="lbl" for="deporte">Deporte</label><input id="deporte" required placeholder="Fútbol" class="inp"></div>
@@ -63,10 +80,64 @@
     </form>
 
     <section class="rounded-3xl border border-white/[0.08] bg-[#121215] p-6 lg:col-span-3">
-      <h2 class="mb-4 font-bold">Control rápido</h2>
+      <h2 class="mb-4 font-bold">Tus fijas publicadas</h2>
       <div id="rows" class="space-y-2"></div>
     </section>
   </div>
+
+  <!-- PESTAÑA 2: PERFIL Y REDES -->
+  <div id="tabPerfil" class="hidden max-w-2xl mx-auto rounded-3xl border border-white/[0.08] bg-[#121215] p-6 space-y-4">
+    <div>
+      <h2 class="font-bold text-lg">Configuración de Perfil</h2>
+      <p class="text-xs text-zinc-400">Personaliza cómo te verán tus seguidores en la portada.</p>
+    </div>
+
+    <form id="perfilForm" class="space-y-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="lbl" for="username">Username (URL)</label>
+          <input id="username" required placeholder="ej: kachitord" class="inp">
+          <p class="text-[10px] text-zinc-500 mt-1">Tu link: ?u=tu_username</p>
+        </div>
+        <div>
+          <label class="lbl" for="nombre_publico">Nombre Público / Canal</label>
+          <input id="nombre_publico" required placeholder="ej: Kachito Stream" class="inp">
+        </div>
+      </div>
+
+      <div>
+        <label class="lbl" for="bio">Biografía breve</label>
+        <textarea id="bio" rows="2" class="inp" placeholder="Escribe un mensaje para tu comunidad..."></textarea>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="lbl" for="avatar_url">URL Avatar / Foto</label>
+          <input id="avatar_url" placeholder="https://..." class="inp">
+        </div>
+        <div>
+          <label class="lbl" for="color_primario">Color Neón de Marca</label>
+          <input id="color_primario" type="color" value="#34d399" class="inp h-10 p-1 cursor-pointer">
+        </div>
+      </div>
+
+      <hr class="border-white/[0.08] my-2">
+      <h3 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Redes Sociales</h3>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div><label class="lbl" for="kick_url">Kick URL</label><input id="kick_url" placeholder="https://kick.com/..." class="inp"></div>
+        <div><label class="lbl" for="twitch_url">Twitch URL</label><input id="twitch_url" placeholder="https://twitch.tv/..." class="inp"></div>
+        <div><label class="lbl" for="youtube_url">YouTube URL</label><input id="youtube_url" placeholder="https://youtube.com/@..." class="inp"></div>
+        <div><label class="lbl" for="telegram_url">Telegram Canal / VIP</label><input id="telegram_url" placeholder="https://t.me/..." class="inp"></div>
+        <div><label class="lbl" for="twitter_url">Twitter / X URL</label><input id="twitter_url" placeholder="https://x.com/..." class="inp"></div>
+        <div><label class="lbl" for="instagram_url">Instagram URL</label><input id="instagram_url" placeholder="https://instagram.com/..." class="inp"></div>
+      </div>
+
+      <p id="perfilMsg" role="status" class="hidden rounded-xl px-3 py-2 text-sm"></p>
+      <button id="perfilBtn" class="w-full rounded-xl bg-emerald-400 py-2.5 text-sm font-semibold text-black transition-all duration-200 ease-out hover:bg-emerald-300 disabled:opacity-60">Guardar perfil</button>
+    </form>
+  </div>
+
 </div>
 
 <script>
@@ -77,7 +148,9 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const COLOR = { pendiente: "text-amber-400 bg-amber-500/10", ganada: "text-emerald-400 bg-emerald-500/10", perdida: "text-rose-400 bg-rose-500/10", anulada: "text-zinc-400 bg-zinc-500/10" };
+const COLOR = { PENDIENTE: "text-amber-400 bg-amber-500/10", GANADA: "text-emerald-400 bg-emerald-500/10", PERDIDA: "text-rose-400 bg-rose-500/10", ANULADA: "text-zinc-400 bg-zinc-500/10", pendiente: "text-amber-400 bg-amber-500/10", ganada: "text-emerald-400 bg-emerald-500/10", perdida: "text-rose-400 bg-rose-500/10", anulada: "text-zinc-400 bg-zinc-500/10" };
+
+let currentUser = null;
 
 function show(el, msg, ok) {
   el.textContent = msg; el.classList.remove("hidden", "bg-rose-500/10", "text-rose-300", "bg-emerald-500/10", "text-emerald-300");
@@ -85,11 +158,31 @@ function show(el, msg, ok) {
 }
 const nowLocal = () => new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 16);
 
+// --- Manejo de Pestañas ---
+$("tabPicksBtn").addEventListener("click", () => {
+  $("tabPicks").classList.remove("hidden");
+  $("tabPerfil").classList.add("hidden");
+  $("tabPicksBtn").className = "tab-btn tab-active";
+  $("tabPerfilBtn").className = "tab-btn tab-inactive";
+});
+
+$("tabPerfilBtn").addEventListener("click", () => {
+  $("tabPicks").classList.add("hidden");
+  $("tabPerfil").classList.remove("hidden");
+  $("tabPerfilBtn").className = "tab-btn tab-active";
+  $("tabPicksBtn").className = "tab-btn tab-inactive";
+});
+
 // --- Auth ---
 supabaseClient.auth.onAuthStateChange((_e, session) => {
   $("login").classList.toggle("hidden", !!session);
   $("dash").classList.toggle("hidden", !session);
-  if (session) { $("who").textContent = session.user.email; $("fecha").value ||= nowLocal(); setTimeout(load, 0); }
+  if (session) { 
+    currentUser = session.user;
+    $("who").textContent = currentUser.email; 
+    $("fecha").value ||= nowLocal(); 
+    setTimeout(() => { load(); loadPerfil(); }, 0); 
+  }
 });
 
 $("loginForm").addEventListener("submit", async e => {
@@ -101,18 +194,20 @@ $("loginForm").addEventListener("submit", async e => {
 });
 $("logout").addEventListener("click", () => supabaseClient.auth.signOut());
 
-// --- Publicar ---
+// --- Publicar Pick (Asociado a user_id) ---
 $("pickForm").addEventListener("submit", async e => {
   e.preventDefault();
   const btn = $("pubBtn"); btn.disabled = true; btn.textContent = "Publicando…";
   const row = {
+    user_id: currentUser.id,
     deporte: $("deporte").value.trim(), evento: $("evento").value.trim(), seleccion: $("seleccion").value.trim(),
-    cuota: parseFloat($("cuota").value), casa_de_apuestas: $("casa").value.trim(),
+    prediccion: $("seleccion").value.trim(),
+    cuota: parseFloat($("cuota").value), casa_de_apuestas: $("casa").value.trim(), casa_apuestas: $("casa").value.trim(),
     fecha_evento: new Date($("fecha").value).toISOString(),
     confianza: $("confianza").value ? +$("confianza").value : null, nota: $("nota").value.trim() || null,
     destacada: $("destacada").checked
   };
-  if (row.destacada) await supabaseClient.from("picks").update({ destacada: false }).eq("destacada", true);
+  if (row.destacada) await supabaseClient.from("picks").update({ destacada: false }).eq("user_id", currentUser.id).eq("destacada", true);
   const { error } = await supabaseClient.from("picks").insert(row);
   btn.disabled = false; btn.textContent = "Publicar fija";
   if (error) return show($("formMsg"), "No se pudo publicar: " + error.message, false);
@@ -120,20 +215,62 @@ $("pickForm").addEventListener("submit", async e => {
   show($("formMsg"), "Fija publicada.", true); load();
 });
 
-// --- Tabla ---
+// --- Cargar Perfil ---
+async function loadPerfil() {
+  const { data } = await supabaseClient.from("perfiles").select("*").eq("id", currentUser.id).single();
+  if (data) {
+    $("username").value = data.username || "";
+    $("nombre_publico").value = data.nombre_publico || "";
+    $("bio").value = data.bio || "";
+    $("avatar_url").value = data.avatar_url || "";
+    $("color_primario").value = data.color_primario || "#34d399";
+    $("kick_url").value = data.kick_url || "";
+    $("twitch_url").value = data.twitch_url || "";
+    $("youtube_url").value = data.youtube_url || "";
+    $("telegram_url").value = data.telegram_url || "";
+    $("twitter_url").value = data.twitter_url || "";
+    $("instagram_url").value = data.instagram_url || "";
+  }
+}
+
+// --- Guardar Perfil ---
+$("perfilForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const btn = $("perfilBtn"); btn.disabled = true; btn.textContent = "Guardando…";
+  const perfil = {
+    id: currentUser.id,
+    username: $("username").value.trim().toLowerCase(),
+    nombre_publico: $("nombre_publico").value.trim(),
+    bio: $("bio").value.trim() || null,
+    avatar_url: $("avatar_url").value.trim() || null,
+    color_primario: $("color_primario").value,
+    kick_url: $("kick_url").value.trim() || null,
+    twitch_url: $("twitch_url").value.trim() || null,
+    youtube_url: $("youtube_url").value.trim() || null,
+    telegram_url: $("telegram_url").value.trim() || null,
+    twitter_url: $("twitter_url").value.trim() || null,
+    instagram_url: $("instagram_url").value.trim() || null
+  };
+  const { error } = await supabaseClient.from("perfiles").upsert(perfil);
+  btn.disabled = false; btn.textContent = "Guardar perfil";
+  if (error) return show($("perfilMsg"), "No se pudo guardar: " + error.message, false);
+  show($("perfilMsg"), "¡Perfil actualizado con éxito!", true);
+});
+
+// --- Tabla Picks (Filtrados por user_id) ---
 async function load() {
-  const { data, error } = await supabaseClient.from("picks").select("*").order("created_at", { ascending: false }).limit(50);
+  const { data, error } = await supabaseClient.from("picks").select("*").eq("user_id", currentUser.id).order("created_at", { ascending: false }).limit(50);
   if (error) { $("rows").innerHTML = `<p class="text-sm text-rose-300">No se pudo cargar: ${esc(error.message)}</p>`; return; }
   $("rows").innerHTML = data.length ? data.map(p => `
   <div class="flex items-center justify-between gap-3 rounded-2xl border border-white/[0.08] bg-[#09090b] p-3 transition-all duration-200 ease-out hover:border-white/15">
     <div class="min-w-0">
       <p class="truncate text-sm font-semibold">${p.destacada ? "★ " : ""}${esc(p.evento)}</p>
-      <p class="truncate text-xs text-zinc-400">${esc(p.seleccion)} · @${Number(p.cuota).toFixed(2)} · ${esc(p.casa_de_apuestas)}</p>
-      <span class="mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${COLOR[p.estado]}">${esc(p.estado)}</span>
+      <p class="truncate text-xs text-zinc-400">${esc(p.seleccion || p.prediccion)} · @${Number(p.cuota).toFixed(2)} · ${esc(p.casa_de_apuestas || p.casa_apuestas)}</p>
+      <span class="mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${COLOR[p.estado] || 'text-zinc-400 bg-zinc-500/10'}">${esc(p.estado)}</span>
     </div>
     <div class="flex shrink-0 gap-1.5" data-id="${p.id}">
-      <button data-act="ganada" title="Marcar ganada" class="rounded-lg border border-emerald-500/30 px-3 py-1.5 text-emerald-400 transition-all duration-200 hover:bg-emerald-500/10">✔</button>
-      <button data-act="perdida" title="Marcar perdida" class="rounded-lg border border-rose-500/30 px-3 py-1.5 text-rose-400 transition-all duration-200 hover:bg-rose-500/10">✖</button>
+      <button data-act="GANADA" title="Marcar ganada" class="rounded-lg border border-emerald-500/30 px-3 py-1.5 text-emerald-400 transition-all duration-200 hover:bg-emerald-500/10">✔</button>
+      <button data-act="PERDIDA" title="Marcar perdida" class="rounded-lg border border-rose-500/30 px-3 py-1.5 text-rose-400 transition-all duration-200 hover:bg-rose-500/10">✖</button>
       <button data-act="delete" title="Eliminar" class="rounded-lg border border-white/[0.08] px-3 py-1.5 transition-all duration-200 hover:bg-white/5">🗑</button>
     </div>
   </div>`).join("") : `<p class="rounded-2xl border border-dashed border-white/10 p-8 text-center text-sm text-zinc-500">Aún no hay fijas. Publica la primera desde el formulario.</p>`;
