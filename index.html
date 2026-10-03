@@ -19,21 +19,27 @@
 <body class="bg-[#09090b] font-sans text-zinc-100 antialiased">
 <div class="mx-auto max-w-5xl space-y-4 px-4 py-8 sm:py-12">
 
-  <!-- Hero -->
+  <!-- Hero / Header del Streamer -->
   <header class="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-[#121215] p-6 transition-all duration-200 ease-out hover:border-white/15 sm:p-10">
     <div class="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-emerald-500/10 blur-3xl"></div>
     <div class="relative flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
       <div class="flex items-center gap-5">
         <div id="avatar" class="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-700 bg-cover bg-center text-2xl font-extrabold text-black ring-1 ring-white/10"></div>
         <div>
-          <span class="inline-flex items-center gap-2 rounded-full border border-rose-500/30 bg-rose-500/10 px-2.5 py-1 text-xs font-semibold text-rose-400 backdrop-blur-md">
-            <span class="live-dot h-1.5 w-1.5 rounded-full bg-rose-500"></span>EN VIVO
-          </span>
-          <h1 id="name" class="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl"></h1>
-          <p class="mt-1 text-sm text-zinc-400">Sus fijas, publicadas al momento y con resultado verificable.</p>
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="inline-flex items-center gap-2 rounded-full border border-rose-500/30 bg-rose-500/10 px-2.5 py-1 text-xs font-semibold text-rose-400 backdrop-blur-md">
+              <span class="live-dot h-1.5 w-1.5 rounded-full bg-rose-500"></span>EN VIVO
+            </span>
+            <span id="usernameBadge" class="text-xs font-mono text-zinc-500"></span>
+          </div>
+          <h1 id="name" class="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">Cargando...</h1>
+          <p id="bio" class="mt-1 text-sm text-zinc-400">Sus fijas, publicadas al momento y con resultado verificable.</p>
+          
+          <!-- Redes Sociales -->
+          <div id="socials" class="mt-3 flex flex-wrap gap-2"></div>
         </div>
       </div>
-      <div class="grid grid-cols-2 gap-3">
+      <div class="grid grid-cols-2 gap-3 shrink-0">
         <div class="rounded-2xl border border-white/[0.08] bg-white/[0.03] px-5 py-4 backdrop-blur-md">
           <p class="text-xs text-zinc-500">Efectividad</p>
           <p id="winrate" class="mt-1 text-3xl font-bold tabular-nums text-emerald-400">–</p>
@@ -59,43 +65,85 @@
 <script>
 const SUPABASE_URL = "https://bczbgryqhismhxkpjqak.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_HWeyLs26bxXzgA9SddyWsQ_OHEGcoqB";
-const STREAMER_NAME = "Nombre del Streamer";
-const AVATAR_URL = ""; // opcional: URL de la foto
 
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
 const BADGE = {
   pendiente: ["Pendiente", "bg-amber-500/10 text-amber-400 ring-amber-500/30 shadow-[0_0_14px_rgba(245,158,11,.25)]"],
   ganada:    ["Ganada",    "bg-emerald-500/10 text-emerald-400 ring-emerald-500/30 shadow-[0_0_14px_rgba(16,185,129,.3)]"],
   perdida:   ["Perdida",   "bg-rose-500/10 text-rose-400 ring-rose-500/30 shadow-[0_0_14px_rgba(244,63,94,.25)]"],
-  anulada:   ["Anulada",   "bg-zinc-500/10 text-zinc-400 ring-zinc-500/30"]
+  anulada:   ["Anulada",   "bg-zinc-500/10 text-zinc-400 ring-zinc-500/30"],
+  PENDIENTE: ["Pendiente", "bg-amber-500/10 text-amber-400 ring-amber-500/30 shadow-[0_0_14px_rgba(245,158,11,.25)]"],
+  GANADA:    ["Ganada",    "bg-emerald-500/10 text-emerald-400 ring-emerald-500/30 shadow-[0_0_14px_rgba(16,185,129,.3)]"],
+  PERDIDA:   ["Perdida",   "bg-rose-500/10 text-rose-400 ring-rose-500/30 shadow-[0_0_14px_rgba(244,63,94,.25)]"],
+  ANULADA:   ["Anulada",   "bg-zinc-500/10 text-zinc-400 ring-zinc-500/30"]
 };
+
 const badge = e => { const [t, c] = BADGE[e] || BADGE.anulada; return `<span class="rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${c}">${t}</span>`; };
 const FILTERS = [["todas","Todas"],["pendiente","Pendientes"],["ganada","Ganadas"],["perdida","Perdidas"]];
-let picks = [], filter = "todas";
 
-$("name").textContent = STREAMER_NAME;
-if (AVATAR_URL) $("avatar").style.backgroundImage = `url("${AVATAR_URL}")`;
-else $("avatar").textContent = STREAMER_NAME.trim().charAt(0).toUpperCase();
+let picks = [], filter = "todas", currentProfile = null;
+
+// Obtener parámetro de URL (?u=username)
+const urlParams = new URLSearchParams(window.location.search);
+const targetUsername = urlParams.get('u')?.toLowerCase() || null;
 
 function renderFilters() {
   $("filters").innerHTML = FILTERS.map(([k, l]) =>
     `<button data-f="${k}" class="rounded-full border px-4 py-1.5 text-sm font-medium transition-all duration-200 ease-out ${k === filter ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-300" : "border-white/[0.08] bg-[#121215] text-zinc-400 hover:border-white/15 hover:text-zinc-200"}">${l}</button>`).join("");
 }
 
+function renderProfile(p) {
+  if (!p) {
+    $("name").textContent = "Fijas & Pronósticos";
+    $("avatar").textContent = "F";
+    return;
+  }
+  $("name").textContent = p.nombre_publico || "Streamer";
+  if (p.username) $("usernameBadge").textContent = `@${p.username}`;
+  if (p.bio) $("bio").textContent = p.bio;
+
+  if (p.avatar_url) {
+    $("avatar").style.backgroundImage = `url("${p.avatar_url}")`;
+    $("avatar").textContent = "";
+  } else {
+    $("avatar").style.backgroundImage = "none";
+    $("avatar").textContent = (p.nombre_publico || "S").trim().charAt(0).toUpperCase();
+  }
+
+  // Redes sociales
+  const redes = [
+    { k: 'kick_url', l: 'Kick', c: 'hover:border-emerald-500/40 hover:text-emerald-400' },
+    { k: 'telegram_url', l: 'Telegram VIP', c: 'hover:border-sky-500/40 hover:text-sky-400' },
+    { k: 'twitch_url', l: 'Twitch', c: 'hover:border-purple-500/40 hover:text-purple-400' },
+    { k: 'youtube_url', l: 'YouTube', c: 'hover:border-red-500/40 hover:text-red-400' },
+    { k: 'twitter_url', l: 'X / Twitter', c: 'hover:border-zinc-500 hover:text-zinc-200' },
+    { k: 'instagram_url', l: 'Instagram', c: 'hover:border-pink-500/40 hover:text-pink-400' }
+  ];
+
+  $("socials").innerHTML = redes
+    .filter(r => p[r.k])
+    .map(r => `<a href="${esc(p[r.k])}" target="_blank" rel="noopener" class="rounded-lg border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-xs text-zinc-400 transition-all duration-200 ${r.c}">${r.l} ↗</a>`)
+    .join("");
+}
+
 function renderStats() {
-  const g = picks.filter(p => p.estado === "ganada").length;
-  const r = g + picks.filter(p => p.estado === "perdida").length;
+  const g = picks.filter(p => (p.estado || "").toLowerCase() === "ganada").length;
+  const r = g + picks.filter(p => (p.estado || "").toLowerCase() === "perdida").length;
   $("winrate").textContent = r ? Math.round(g / r * 100) + "%" : "–";
   $("resolved").textContent = r;
 }
 
 function renderFeatured() {
-  const p = picks.find(x => x.destacada && x.estado === "pendiente") || picks.find(x => x.destacada);
+  const p = picks.find(x => x.destacada && (x.estado || "").toLowerCase() === "pendiente") || picks.find(x => x.destacada);
   if (!p) { $("featured").innerHTML = ""; return; }
   const dots = Array.from({length: 5}, (_, i) => `<span class="h-1.5 w-5 rounded-full ${i < (p.confianza || 0) ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,.6)]" : "bg-white/10"}"></span>`).join("");
+  const seleccion = p.seleccion || p.prediccion || "";
+  const casa = p.casa_de_apuestas || p.casa_apuestas || "";
+
   $("featured").innerHTML = `
   <div class="relative overflow-hidden rounded-3xl border border-emerald-400/20 bg-[#121215] p-6 transition-all duration-200 ease-out hover:border-emerald-400/35 sm:p-8">
     <div class="pointer-events-none absolute -left-20 -bottom-24 h-64 w-64 rounded-full bg-emerald-500/10 blur-3xl"></div>
@@ -103,41 +151,64 @@ function renderFeatured() {
       <div>
         <div class="flex items-center gap-3"><span class="rounded-full bg-emerald-400/10 px-2.5 py-1 text-xs font-semibold text-emerald-300 ring-1 ring-inset ring-emerald-400/30">Fija destacada del día</span>${badge(p.estado)}</div>
         <p class="mt-4 text-sm text-zinc-400">${esc(p.deporte)} · ${esc(p.evento)}</p>
-        <h2 class="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">${esc(p.seleccion)}</h2>
+        <h2 class="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">${esc(seleccion)}</h2>
         ${p.nota ? `<p class="mt-4 max-w-xl text-sm leading-relaxed text-zinc-400">${esc(p.nota)}</p>` : ""}
         ${p.confianza ? `<div class="mt-5 flex items-center gap-3"><div class="flex gap-1">${dots}</div><span class="text-xs text-zinc-500">Confianza ${p.confianza}/5</span></div>` : ""}
       </div>
       <div class="rounded-2xl border border-white/[0.08] bg-white/[0.03] px-8 py-5 text-center backdrop-blur-md">
         <p class="text-xs text-zinc-500">Cuota</p>
         <p class="text-6xl font-extrabold tabular-nums tracking-tight text-emerald-400">${Number(p.cuota).toFixed(2)}</p>
-        <p class="mt-1 text-xs text-zinc-400">${esc(p.casa_de_apuestas)}</p>
+        <p class="mt-1 text-xs text-zinc-400">${esc(casa)}</p>
       </div>
     </div>
   </div>`;
 }
 
 function renderGrid() {
-  const list = picks.filter(p => filter === "todas" || p.estado === filter);
-  $("grid").innerHTML = list.length ? list.map(p => `
-  <article class="rounded-2xl border border-white/[0.08] bg-[#121215] p-5 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-white/15">
-    <div class="flex items-center justify-between"><span class="text-xs font-medium text-zinc-400">${esc(p.deporte)}</span>${badge(p.estado)}</div>
-    <h3 class="mt-3 font-semibold">${esc(p.evento)}</h3>
-    <p class="mt-1 text-sm text-zinc-400">${esc(p.seleccion)}</p>
-    <div class="mt-5 flex items-end justify-between border-t border-white/[0.06] pt-4">
-      <div><p class="text-xs text-zinc-500">Cuota</p><p class="text-2xl font-bold tabular-nums">${Number(p.cuota).toFixed(2)}</p></div>
-      <span class="text-xs text-zinc-500">${esc(p.casa_de_apuestas)}</span>
-    </div>
-  </article>`).join("")
+  const list = picks.filter(p => filter === "todas" || (p.estado || "").toLowerCase() === filter);
+  $("grid").innerHTML = list.length ? list.map(p => {
+    const seleccion = p.seleccion || p.prediccion || "";
+    const casa = p.casa_de_apuestas || p.casa_apuestas || "";
+    return `
+    <article class="rounded-2xl border border-white/[0.08] bg-[#121215] p-5 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-white/15">
+      <div class="flex items-center justify-between"><span class="text-xs font-medium text-zinc-400">${esc(p.deporte)}</span>${badge(p.estado)}</div>
+      <h3 class="mt-3 font-semibold">${esc(p.evento)}</h3>
+      <p class="mt-1 text-sm text-zinc-400">${esc(seleccion)}</p>
+      <div class="mt-5 flex items-end justify-between border-t border-white/[0.06] pt-4">
+        <div><p class="text-xs text-zinc-500">Cuota</p><p class="text-2xl font-bold tabular-nums">${Number(p.cuota).toFixed(2)}</p></div>
+        <span class="text-xs text-zinc-500">${esc(casa)}</span>
+      </div>
+    </article>`;
+  }).join("")
   : `<p class="col-span-full rounded-2xl border border-dashed border-white/10 p-10 text-center text-sm text-zinc-500">No hay fijas en este estado todavía.</p>`;
 }
 
 async function load() {
-  const { data, error } = await supabaseClient.from("picks").select("*").order("created_at", { ascending: false }).limit(60);
+  // 1. Cargar Perfil
+  let profileQuery = supabaseClient.from("perfiles").select("*");
+  if (targetUsername) {
+    profileQuery = profileQuery.eq("username", targetUsername);
+  }
+  const { data: profileData } = await profileQuery.limit(1);
+  currentProfile = profileData && profileData.length ? profileData[0] : null;
+  renderProfile(currentProfile);
+
+  // 2. Cargar Picks (filtrando por user_id si se encontró el perfil)
+  let picksQuery = supabaseClient.from("picks").select("*").order("created_at", { ascending: false }).limit(60);
+  if (currentProfile) {
+    picksQuery = picksQuery.eq("user_id", currentProfile.id);
+  }
+
+  const { data, error } = await picksQuery;
   if (error) {
-    $("grid").innerHTML = `<p class="col-span-full rounded-2xl border border-rose-500/20 bg-rose-500/5 p-6 text-sm text-rose-300">No se pudieron cargar las fijas. Revisa SUPABASE_URL, SUPABASE_ANON_KEY y las políticas RLS.</p>`;
+    $("grid").innerHTML = `<p class="col-span-full rounded-2xl border border-rose-500/20 bg-rose-500/5 p-6 text-sm text-rose-300">No se pudieron cargar las fijas. Revisa la configuración de Supabase.</p>`;
     return;
   }
-  picks = data; renderStats(); renderFeatured(); renderGrid();
+
+  picks = data; 
+  renderStats(); 
+  renderFeatured(); 
+  renderGrid();
 }
 
 $("filters").addEventListener("click", e => {
@@ -147,6 +218,8 @@ $("filters").addEventListener("click", e => {
 
 $("grid").innerHTML = Array.from({length: 3}, () => `<div class="h-40 animate-pulse rounded-2xl border border-white/[0.08] bg-[#121215]"></div>`).join("");
 renderFilters(); load();
+
+// Suscripción en tiempo real
 supabaseClient.channel("picks-live").on("postgres_changes", { event: "*", schema: "public", table: "picks" }, load).subscribe();
 </script>
 </body>
