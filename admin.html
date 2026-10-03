@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Panel · Fijas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config={theme:{extend:{fontFamily:{sans:['"Plus Jakarta Sans"','system-ui','sans-serif']}}}}</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  .inp{width:100%;border-radius:.75rem;border:1px solid rgba(255,255,255,.08);background:#09090b;padding:.6rem .8rem;font-size:.875rem;color:#f4f4f5;transition:all .2s ease-out;outline:none}
+  .inp:hover{border-color:rgba(255,255,255,.15)}
+  .inp:focus{border-color:rgba(52,211,153,.5);box-shadow:0 0 0 3px rgba(52,211,153,.12)}
+  .lbl{display:block;margin-bottom:.35rem;font-size:.75rem;font-weight:500;color:#a1a1aa}
+</style>
+</head>
+<body class="bg-[#09090b] font-sans text-zinc-100 antialiased">
+
+<!-- Login -->
+<main id="login" class="grid min-h-screen place-items-center p-4">
+  <form id="loginForm" class="w-full max-w-sm space-y-4 rounded-3xl border border-white/[0.08] bg-[#121215] p-8 backdrop-blur-md">
+    <div>
+      <h1 class="text-2xl font-extrabold tracking-tight">Iniciar sesión</h1>
+      <p class="mt-1 text-sm text-zinc-400">Acceso exclusivo para el streamer.</p>
+    </div>
+    <div><label class="lbl" for="email">Correo</label><input id="email" type="email" required autocomplete="email" class="inp"></div>
+    <div><label class="lbl" for="password">Contraseña</label><input id="password" type="password" required autocomplete="current-password" class="inp"></div>
+    <p id="loginErr" role="alert" class="hidden rounded-xl border border-rose-500/20 bg-rose-500/5 px-3 py-2 text-sm text-rose-300"></p>
+    <button id="loginBtn" class="w-full rounded-xl bg-emerald-400 py-2.5 text-sm font-semibold text-black transition-all duration-200 ease-out hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60">Entrar</button>
+  </form>
+</main>
+
+<!-- Dashboard -->
+<div id="dash" class="mx-auto hidden max-w-6xl space-y-4 px-4 py-8">
+  <header class="flex items-center justify-between rounded-2xl border border-white/[0.08] bg-[#121215] px-5 py-4">
+    <div><h1 class="text-lg font-extrabold tracking-tight">Panel de fijas</h1><p id="who" class="text-xs text-zinc-500"></p></div>
+    <button id="logout" class="rounded-xl border border-white/[0.08] px-4 py-2 text-sm text-zinc-300 transition-all duration-200 ease-out hover:border-white/15 hover:bg-white/5">Cerrar sesión</button>
+  </header>
+
+  <div class="grid gap-4 lg:grid-cols-5">
+    <form id="pickForm" class="space-y-3 rounded-3xl border border-white/[0.08] bg-[#121215] p-6 lg:col-span-2">
+      <h2 class="font-bold">Publicar fija</h2>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="lbl" for="deporte">Deporte</label><input id="deporte" required placeholder="Fútbol" class="inp"></div>
+        <div><label class="lbl" for="cuota">Cuota</label><input id="cuota" type="number" step="0.01" min="1.01" required placeholder="1.85" class="inp"></div>
+      </div>
+      <div><label class="lbl" for="evento">Evento</label><input id="evento" required placeholder="Alianza Lima vs Universitario" class="inp"></div>
+      <div><label class="lbl" for="seleccion">Predicción</label><input id="seleccion" required placeholder="Más de 2.5 goles" class="inp"></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="lbl" for="casa">Casa de apuestas</label><input id="casa" required placeholder="Betano" class="inp"></div>
+        <div><label class="lbl" for="confianza">Confianza</label>
+          <select id="confianza" class="inp"><option value="">Sin definir</option><option>1</option><option>2</option><option>3</option><option selected>4</option><option>5</option></select></div>
+      </div>
+      <div><label class="lbl" for="fecha">Fecha del evento</label><input id="fecha" type="datetime-local" required class="inp"></div>
+      <div><label class="lbl" for="nota">Nota explicativa</label><textarea id="nota" rows="2" class="inp" placeholder="Por qué es una buena fija"></textarea></div>
+      <label class="flex cursor-pointer items-center gap-2 text-sm text-zinc-300"><input id="destacada" type="checkbox" class="h-4 w-4 accent-emerald-400">Marcar como fija destacada</label>
+      <p id="formMsg" role="status" class="hidden rounded-xl px-3 py-2 text-sm"></p>
+      <button id="pubBtn" class="w-full rounded-xl bg-emerald-400 py-2.5 text-sm font-semibold text-black transition-all duration-200 ease-out hover:bg-emerald-300 disabled:opacity-60">Publicar fija</button>
+    </form>
+
+    <section class="rounded-3xl border border-white/[0.08] bg-[#121215] p-6 lg:col-span-3">
+      <h2 class="mb-4 font-bold">Control rápido</h2>
+      <div id="rows" class="space-y-2"></div>
+    </section>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://TU-PROYECTO.supabase.co";
+const SUPABASE_ANON_KEY = "TU_ANON_KEY";
+
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const COLOR = { pendiente: "text-amber-400 bg-amber-500/10", ganada: "text-emerald-400 bg-emerald-500/10", perdida: "text-rose-400 bg-rose-500/10", anulada: "text-zinc-400 bg-zinc-500/10" };
+
+function show(el, msg, ok) {
+  el.textContent = msg; el.classList.remove("hidden", "bg-rose-500/10", "text-rose-300", "bg-emerald-500/10", "text-emerald-300");
+  el.classList.add(...(ok ? ["bg-emerald-500/10", "text-emerald-300"] : ["bg-rose-500/10", "text-rose-300"]));
+}
+const nowLocal = () => new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 16);
+
+// --- Auth ---
+supabaseClient.auth.onAuthStateChange((_e, session) => {
+  $("login").classList.toggle("hidden", !!session);
+  $("dash").classList.toggle("hidden", !session);
+  if (session) { $("who").textContent = session.user.email; $("fecha").value ||= nowLocal(); setTimeout(load, 0); }
+});
+
+$("loginForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const btn = $("loginBtn"); btn.disabled = true; btn.textContent = "Entrando…"; $("loginErr").classList.add("hidden");
+  const { error } = await supabaseClient.auth.signInWithPassword({ email: $("email").value.trim(), password: $("password").value });
+  btn.disabled = false; btn.textContent = "Entrar";
+  if (error) { $("loginErr").textContent = /invalid/i.test(error.message) ? "Correo o contraseña incorrectos." : "No se pudo iniciar sesión: " + error.message; $("loginErr").classList.remove("hidden"); }
+});
+$("logout").addEventListener("click", () => supabaseClient.auth.signOut());
+
+// --- Publicar ---
+$("pickForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const btn = $("pubBtn"); btn.disabled = true; btn.textContent = "Publicando…";
+  const row = {
+    deporte: $("deporte").value.trim(), evento: $("evento").value.trim(), seleccion: $("seleccion").value.trim(),
+    cuota: parseFloat($("cuota").value), casa_de_apuestas: $("casa").value.trim(),
+    fecha_evento: new Date($("fecha").value).toISOString(),
+    confianza: $("confianza").value ? +$("confianza").value : null, nota: $("nota").value.trim() || null,
+    destacada: $("destacada").checked
+  };
+  if (row.destacada) await supabaseClient.from("picks").update({ destacada: false }).eq("destacada", true);
+  const { error } = await supabaseClient.from("picks").insert(row);
+  btn.disabled = false; btn.textContent = "Publicar fija";
+  if (error) return show($("formMsg"), "No se pudo publicar: " + error.message, false);
+  $("pickForm").reset(); $("fecha").value = nowLocal(); $("confianza").value = "4";
+  show($("formMsg"), "Fija publicada.", true); load();
+});
+
+// --- Tabla ---
+async function load() {
+  const { data, error } = await supabaseClient.from("picks").select("*").order("created_at", { ascending: false }).limit(50);
+  if (error) { $("rows").innerHTML = `<p class="text-sm text-rose-300">No se pudo cargar: ${esc(error.message)}</p>`; return; }
+  $("rows").innerHTML = data.length ? data.map(p => `
+  <div class="flex items-center justify-between gap-3 rounded-2xl border border-white/[0.08] bg-[#09090b] p-3 transition-all duration-200 ease-out hover:border-white/15">
+    <div class="min-w-0">
+      <p class="truncate text-sm font-semibold">${p.destacada ? "★ " : ""}${esc(p.evento)}</p>
+      <p class="truncate text-xs text-zinc-400">${esc(p.seleccion)} · @${Number(p.cuota).toFixed(2)} · ${esc(p.casa_de_apuestas)}</p>
+      <span class="mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${COLOR[p.estado]}">${esc(p.estado)}</span>
+    </div>
+    <div class="flex shrink-0 gap-1.5" data-id="${p.id}">
+      <button data-act="ganada" title="Marcar ganada" class="rounded-lg border border-emerald-500/30 px-3 py-1.5 text-emerald-400 transition-all duration-200 hover:bg-emerald-500/10">✔</button>
+      <button data-act="perdida" title="Marcar perdida" class="rounded-lg border border-rose-500/30 px-3 py-1.5 text-rose-400 transition-all duration-200 hover:bg-rose-500/10">✖</button>
+      <button data-act="delete" title="Eliminar" class="rounded-lg border border-white/[0.08] px-3 py-1.5 transition-all duration-200 hover:bg-white/5">🗑</button>
+    </div>
+  </div>`).join("") : `<p class="rounded-2xl border border-dashed border-white/10 p-8 text-center text-sm text-zinc-500">Aún no hay fijas. Publica la primera desde el formulario.</p>`;
+}
+
+$("rows").addEventListener("click", async e => {
+  const b = e.target.closest("button[data-act]"); if (!b) return;
+  const id = b.parentElement.dataset.id, act = b.dataset.act;
+  if (act === "delete" && !confirm("¿Eliminar esta fija definitivamente?")) return;
+  b.disabled = true;
+  const q = supabaseClient.from("picks");
+  const { error } = act === "delete" ? await q.delete().eq("id", id) : await q.update({ estado: act }).eq("id", id);
+  if (error) alert("No se pudo completar la acción: " + error.message);
+  load();
+});
+</script>
+</body>
+</html>
