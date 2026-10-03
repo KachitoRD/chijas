@@ -19,6 +19,14 @@
 <body class="bg-[#09090b] font-sans text-zinc-100 antialiased">
 <div class="mx-auto max-w-5xl space-y-4 px-4 py-8 sm:py-12">
 
+  <!-- Selector global de streamer -->
+  <div class="flex items-center justify-between gap-4 rounded-2xl border border-white/[0.08] bg-[#121215] px-5 py-3">
+    <label for="streamerSelect" class="text-xs font-semibold uppercase tracking-wider text-zinc-400">Seleccionar Streamer:</label>
+    <select id="streamerSelect" class="rounded-xl border border-white/10 bg-[#1a1a1e] px-3 py-1.5 text-sm font-medium text-emerald-400 outline-none transition hover:border-emerald-500/50 focus:border-emerald-400">
+      <option value="">Cargando lista...</option>
+    </select>
+  </div>
+
   <!-- Hero / Header del Streamer -->
   <header class="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-[#121215] p-6 transition-all duration-200 ease-out hover:border-white/15 sm:p-10">
     <div class="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-emerald-500/10 blur-3xl"></div>
@@ -85,11 +93,7 @@ const BADGE = {
 const badge = e => { const [t, c] = BADGE[e] || BADGE.anulada; return `<span class="rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${c}">${t}</span>`; };
 const FILTERS = [["todas","Todas"],["pendiente","Pendientes"],["ganada","Ganadas"],["perdida","Perdidas"]];
 
-let picks = [], filter = "todas", currentProfile = null;
-
-// Obtener parámetro de URL (?u=username)
-const urlParams = new URLSearchParams(window.location.search);
-const targetUsername = urlParams.get('u')?.toLowerCase() || null;
+let picks = [], filter = "todas", currentProfile = null, allProfiles = [];
 
 function renderFilters() {
   $("filters").innerHTML = FILTERS.map(([k, l]) =>
@@ -98,13 +102,17 @@ function renderFilters() {
 
 function renderProfile(p) {
   if (!p) {
-    $("name").textContent = "Fijas & Pronósticos";
-    $("avatar").textContent = "F";
+    $("name").textContent = "Sin streamer seleccionado";
+    $("usernameBadge").textContent = "";
+    $("bio").textContent = "Selecciona un streamer de la lista superior para ver sus fijas.";
+    $("avatar").style.backgroundImage = "none";
+    $("avatar").textContent = "?";
+    $("socials").innerHTML = "";
     return;
   }
   $("name").textContent = p.nombre_publico || "Streamer";
-  if (p.username) $("usernameBadge").textContent = `@${p.username}`;
-  if (p.bio) $("bio").textContent = p.bio;
+  $("usernameBadge").textContent = p.username ? `@${p.username}` : "";
+  $("bio").textContent = p.bio || "Sus fijas, publicadas al momento y con resultado verificable.";
 
   if (p.avatar_url) {
     $("avatar").style.backgroundImage = `url("${p.avatar_url}")`;
@@ -114,7 +122,6 @@ function renderProfile(p) {
     $("avatar").textContent = (p.nombre_publico || "S").trim().charAt(0).toUpperCase();
   }
 
-  // Redes sociales
   const redes = [
     { k: 'kick_url', l: 'Kick', c: 'hover:border-emerald-500/40 hover:text-emerald-400' },
     { k: 'telegram_url', l: 'Telegram VIP', c: 'hover:border-sky-500/40 hover:text-sky-400' },
@@ -183,33 +190,89 @@ function renderGrid() {
   : `<p class="col-span-full rounded-2xl border border-dashed border-white/10 p-10 text-center text-sm text-zinc-500">No hay fijas en este estado todavía.</p>`;
 }
 
-async function load() {
-  // 1. Cargar Perfil
-  let profileQuery = supabaseClient.from("perfiles").select("*");
-  if (targetUsername) {
-    profileQuery = profileQuery.eq("username", targetUsername);
-  }
-  const { data: profileData } = await profileQuery.limit(1);
-  currentProfile = profileData && profileData.length ? profileData[0] : null;
-  renderProfile(currentProfile);
-
-  // 2. Cargar Picks (filtrando por user_id si se encontró el perfil)
-  let picksQuery = supabaseClient.from("picks").select("*").order("created_at", { ascending: false }).limit(60);
-  if (currentProfile) {
-    picksQuery = picksQuery.eq("user_id", currentProfile.id);
-  }
-
-  const { data, error } = await picksQuery;
-  if (error) {
-    $("grid").innerHTML = `<p class="col-span-full rounded-2xl border border-rose-500/20 bg-rose-500/5 p-6 text-sm text-rose-300">No se pudieron cargar las fijas. Revisa la configuración de Supabase.</p>`;
+async function initStreamerSelect(targetUser) {
+  const { data: profiles } = await supabaseClient.from("perfiles").select("username, nombre_publico").order("nombre_publico");
+  allProfiles = profiles || [];
+  
+  const select = $("streamerSelect");
+  if (!allProfiles.length) {
+    select.innerHTML = `<option value="">Sin streamers</option>`;
     return;
   }
 
-  picks = data; 
-  renderStats(); 
-  renderFeatured(); 
+  select.innerHTML = allProfiles
+    .map(p => `<option value="${esc(p.username)}"${p.username?.toLowerCase() === targetUser ? " selected" : ""}>${esc(p.nombre_publico || p.username)} (@${esc(p.username)})</option>`)
+    .join("");
+}
+
+async function loadPicksForUser(userParam) {
+  // 1. Obtener Perfil
+  let queryProf = supabaseClient.from("perfiles").select("*");
+  if (userParam) {
+    queryProf = queryProf.eq("username", userParam);
+  }
+  const { data: profData } = await queryProf.limit(1);
+  currentProfile = profData && profData.length ? profData[0] : null;
+
+  // Si no se encontró un streamer específico pero hay lista, toma el primero por defecto
+  if (!currentProfile && allProfiles.length) {
+    const { data: defaultProf } = await supabaseClient.from("perfiles").select("*").eq("username", allProfiles[0].username).limit(1);
+    currentProfile = defaultProf ? defaultProf[0] : null;
+  }
+
+  renderProfile(currentProfile);
+
+  if (!currentProfile) {
+    picks = [];
+    renderStats();
+    renderFeatured();
+    renderGrid();
+    return;
+  }
+
+  // Actualizar el valor del selector si cambió programáticamente
+  if ($("streamerSelect").value !== currentProfile.username) {
+    $("streamerSelect").value = currentProfile.username;
+  }
+
+  // 2. Cargar las fijas del streamer
+  const { data, error } = await supabaseClient
+    .from("picks")
+    .select("*")
+    .eq("user_id", currentProfile.id)
+    .order("created_at", { ascending: false })
+    .limit(60);
+
+  if (error) {
+    $("grid").innerHTML = `<p class="col-span-full rounded-2xl border border-rose-500/20 bg-rose-500/5 p-6 text-sm text-rose-300">Error al cargar fijas.</p>`;
+    return;
+  }
+
+  picks = data || [];
+  renderStats();
+  renderFeatured();
   renderGrid();
 }
+
+async function start() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const targetUser = urlParams.get('u')?.toLowerCase() || null;
+
+  await initStreamerSelect(targetUser);
+  await loadPicksForUser(targetUser);
+}
+
+// Evento al cambiar de streamer en el selector
+$("streamerSelect").addEventListener("change", e => {
+  const selectedUser = e.target.value;
+  if (!selectedUser) return;
+
+  // Actualizar URL sin recargar
+  const newUrl = `${window.location.pathname}?u=${encodeURIComponent(selectedUser)}`;
+  window.history.pushState({ path: newUrl }, '', newUrl);
+
+  loadPicksForUser(selectedUser);
+});
 
 $("filters").addEventListener("click", e => {
   const b = e.target.closest("button[data-f]"); if (!b) return;
@@ -217,10 +280,14 @@ $("filters").addEventListener("click", e => {
 });
 
 $("grid").innerHTML = Array.from({length: 3}, () => `<div class="h-40 animate-pulse rounded-2xl border border-white/[0.08] bg-[#121215]"></div>`).join("");
-renderFilters(); load();
+renderFilters(); 
+start();
 
 // Suscripción en tiempo real
-supabaseClient.channel("picks-live").on("postgres_changes", { event: "*", schema: "public", table: "picks" }, load).subscribe();
+supabaseClient.channel("picks-live").on("postgres_changes", { event: "*", schema: "public", table: "picks" }, () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  loadPicksForUser(urlParams.get('u')?.toLowerCase());
+}).subscribe();
 </script>
 </body>
 </html>
