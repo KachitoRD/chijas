@@ -91,3 +91,21 @@ Si ya hay perfiles en Firestore de antes de las reglas de aprobación, revisa ca
 - `picks/{id}`: pronósticos públicos; las reglas exigen un tipster aprobado y limitan las escrituras a su propietario. `show_on_stream` es un booleano opcional que el tipster puede activar para incluir ese pronóstico en su widget.
 
 La presencia significa que el tipster mantiene abierta su sesión del panel; no indica que esté transmitiendo en Twitch, Kick u otra plataforma.
+
+## Revisar JavaScript con ESLint
+
+ESLint y sus dependencias son herramientas gratuitas de desarrollo. Instálalas una vez en la carpeta del proyecto y ejecuta la revisión antes de publicar cambios:
+
+```powershell
+npm install
+npm run lint
+```
+
+La configuración revisa los archivos JavaScript y el JavaScript embebido en las páginas HTML. Para ver los avisos directamente mientras editas, instala la extensión **ESLint** oficial en VS Code.
+
+## Limitaciones conocidas
+
+- La actualización de `perfiles_social` está cerca del límite de 1.000 expresiones de Firestore.
+- Algunas operaciones inválidas se deniegan, pero el motivo puede ser el límite de expresiones y no la condición específica, como HTTPS o `tipster_status`.
+- La Sub-fase B, con solicitudes de cambios de perfil aprobadas por un admin, elimina la actualización compleja del tipster y resolverá este problema de raíz.
+- Mientras tanto, si falla una actualización legítima del perfil, edita un campo a la vez.

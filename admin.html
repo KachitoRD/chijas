@@ -123,15 +123,15 @@
       <section id="picksView" aria-labelledby="picksTab">
         <div class="grid items-start gap-5 lg:grid-cols-[minmax(290px,.78fr)_minmax(0,1.45fr)]">
           <form id="pickForm" class="space-y-4 rounded-2xl border border-white/[.08] bg-[#111114] p-5 sm:p-6">
-            <div><h2 id="pickFormTitle" class="text-lg font-bold">Publicar pronóstico</h2><p id="pickFormHint" class="mt-1 text-xs text-zinc-500">Completa los datos del evento y tu selección.</p><p id="pickLimitHint" class="mt-1 text-xs text-zinc-500"></p></div>
+            <div><h2 id="pickFormTitle" class="text-lg font-bold">Publicar pronóstico</h2><p id="pickFormHint" class="mt-1 text-xs text-zinc-500">Completa los datos del evento y tu selección.</p><p id="pickLimitHint" class="mt-1 whitespace-pre-line text-xs text-zinc-500"></p></div>
             <div class="grid grid-cols-2 gap-3">
-              <div><label for="sport" class="label">Deporte</label><input id="sport" class="input" placeholder="Fútbol" maxlength="50" required></div>
+              <div><label for="sport" class="label">Deporte</label><select id="sport" class="input" required><option value="futbol">Fútbol</option><option value="baloncesto">Baloncesto</option><option value="tenis">Tenis</option><option value="beisbol">Béisbol</option><option value="esports">Esports</option><option value="otro">Otro</option></select></div>
               <div><label for="odds" class="label">Cuota</label><input id="odds" class="input" type="number" min="1.01" max="1000" step="0.01" inputmode="decimal" placeholder="1.85" required></div>
             </div>
             <div><label for="event" class="label">Evento</label><input id="event" class="input" placeholder="Equipo A vs. Equipo B" maxlength="120" required></div>
             <div><label for="selection" class="label">Pronóstico</label><input id="selection" class="input" placeholder="Más de 2.5 goles" maxlength="120" required></div>
             <div class="grid grid-cols-2 gap-3">
-              <div><label for="bookmaker" class="label">Casa de apuestas</label><input id="bookmaker" class="input" placeholder="Betano" maxlength="60" required></div>
+              <div><label for="bookmaker" class="label">Casa de apuestas</label><select id="bookmaker" class="input" required><option value="betano">Betano</option><option value="inkabet">Inkabet</option><option value="te_apuesto">Te Apuesto</option><option value="betsson">Betsson</option><option value="doradobet">Doradobet</option><option value="apuesta_total">Apuesta Total</option><option value="bet365">bet365</option><option value="otra">Otra</option></select></div>
               <div><label for="confidence" class="label">Confianza</label><select id="confidence" class="input"><option value="">Sin indicar</option><option value="1">1 de 5</option><option value="2">2 de 5</option><option value="3">3 de 5</option><option value="4" selected>4 de 5</option><option value="5">5 de 5</option></select></div>
             </div>
             <div><label for="eventDate" class="label">Fecha del evento</label><input id="eventDate" class="input" type="datetime-local" required></div>
@@ -208,11 +208,12 @@
           <div><label for="bio" class="label">Descripción</label><textarea id="bio" class="input min-h-20 resize-y" rows="3" maxlength="280" placeholder="Cuéntale a tu comunidad sobre tus pronósticos."></textarea></div>
           <div class="grid gap-5 sm:grid-cols-2">
             <div><div class="flex items-center justify-between gap-3"><label for="avatarUrl" class="label">Foto de perfil</label><button id="removeAvatar" type="button" class="control mb-1 min-h-8 rounded-lg px-2 text-xs font-medium text-zinc-400 hover:text-rose-200">Quitar</button></div><div class="flex min-w-0 items-center gap-3"><img id="avatarPreview" src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" alt="Vista previa de la foto de perfil" width="52" height="52" class="hidden h-[52px] w-[52px] shrink-0 rounded-xl border border-white/10 bg-zinc-900 object-cover"><input id="avatarFile" type="file" accept="image/jpeg,image/png,image/webp" class="w-0 min-w-0 flex-1 overflow-hidden text-xs text-zinc-400 file:mr-2 file:rounded-lg file:border-0 file:bg-zinc-800 file:px-2.5 file:py-2 file:text-xs file:font-semibold file:text-zinc-200"></div><input id="avatarUrl" class="input mt-3" type="url" placeholder="O pega el enlace a una imagen"><p class="mt-1.5 text-xs leading-5 text-zinc-500">La imagen se guarda en Firestore como Base64. Máximo 200 KB tras comprimir.</p></div>
-            <div><div class="flex items-center justify-between gap-3"><label for="bannerUrl" class="label">Banner de perfil</label><button id="removeBanner" type="button" class="control mb-1 min-h-8 rounded-lg px-2 text-xs font-medium text-zinc-400 hover:text-rose-200">Quitar</button></div><img id="bannerPreview" src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" alt="Vista previa del banner" width="480" height="96" class="hidden mb-3 h-20 w-full rounded-xl border border-white/10 bg-zinc-900 object-cover"><input id="bannerFile" type="file" accept="image/jpeg,image/png,image/webp" class="block w-full text-xs text-zinc-400 file:mr-2 file:rounded-lg file:border-0 file:bg-zinc-800 file:px-2.5 file:py-2 file:text-xs file:font-semibold file:text-zinc-200"><input id="bannerUrl" class="input mt-3" type="url" placeholder="O pega el enlace a un banner"><p class="mt-1.5 text-xs leading-5 text-zinc-500">Se guarda en Firestore como Base64. Máximo 660 KB tras comprimir.</p></div>
+            <div><div class="flex items-center justify-between gap-3"><label for="bannerUrl" class="label">Banner de perfil</label><button id="removeBanner" type="button" class="control mb-1 min-h-8 rounded-lg px-2 text-xs font-medium text-zinc-400 hover:text-rose-200">Quitar</button></div><img id="bannerPreview" src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" alt="Vista previa del banner" width="480" height="96" class="hidden mb-3 h-20 w-full rounded-xl border border-white/10 bg-zinc-900 object-cover"><input id="bannerFile" type="file" accept="image/jpeg,image/png,image/webp" class="block w-full text-xs text-zinc-400 file:mr-2 file:rounded-lg file:border-0 file:bg-zinc-800 file:px-2.5 file:py-2 file:text-xs file:font-semibold file:text-zinc-200"><input id="bannerUrl" class="input mt-3" type="url" placeholder="O pega el enlace a un banner"><p class="mt-1.5 text-xs leading-5 text-zinc-500">Se guarda en Firestore como Base64. Máximo 200 KB tras comprimir.</p></div>
           </div>
           <div><label for="primaryColor" class="label">Color de acento de tu perfil</label><input id="primaryColor" type="color" value="#34d399" class="input h-11 cursor-pointer p-1"></div>
           <div class="border-t border-white/[.08] pt-5">
             <h3 class="mb-4 text-sm font-semibold">Redes y comunidad</h3>
+            <p class="mb-4 text-xs leading-5 text-zinc-400">Si el guardado falla, edita un campo a la vez.</p>
             <div class="grid gap-4 sm:grid-cols-2">
               <div><label for="kickUrl" class="label">Kick</label><input id="kickUrl" class="input" type="url" placeholder="https://kick.com/usuario"></div>
               <div><label for="twitchUrl" class="label">Twitch</label><input id="twitchUrl" class="input" type="url" placeholder="https://twitch.tv/usuario"></div>
@@ -240,12 +241,11 @@
   </div>
 
   <script type="module">
-    import { firebaseApp, firebaseConfigured, firebaseConfigError } from "./firebase-config.js";
+    import { firebaseApp, firebaseConfigured, firebaseConfigError, firebaseDb } from "./firebase-config.js";
     import { createUserWithEmailAndPassword, getAuth, onAuthStateChanged, sendEmailVerification, signInWithEmailAndPassword, signOut, updateProfile } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-    import { getFirestore, collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, orderBy, query, runTransaction, serverTimestamp, setDoc, updateDoc, where, limit } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+    import { collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, orderBy, query, runTransaction, serverTimestamp, setDoc, updateDoc, where, limit } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
     const $ = id => document.getElementById(id);
-    const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
     const TERMS_VERSION = "2026-10-03";
     const PRIVACY_VERSION = "2026-10-03";
     const profileFields = [
@@ -253,10 +253,10 @@
       ["telegramUrl", "telegram_url"], ["twitterUrl", "twitter_url"], ["instagramUrl", "instagram_url"]
     ];
     const pickColors = { pendiente: "text-amber-200 bg-amber-300/[.08] border-amber-300/15", ganada: "text-emerald-200 bg-emerald-300/[.08] border-emerald-300/15", perdida: "text-rose-200 bg-rose-300/[.08] border-rose-300/15", anulada: "text-zinc-300 bg-white/[.04] border-white/[.08]" };
-    const IMAGE_DATA_LIMITS = { avatar: 200 * 1024, banner: 660 * 1024 };
+    const IMAGE_DATA_LIMITS = { avatar: 200 * 1024, banner: 200 * 1024 };
     const IMAGE_DATA_PATTERN = /^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/;
     const WIDGET_FORMATS = new Set(["cascada", "compacto", "marcador"]);
-    let auth, db, currentUser = null, currentProfile = null, currentPicks = [], stopPicks = null, heartbeat = null, editingPickId = null, cropper = null, cropTarget = "avatar", croppedAvatar = null, croppedBanner = null, cropSourceUrl = null, isRegistrationMode = false, verificationFlowInProgress = false;
+    let auth, db, currentUser = null, currentProfile = null, currentPicks = [], stopPicks = null, heartbeat = null, editingPickId = null, cropper = null, cropTarget = "avatar", croppedAvatar = null, croppedBanner = null, cropSourceUrl = null, isRegistrationMode = false, verificationFlowInProgress = false, currentMonthlyPickLimit = 50;
     let selectedWidgetFormat = "cascada";
 
     function message(id, text, success = false) {
@@ -321,14 +321,17 @@
       const date = value?.toDate?.() ?? (value ? new Date(value) : new Date());
       return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
     }
-    function safeImageUrl(value, maxDataLength = IMAGE_DATA_LIMITS.banner) {
-      if (typeof value === "string" && value.length <= maxDataLength && IMAGE_DATA_PATTERN.test(value)) return value;
+    function safeExternalUrl(value) {
       try {
         const url = new URL(value);
-        return ["http:", "https:"].includes(url.protocol) ? url.href : "";
+        return url.protocol === "https:" && url.hostname ? url.href : "";
       } catch {
         return "";
       }
+    }
+    function safeImageUrl(value, maxDataLength = IMAGE_DATA_LIMITS.banner) {
+      if (typeof value === "string" && value.length <= maxDataLength && IMAGE_DATA_PATTERN.test(value)) return value;
+      return safeExternalUrl(value);
     }
     function updateImagePreviews() {
       const avatarSource = croppedAvatar || safeImageUrl($("avatarUrl").value.trim(), IMAGE_DATA_LIMITS.avatar);
@@ -413,7 +416,8 @@
         button.textContent = "Enviar solicitud";
       }
     }
-    function fillProfile(profile) {
+    function fillProfile(profile, social) {
+      profile = { ...profile, ...social };
       currentProfile = profile;
       $("username").value = profile.username || "";
       $("displayName").value = profile.nombre_publico || "";
@@ -452,36 +456,111 @@
       }
     }
     async function loadProfile() {
-      const snapshot = await getDoc(doc(db, "perfiles", currentUser.uid));
-      if (!snapshot.exists()) throw new Error("No se encontró el perfil de esta cuenta.");
-      fillProfile(snapshot.data());
+      const [profileSnapshot, socialSnapshot] = await Promise.all([
+        getDoc(doc(db, "perfiles", currentUser.uid)),
+        getDoc(doc(db, "perfiles_social", currentUser.uid))
+      ]);
+      if (!profileSnapshot.exists()) throw new Error("No se encontró el perfil de esta cuenta.");
+      fillProfile(profileSnapshot.data(), socialSnapshot.exists() ? socialSnapshot.data() : {});
     }
     function renderPicks() {
       $("myPicks").setAttribute("aria-busy", "false");
       $("pickCount").textContent = currentPicks.length ? `${currentPicks.length} recientes` : "";
       const streamPickCount = currentPicks.filter(pick => pick.show_on_stream === true).length;
       $("streamPickCount").textContent = `${streamPickCount} seleccionados`;
-      $("myPicks").innerHTML = currentPicks.length ? currentPicks.map(pick => {
+      const activePickCount = currentPicks.filter(pick => pick.estado === "pendiente").length;
+      const activeLimitMessage = activePickCount >= 50
+        ? `Aviso: hay ${activePickCount} pronósticos activos en los recientes. El límite de 50 es orientativo y no bloquea publicaciones.`
+        : `Pronósticos activos recientes: ${activePickCount}. El límite orientativo es 50 y no bloquea publicaciones.`;
+      const pickLimitHint = $("pickLimitHint");
+      pickLimitHint.className = `mt-1 whitespace-pre-line text-xs ${activePickCount >= 50 ? "text-amber-200" : "text-zinc-500"}`;
+      pickLimitHint.textContent = `Límite orientativo: ${currentMonthlyPickLimit} publicaciones al mes. En el plan gratuito no se bloquea automáticamente.\n${activeLimitMessage}`;
+      const list = $("myPicks");
+      list.replaceChildren();
+      if (!currentPicks.length) {
+        const empty = document.createElement("p");
+        empty.className = "rounded-xl border border-dashed border-white/[.12] px-4 py-8 text-center text-sm text-zinc-500";
+        empty.textContent = "Aún no tienes pronósticos. Publica el primero desde el formulario.";
+        list.append(empty);
+        return;
+      }
+      for (const pick of currentPicks) {
         const status = String(pick.estado || "pendiente").toLowerCase();
         const color = pickColors[status] || pickColors.pendiente;
         const timestamp = pick.fecha_evento?.toDate?.() ?? (pick.fecha_evento ? new Date(pick.fecha_evento) : null);
         const date = timestamp && Number.isFinite(timestamp.getTime()) ? new Intl.DateTimeFormat(navigator.language || "es", { dateStyle: "medium" }).format(timestamp) : "";
-        return `<article class="rounded-xl border border-white/[.07] bg-[#09090b] p-4">
-          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div class="min-w-0 flex-1">
-              <div class="flex flex-wrap items-center gap-2"><h3 class="font-semibold">${pick.destacada ? "Destacada · " : ""}${esc(pick.evento)}</h3><span class="rounded-full border px-2 py-0.5 text-[11px] font-medium ${color}">${esc(status[0].toUpperCase() + status.slice(1))}</span></div>
-              <p class="mt-1.5 text-sm text-zinc-400">${esc(pick.seleccion || pick.prediccion || "")}</p>
-              <p class="mt-2 text-xs text-zinc-500">${esc(pick.deporte || "")}${date ? ` / ${esc(date)}` : ""} / Cuota ${Number(pick.cuota || 0).toFixed(2)}</p>
-            </div>
-            <div class="flex flex-wrap gap-2">
-              <label class="flex min-h-9 cursor-pointer items-center gap-2 rounded-lg border border-white/10 px-3 text-xs font-semibold text-zinc-300 hover:bg-white/[.05]"><input type="checkbox" data-action="stream" data-id="${esc(pick.id)}" aria-label="Mostrar ${esc(pick.evento)} en el widget" class="h-4 w-4 accent-emerald-300" ${pick.show_on_stream === true ? "checked" : ""}><span>En stream</span></label>
-              <button type="button" data-action="edit" data-id="${esc(pick.id)}" class="control min-h-9 rounded-lg border border-white/10 px-3 text-xs font-semibold text-zinc-300 hover:bg-white/[.05]">Editar</button>
-              <label class="sr-only" for="status-${esc(pick.id)}">Resultado de ${esc(pick.evento)}</label><select id="status-${esc(pick.id)}" data-action="status" data-id="${esc(pick.id)}" class="control min-h-9 rounded-lg border border-white/10 bg-[#09090b] px-2.5 text-xs font-semibold text-zinc-300"><option value="pendiente" ${status === "pendiente" ? "selected" : ""}>Pendiente</option><option value="ganada" ${status === "ganada" ? "selected" : ""}>Ganada</option><option value="perdida" ${status === "perdida" ? "selected" : ""}>Perdida</option><option value="anulada" ${status === "anulada" ? "selected" : ""}>Anulada</option></select>
-              <button type="button" data-action="delete" data-id="${esc(pick.id)}" class="control min-h-9 rounded-lg border border-white/10 px-3 text-xs font-semibold text-zinc-400 hover:border-rose-300/20 hover:text-rose-200">Eliminar</button>
-            </div>
-          </div>
-        </article>`;
-      }).join("") : `<p class="rounded-xl border border-dashed border-white/[.12] px-4 py-8 text-center text-sm text-zinc-500">Aún no tienes pronósticos. Publica el primero desde el formulario.</p>`;
+        const article = document.createElement("article");
+        article.className = "rounded-xl border border-white/[.07] bg-[#09090b] p-4";
+        const row = document.createElement("div");
+        row.className = "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between";
+        const details = document.createElement("div");
+        details.className = "min-w-0 flex-1";
+        const headline = document.createElement("div");
+        headline.className = "flex flex-wrap items-center gap-2";
+        const event = document.createElement("h3");
+        event.className = "font-semibold";
+        event.textContent = `${pick.destacada ? "Destacada · " : ""}${pick.evento || ""}`;
+        const statusBadge = document.createElement("span");
+        statusBadge.className = `rounded-full border px-2 py-0.5 text-[11px] font-medium ${color}`;
+        statusBadge.textContent = status[0].toUpperCase() + status.slice(1);
+        headline.append(event, statusBadge);
+        const selection = document.createElement("p");
+        selection.className = "mt-1.5 text-sm text-zinc-400";
+        selection.textContent = pick.seleccion || pick.prediccion || "";
+        const metadata = document.createElement("p");
+        metadata.className = "mt-2 text-xs text-zinc-500";
+        metadata.textContent = `${pick.deporte || ""}${date ? ` / ${date}` : ""} / Cuota ${Number(pick.cuota || 0).toFixed(2)}`;
+        details.append(headline, selection, metadata);
+        const controls = document.createElement("div");
+        controls.className = "flex flex-wrap gap-2";
+
+        const streamLabel = document.createElement("label");
+        streamLabel.className = "flex min-h-9 cursor-pointer items-center gap-2 rounded-lg border border-white/10 px-3 text-xs font-semibold text-zinc-300 hover:bg-white/[.05]";
+        const streamInput = document.createElement("input");
+        streamInput.type = "checkbox";
+        streamInput.dataset.action = "stream";
+        streamInput.dataset.id = pick.id;
+        streamInput.setAttribute("aria-label", `Mostrar ${pick.evento || ""} en el widget`);
+        streamInput.className = "h-4 w-4 accent-emerald-300";
+        streamInput.checked = pick.show_on_stream === true;
+        const streamText = document.createElement("span");
+        streamText.textContent = "En stream";
+        streamLabel.append(streamInput, streamText);
+
+        const editButton = document.createElement("button");
+        editButton.type = "button";
+        editButton.dataset.action = "edit";
+        editButton.dataset.id = pick.id;
+        editButton.className = "control min-h-9 rounded-lg border border-white/10 px-3 text-xs font-semibold text-zinc-300 hover:bg-white/[.05]";
+        editButton.textContent = "Editar";
+
+        const statusLabel = document.createElement("label");
+        statusLabel.className = "sr-only";
+        statusLabel.htmlFor = `status-${pick.id}`;
+        statusLabel.textContent = `Resultado de ${pick.evento || ""}`;
+        const statusSelect = document.createElement("select");
+        statusSelect.id = `status-${pick.id}`;
+        statusSelect.dataset.action = "status";
+        statusSelect.dataset.id = pick.id;
+        statusSelect.className = "control min-h-9 rounded-lg border border-white/10 bg-[#09090b] px-2.5 text-xs font-semibold text-zinc-300";
+        for (const [value, label] of [["pendiente", "Pendiente"], ["ganada", "Ganada"], ["perdida", "Perdida"], ["anulada", "Anulada"]]) {
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = label;
+          option.selected = status === value;
+          statusSelect.append(option);
+        }
+        const deleteButton = document.createElement("button");
+        deleteButton.type = "button";
+        deleteButton.dataset.action = "delete";
+        deleteButton.dataset.id = pick.id;
+        deleteButton.className = "control min-h-9 rounded-lg border border-white/10 px-3 text-xs font-semibold text-zinc-400 hover:border-rose-300/20 hover:text-rose-200";
+        deleteButton.textContent = "Eliminar";
+        controls.append(streamLabel, editButton, statusLabel, statusSelect, deleteButton);
+        row.append(details, controls);
+        article.append(row);
+        list.append(article);
+      }
     }
     function subscribeToPicks() {
       if (stopPicks) stopPicks();
@@ -492,7 +571,10 @@
       }, error => {
         console.error("No se pudieron sincronizar los pronósticos:", error);
         $("myPicks").setAttribute("aria-busy", "false");
-        $("myPicks").innerHTML = `<p class="rounded-lg border border-rose-300/15 bg-rose-300/[.05] p-3 text-sm leading-5 text-rose-200">No se pudieron cargar tus pronósticos. Comprueba las reglas e índices de Firestore.</p>`;
+        const errorMessage = document.createElement("p");
+        errorMessage.className = "rounded-lg border border-rose-300/15 bg-rose-300/[.05] p-3 text-sm leading-5 text-rose-200";
+        errorMessage.textContent = "No se pudieron cargar tus pronósticos. Comprueba las reglas e índices de Firestore.";
+        $("myPicks").replaceChildren(errorMessage);
       });
     }
     function resetPickForm() {
@@ -553,6 +635,17 @@
           : false
       };
       try {
+        if (!["futbol", "baloncesto", "tenis", "beisbol", "esports", "otro"].includes(data.deporte)
+          || !["betano", "inkabet", "te_apuesto", "betsson", "doradobet", "apuesta_total", "bet365", "otra"].includes(data.casa_de_apuestas)
+          || !data.evento || data.evento.length > 120
+          || !data.seleccion || data.seleccion.length > 120
+          || data.deporte.length > 50 || data.casa_de_apuestas.length > 60
+          || (data.nota && data.nota.length > 500)
+          || !Number.isFinite(data.cuota) || data.cuota < 1.01 || data.cuota > 1000
+          || (data.confianza !== null && (!Number.isInteger(data.confianza) || data.confianza < 1 || data.confianza > 5))
+          || !Number.isFinite(data.fecha_evento.getTime())) {
+          throw new Error("Revisa los campos: deporte, casa, evento, pronóstico, cuota, confianza, nota y fecha deben cumplir los límites indicados.");
+        }
         const profileRef = doc(db, "perfiles", currentUser.uid);
         const pickRef = editedPickId ? doc(db, "picks", editedPickId) : doc(collection(db, "picks"));
         const featuredQuery = query(collection(db, "picks"), where("user_id", "==", currentUser.uid), where("destacada", "==", true));
@@ -606,16 +699,34 @@
         return;
       }
       try {
-        const avatarUrl = croppedAvatar || safeImageUrl($("avatarUrl").value.trim(), IMAGE_DATA_LIMITS.avatar) || null;
-        const bannerUrl = croppedBanner || safeImageUrl($("bannerUrl").value.trim(), IMAGE_DATA_LIMITS.banner) || null;
+        const avatarInput = $("avatarUrl").value.trim();
+        const bannerInput = $("bannerUrl").value.trim();
+        const avatarValue = safeImageUrl(avatarInput, IMAGE_DATA_LIMITS.avatar);
+        const bannerValue = safeImageUrl(bannerInput, IMAGE_DATA_LIMITS.banner);
+        if ((avatarInput && !avatarValue) || (bannerInput && !bannerValue)) {
+          throw new Error("Las imágenes deben usar una URL HTTPS válida o una imagen JPEG comprimida de hasta 200 KB.");
+        }
+        const avatarUrl = croppedAvatar || avatarValue || null;
+        const bannerUrl = croppedBanner || bannerValue || null;
         const profile = {
           id: currentUser.uid, username, nombre_publico: $("displayName").value.trim(),
-          bio: $("bio").value.trim() || null, avatar_url: avatarUrl, banner_url: bannerUrl,
+          bio: $("bio").value.trim() || null,
           color_primario: $("primaryColor").value,
-          is_online: true, last_active_at: serverTimestamp()
+          is_online: true, last_active_at: serverTimestamp(),
+          created_at: currentProfile.created_at,
+          tipster_status: currentProfile.tipster_status
         };
-        for (const [elementId, field] of profileFields) profile[field] = $("" + elementId).value.trim() || null;
+        const socialProfile = {
+          avatar_url: avatarUrl,
+          banner_url: bannerUrl
+        };
+        for (const [elementId, field] of profileFields) {
+          const value = $(elementId).value.trim();
+          if (value && !safeExternalUrl(value)) throw new Error("Los enlaces sociales deben ser URLs HTTPS válidas.");
+          socialProfile[field] = value ? safeExternalUrl(value) : null;
+        }
         const profileRef = doc(db, "perfiles", currentUser.uid);
+        const socialProfileRef = doc(db, "perfiles_social", currentUser.uid);
         const usernameRef = doc(db, "usernames", username);
         await runTransaction(db, async transaction => {
           const [profileSnapshot, usernameSnapshot] = await Promise.all([transaction.get(profileRef), transaction.get(usernameRef)]);
@@ -626,12 +737,13 @@
           if (previousUsername && previousUsername !== username) transaction.delete(doc(db, "usernames", previousUsername));
           transaction.set(usernameRef, { uid: currentUser.uid });
           transaction.set(profileRef, profile, { merge: true });
+          transaction.set(socialProfileRef, socialProfile);
         });
         $("avatarUrl").value = avatarUrl && !avatarUrl.startsWith("data:") ? avatarUrl : "";
         $("bannerUrl").value = bannerUrl && !bannerUrl.startsWith("data:") ? bannerUrl : "";
         croppedAvatar = null;
         croppedBanner = null;
-        currentProfile = { ...currentProfile, ...profile };
+        currentProfile = { ...currentProfile, ...profile, ...socialProfile };
         $("publicProfileLink").href = `./?u=${encodeURIComponent(username)}`;
         updateWidgetUrl(username);
         message("profileMessage", "Perfil guardado. Ya aparece en el directorio público.", true);
@@ -993,7 +1105,7 @@
     } else {
       const app = firebaseApp;
       auth = getAuth(app);
-      db = getFirestore(app);
+      db = firebaseDb;
       onAuthStateChanged(auth, async user => {
         if (verificationFlowInProgress && user && !user.emailVerified) return;
         currentUser = user;
@@ -1055,7 +1167,7 @@
           $("presenceState").classList.remove("hidden");
           $("dashboardTitle").textContent = "Panel de tipster";
           $("dashboardDescription").textContent = "Publica tus pronósticos y mantén tu perfil al día.";
-          $("pickLimitHint").textContent = `Límite orientativo: ${accountState.tipsterMonthlyPickLimit} publicaciones al mes. En el plan gratuito no se bloquea automáticamente.`;
+          currentMonthlyPickLimit = accountState.tipsterMonthlyPickLimit;
           await loadProfile();
           $("profileView").classList.add("hidden");
           $("picksView").classList.remove("hidden");

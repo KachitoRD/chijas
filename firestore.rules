@@ -1,6 +1,7 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Shared identity and approval checks.
     function verifiedUser() {
       return request.auth != null && request.auth.token.email_verified == true;
     }
@@ -10,9 +11,9 @@ service cloud.firestore {
     }
 
     function acceptedCurrentTerms(userId) {
-      return exists(/databases/$(database)/documents/legalAcceptances/$(userId)/versions/2026-10-03)
-        && get(/databases/$(database)/documents/legalAcceptances/$(userId)/versions/2026-10-03).data.terms_version == "2026-10-03"
-        && get(/databases/$(database)/documents/legalAcceptances/$(userId)/versions/2026-10-03).data.privacy_version == "2026-10-03";
+      let acceptance = get(/databases/$(database)/documents/legalAcceptances/$(userId)/versions/2026-10-03).data;
+      return acceptance.terms_version == "2026-10-03"
+        && acceptance.privacy_version == "2026-10-03";
     }
 
     function isPlatformAdmin() {
@@ -26,6 +27,7 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/perfiles/$(userId)).data.tipster_status == "approved";
     }
 
+    // Username claims must match the profile and application written in the same transaction.
     function ownsUsername(username) {
       return existsAfter(/databases/$(database)/documents/usernames/$(username))
         && getAfter(/databases/$(database)/documents/usernames/$(username)).data.uid == request.auth.uid;
@@ -44,64 +46,187 @@ service cloud.firestore {
         && profileOwnsUsername(userId, username);
     }
 
+    // URL fields accept only absolute HTTPS URLs; embedded JPEGs are not outbound links.
     function validUsername(username) {
       return username is string && username.matches('^[a-z0-9_-]{3,30}$');
     }
 
-    function validImage(value, maxDataUrlLength) {
-      return value == null
-        || (value is string
-          && (value.matches('^https?://.+$')
-            || (value.size() <= maxDataUrlLength
-              && value.matches('^data:image/jpeg;base64,[A-Za-z0-9+/]+=*$'))));
+    function validHttpsUrl(value) {
+      return value is string && value.size() <= 2048 && value.matches('^https://.+$');
     }
 
-    function validProfile(profileId) {
+    function validOptionalHttpsUrl(value) {
+      return value == null || validHttpsUrl(value);
+    }
+
+    function validImage(value) {
+      return value == null
+        || validHttpsUrl(value)
+        || (value is string
+          && value.size() <= 204800
+          && value.matches('^data:image/jpeg;base64,[A-Za-z0-9+/]+={0,2}$'));
+    }
+
+    function validProfileFields(profileId) {
       return request.resource.data.keys().hasOnly([
-          "id", "username", "nombre_publico", "bio", "avatar_url", "banner_url",
-          "color_primario", "kick_url", "twitch_url", "youtube_url",
-          "telegram_url", "twitter_url", "instagram_url", "is_online",
-          "last_active_at", "created_at", "tipster_status"
+          "id", "username", "nombre_publico", "bio", "color_primario",
+          "is_online", "last_active_at", "created_at", "tipster_status"
+        ])
+        && request.resource.data.keys().hasAll([
+          "id", "username", "nombre_publico", "bio", "color_primario",
+          "is_online", "last_active_at", "created_at", "tipster_status"
         ])
         && request.resource.data.id == profileId
-        && request.resource.data.tipster_status == "approved"
-        && validUsername(request.resource.data.username)
+        && request.resource.data.username is string
+        && request.resource.data.username.size() >= 3
+        && request.resource.data.username.size() <= 30
         && request.resource.data.nombre_publico is string
+        && request.resource.data.nombre_publico.size() > 0
         && request.resource.data.nombre_publico.size() <= 60
-        && (!('avatar_url' in request.resource.data)
-          || validImage(request.resource.data.avatar_url, 204800))
-        && (!('banner_url' in request.resource.data)
-          || validImage(request.resource.data.banner_url, 675840));
+        && (request.resource.data.bio == null
+          || (request.resource.data.bio is string && request.resource.data.bio.size() <= 280))
+        && request.resource.data.color_primario is string
+        && request.resource.data.color_primario.size() == 7
+        && request.resource.data.is_online is bool
+        && (request.resource.data.last_active_at == null || request.resource.data.last_active_at is timestamp)
+        && request.resource.data.created_at is timestamp
+        && request.resource.data.tipster_status in ["approved", "revoked"];
     }
 
+    // Full basic-profile validation is used when an admin creates or approves a profile.
+    function validProfile(profileId) {
+      return validProfileFields(profileId)
+        && validUsername(request.resource.data.username)
+        && request.resource.data.color_primario.matches('^#[0-9a-fA-F]{6}$');
+    }
+
+    function validProfileUpdate(profileId) {
+      return validProfileFields(profileId)
+        // Recheck expensive formats only when that field changes; type and size remain unconditional above.
+        && (request.resource.data.username == resource.data.username
+          || validUsername(request.resource.data.username))
+        && (request.resource.data.color_primario == resource.data.color_primario
+          || request.resource.data.color_primario.matches('^#[0-9a-fA-F]{6}$'));
+    }
+
+    function validSocialProfileFields() {
+      return request.resource.data.keys().hasOnly([
+          "avatar_url", "banner_url", "kick_url", "twitch_url",
+          "youtube_url", "telegram_url", "twitter_url", "instagram_url"
+        ])
+        && request.resource.data.keys().hasAll([
+          "avatar_url", "banner_url", "kick_url", "twitch_url",
+          "youtube_url", "telegram_url", "twitter_url", "instagram_url"
+        ])
+        && (request.resource.data.avatar_url == null
+          || (request.resource.data.avatar_url is string && request.resource.data.avatar_url.size() <= 204800))
+        && (request.resource.data.banner_url == null
+          || (request.resource.data.banner_url is string && request.resource.data.banner_url.size() <= 204800))
+        && (request.resource.data.kick_url == null
+          || (request.resource.data.kick_url is string && request.resource.data.kick_url.size() <= 2048))
+        && (request.resource.data.twitch_url == null
+          || (request.resource.data.twitch_url is string && request.resource.data.twitch_url.size() <= 2048))
+        && (request.resource.data.youtube_url == null
+          || (request.resource.data.youtube_url is string && request.resource.data.youtube_url.size() <= 2048))
+        && (request.resource.data.telegram_url == null
+          || (request.resource.data.telegram_url is string && request.resource.data.telegram_url.size() <= 2048))
+        && (request.resource.data.twitter_url == null
+          || (request.resource.data.twitter_url is string && request.resource.data.twitter_url.size() <= 2048))
+        && (request.resource.data.instagram_url == null
+          || (request.resource.data.instagram_url is string && request.resource.data.instagram_url.size() <= 2048));
+    }
+
+    function validSocialProfile() {
+      return validSocialProfileFields()
+        && validImage(request.resource.data.avatar_url)
+        && validImage(request.resource.data.banner_url)
+        && validOptionalHttpsUrl(request.resource.data.kick_url)
+        && validOptionalHttpsUrl(request.resource.data.twitch_url)
+        && validOptionalHttpsUrl(request.resource.data.youtube_url)
+        && validOptionalHttpsUrl(request.resource.data.telegram_url)
+        && validOptionalHttpsUrl(request.resource.data.twitter_url)
+        && validOptionalHttpsUrl(request.resource.data.instagram_url);
+    }
+
+    function validSocialProfileUpdate() {
+      return validSocialProfileFields()
+        // Social URLs and image formats are rechecked only when changed; type and size always apply.
+        && (request.resource.data.avatar_url == resource.data.avatar_url
+          || validImage(request.resource.data.avatar_url))
+        && (request.resource.data.banner_url == resource.data.banner_url
+          || validImage(request.resource.data.banner_url))
+        && (request.resource.data.kick_url == resource.data.kick_url
+          || validOptionalHttpsUrl(request.resource.data.kick_url))
+        && (request.resource.data.twitch_url == resource.data.twitch_url
+          || validOptionalHttpsUrl(request.resource.data.twitch_url))
+        && (request.resource.data.youtube_url == resource.data.youtube_url
+          || validOptionalHttpsUrl(request.resource.data.youtube_url))
+        && (request.resource.data.telegram_url == resource.data.telegram_url
+          || validOptionalHttpsUrl(request.resource.data.telegram_url))
+        && (request.resource.data.twitter_url == resource.data.twitter_url
+          || validOptionalHttpsUrl(request.resource.data.twitter_url))
+        && (request.resource.data.instagram_url == resource.data.instagram_url
+          || validOptionalHttpsUrl(request.resource.data.instagram_url));
+    }
+
+    // Pronóstico schema is strict; legacy duplicate keys must be present and identical.
     function validPick(data, userId) {
       return data.keys().hasOnly([
           "user_id", "deporte", "evento", "seleccion", "prediccion", "cuota",
           "casa_de_apuestas", "casa_apuestas", "fecha_evento", "confianza",
           "nota", "destacada", "show_on_stream", "estado", "created_at"
         ])
+        && data.keys().hasAll([
+          "user_id", "deporte", "evento", "seleccion", "prediccion", "cuota",
+          "casa_de_apuestas", "casa_apuestas", "fecha_evento", "confianza",
+          "nota", "destacada", "show_on_stream", "estado", "created_at"
+        ])
         && data.user_id == userId
-        && data.deporte is string && data.deporte.size() > 0 && data.deporte.size() <= 50
-        && data.evento is string && data.evento.size() > 0 && data.evento.size() <= 120
-        && data.seleccion is string && data.seleccion.size() > 0 && data.seleccion.size() <= 120
-        && data.prediccion is string && data.prediccion.size() > 0 && data.prediccion.size() <= 120
-        && data.cuota is number && data.cuota >= 1.01 && data.cuota <= 1000
-        && data.casa_de_apuestas is string && data.casa_de_apuestas.size() > 0 && data.casa_de_apuestas.size() <= 60
-        && data.casa_apuestas is string && data.casa_apuestas.size() > 0 && data.casa_apuestas.size() <= 60
+        && data.deporte is string
+        && data.deporte.size() > 0
+        && data.deporte.size() <= 50
+        && data.deporte in ["futbol", "baloncesto", "tenis", "beisbol", "esports", "otro"]
+        && data.evento is string
+        && data.evento.size() > 0
+        && data.evento.size() <= 120
+        && data.seleccion is string
+        && data.seleccion.size() > 0
+        && data.seleccion.size() <= 120
+        && data.prediccion is string
+        && data.prediccion.size() > 0
+        && data.prediccion.size() <= 120
+        && data.seleccion == data.prediccion
+        && data.cuota is number
+        && data.cuota >= 1.01
+        && data.cuota <= 1000
+        && data.casa_de_apuestas is string
+        && data.casa_de_apuestas.size() > 0
+        && data.casa_de_apuestas.size() <= 60
+        && data.casa_de_apuestas in [
+          "betano", "inkabet", "te_apuesto", "betsson",
+          "doradobet", "apuesta_total", "bet365", "otra"
+        ]
+        && data.casa_apuestas is string
+        && data.casa_apuestas.size() > 0
+        && data.casa_apuestas.size() <= 60
+        && data.casa_apuestas == data.casa_de_apuestas
         && data.fecha_evento is timestamp
-        && (data.confianza == null || (data.confianza is int && data.confianza >= 1 && data.confianza <= 5))
-        && (data.nota == null || (data.nota is string && data.nota.size() <= 2000))
+        && (data.confianza == null
+          || (data.confianza is int && data.confianza >= 1 && data.confianza <= 5))
+        && (data.nota == null || (data.nota is string && data.nota.size() <= 500))
         && data.destacada is bool
-        && (!('show_on_stream' in data) || data.show_on_stream is bool)
+        && data.show_on_stream is bool
         && data.estado in ["pendiente", "ganada", "perdida", "anulada"]
         && data.created_at is timestamp;
     }
 
+    // Admin identity documents are provisioned out of band and never writable by clients.
     match /platformAdmins/{adminId} {
       allow read: if signedInAs(adminId);
       allow write: if false;
     }
 
+    // Only the platform owner can change the bounded public configuration.
     match /platformSettings/{settingId} {
       allow read: if verifiedUser();
       allow create, update: if isPlatformAdmin()
@@ -120,6 +245,7 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Users may record their current legal acceptance once; neither party can rewrite it.
     match /legalAcceptances/{userId}/versions/{version} {
       allow read: if (request.auth != null && request.auth.uid == userId)
         || isPlatformAdmin();
@@ -137,6 +263,7 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // Applicants manage their own request; only an admin can review its status.
     match /tipsterApplications/{userId} {
       allow read: if signedInAs(userId) || isPlatformAdmin();
       allow create: if signedInAs(userId)
@@ -193,40 +320,70 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Profiles are public only while approved. TRANSITORIO: Sub-fase A.
+    // En Sub-fase B, solo admin escribe.
     match /perfiles/{profileId} {
       allow read: if resource.data.tipster_status == "approved"
         || signedInAs(profileId)
         || isPlatformAdmin();
       allow create: if isPlatformAdmin()
         && validProfile(profileId)
+        && request.resource.data.tipster_status == "approved"
+        && request.resource.data.created_at == request.time
         && approvedApplicationClaimsUsername(profileId, request.resource.data.username);
       allow update: if (
           signedInAs(profileId)
           && acceptedCurrentTerms(profileId)
           && resource.data.tipster_status == "approved"
-          && validProfile(profileId)
+          && request.resource.data.tipster_status == resource.data.tipster_status
+          && validProfileUpdate(profileId)
+          && request.resource.data.created_at == resource.data.created_at
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            "username", "nombre_publico", "bio", "avatar_url", "banner_url",
-            "color_primario", "kick_url", "twitch_url", "youtube_url",
-            "telegram_url", "twitter_url", "instagram_url", "is_online",
-            "last_active_at"
+            "username", "nombre_publico", "bio", "color_primario",
+            "is_online", "last_active_at"
           ])
           && ownsUsername(request.resource.data.username)
         )
         || (
           isPlatformAdmin()
-          && validProfile(profileId)
-          && approvedApplicationClaimsUsername(profileId, request.resource.data.username)
-        )
-        || (
-          isPlatformAdmin()
-          && resource.data.tipster_status in ["approved", "revoked"]
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["tipster_status"])
-          && request.resource.data.tipster_status in ["approved", "revoked"]
+          && (
+            (
+              resource.data.tipster_status in ["approved", "revoked"]
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["tipster_status"])
+              && request.resource.data.tipster_status in ["approved", "revoked"]
+            )
+            || (
+              validProfile(profileId)
+              && request.resource.data.tipster_status == "approved"
+              && request.resource.data.created_at == resource.data.created_at
+              && approvedApplicationClaimsUsername(profileId, request.resource.data.username)
+            )
+          )
         );
       allow delete: if false;
     }
 
+    // TRANSITORIO: Sub-fase A. En Sub-fase B, solo admin escribe.
+    // Public reads follow the approval state in perfiles/{uid}.
+    match /perfiles_social/{profileId} {
+      allow read: if profileIsApproved(profileId)
+        || signedInAs(profileId)
+        || isPlatformAdmin();
+      allow create: if isPlatformAdmin()
+        && validSocialProfile()
+        && existsAfter(/databases/$(database)/documents/perfiles/$(profileId))
+        && getAfter(/databases/$(database)/documents/perfiles/$(profileId)).data.tipster_status == "approved";
+      allow update: if (
+          signedInAs(profileId)
+          && acceptedCurrentTerms(profileId)
+          && profileIsApproved(profileId)
+          && validSocialProfileUpdate()
+        )
+        || (isPlatformAdmin() && validSocialProfile());
+      allow delete: if false;
+    }
+
+    // Usernames are public lookup keys but can only point to their profile owner.
     match /usernames/{username} {
       allow read: if true;
       allow create: if (
@@ -241,8 +398,7 @@ service cloud.firestore {
           && request.resource.data.keys().hasOnly(["uid"])
           && validUsername(username)
           && approvedApplicationClaimsUsername(request.resource.data.uid, username)
-        )
-        && !exists(/databases/$(database)/documents/usernames/$(username));
+        );
       allow update: if signedInAs(resource.data.uid)
         && acceptedCurrentTerms(request.auth.uid)
         && request.resource.data.keys().hasOnly(["uid"])
@@ -254,8 +410,11 @@ service cloud.firestore {
         && getAfter(/databases/$(database)/documents/perfiles/$(request.auth.uid)).data.username != username;
     }
 
+    // Published picks are readable only when the owning tipster is approved.
+    // Writes require the authenticated owner to have current approval.
     match /picks/{pickId} {
-      allow read: if profileIsApproved(resource.data.user_id);
+      allow read: if resource.data.user_id is string
+        && profileIsApproved(resource.data.user_id);
       allow create: if verifiedUser()
         && acceptedCurrentTerms(request.auth.uid)
         && profileIsApproved(request.auth.uid)
@@ -266,6 +425,7 @@ service cloud.firestore {
         && acceptedCurrentTerms(request.auth.uid)
         && profileIsApproved(request.auth.uid)
         && resource.data.user_id == request.auth.uid
+        && request.resource.data.user_id == request.auth.uid
         && validPick(request.resource.data, request.auth.uid)
         && request.resource.data.created_at == resource.data.created_at
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([

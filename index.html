@@ -130,13 +130,12 @@
   </footer>
 
   <script type="module">
-    import { firebaseApp, firebaseConfigured, firebaseConfigError } from "./firebase-config.js";
-    import { getFirestore, collection, doc, onSnapshot, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+    import { firebaseConfigured, firebaseConfigError, firebaseDb } from "./firebase-config.js";
+    import { collection, doc, getDoc, onSnapshot, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
     const $ = id => document.getElementById(id);
-    const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
     const ONLINE_WINDOW = 90_000;
-    const IMAGE_DATA_LIMITS = { avatar: 200 * 1024, banner: 660 * 1024 };
+    const IMAGE_DATA_LIMITS = { avatar: 200 * 1024, banner: 200 * 1024 };
     const IMAGE_DATA_PATTERN = /^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/;
     const NETWORKS = [
       ["kick_url", "Kick"], ["twitch_url", "Twitch"], ["youtube_url", "YouTube"],
@@ -149,13 +148,21 @@
       perdida: ["Perdida", "border-rose-300/20 bg-rose-300/[.08] text-rose-200"],
       anulada: ["Anulada", "border-zinc-300/10 bg-white/[.04] text-zinc-300"]
     };
-    let db, profiles = [], selectedProfile = null, profilePicks = [], selectedFilter = "todas", stopProfiles = null, stopPicks = null, routeUsername = null, profileRenderKey = "";
+    let db, profiles = [], selectedProfile = null, profilePicks = [], selectedFilter = "todas", stopPicks = null, routeUsername = null, profileRenderKey = "", onlineRenderKey = "", directoryRenderKey = "";
 
     function showError(message) {
       $("onlineGrid").setAttribute("aria-busy", "false");
-      $("onlineGrid").innerHTML = `<p class="col-span-full rounded-xl border border-rose-300/15 bg-rose-300/[.05] p-4 text-sm leading-6 text-rose-200">${esc(message)}</p>`;
+      onlineRenderKey = "";
+      $("onlineGrid").replaceChildren(createElement("p", "col-span-full rounded-xl border border-rose-300/15 bg-rose-300/[.05] p-4 text-sm leading-6 text-rose-200", message));
       $("directoryList").setAttribute("aria-busy", "false");
-      $("directoryList").innerHTML = `<p class="py-5 text-sm text-zinc-400">No se pudo cargar el directorio. Recarga la página para intentarlo de nuevo.</p>`;
+      directoryRenderKey = "";
+      $("directoryList").replaceChildren(createElement("p", "py-5 text-sm text-zinc-400", "No se pudo cargar el directorio. Recarga la página para intentarlo de nuevo."));
+    }
+    function createElement(tag, className = "", text = "") {
+      const element = document.createElement(tag);
+      if (className) element.className = className;
+      element.textContent = text;
+      return element;
     }
     function profileOnline(profile, now = Date.now()) {
       const activity = profile.last_active_at?.toDate?.()?.getTime() ?? (profile.last_active_at instanceof Date ? profile.last_active_at.getTime() : Date.parse(profile.last_active_at || ""));
@@ -164,7 +171,7 @@
     function safeExternalUrl(value) {
       try {
         const url = new URL(value);
-        return ["http:", "https:"].includes(url.protocol) ? url.href : "";
+        return url.protocol === "https:" && url.hostname ? url.href : "";
       } catch {
         return "";
       }
@@ -173,22 +180,28 @@
       if (typeof value === "string" && value.length <= maxDataLength && IMAGE_DATA_PATTERN.test(value)) return value;
       return safeExternalUrl(value);
     }
-    function avatarMarkup(profile, extra = "") {
+    function avatarNode(profile, extra = "") {
       const name = profile.nombre_publico || profile.username || "Tipster";
       const url = safeImageSource(profile.avatar_url, IMAGE_DATA_LIMITS.avatar);
-      return url
-        ? `<img src="${esc(url)}" alt="" loading="lazy" width="64" height="64" class="${extra} bg-zinc-800 object-cover" onerror="this.remove()">`
-        : `<span aria-hidden="true" class="${extra} grid place-items-center bg-emerald-300/10 font-bold text-emerald-100">${esc(name.trim().charAt(0).toUpperCase())}</span>`;
+      if (!url) return createElement("span", `${extra} grid place-items-center bg-emerald-300/10 font-bold text-emerald-100`, name.trim().charAt(0).toUpperCase());
+      const image = createElement("img", `${extra} bg-zinc-800 object-cover`);
+      image.src = url;
+      image.alt = "";
+      image.loading = "lazy";
+      image.width = 64;
+      image.height = 64;
+      image.addEventListener("error", () => image.remove(), { once: true });
+      return image;
     }
     function pickDate(value) {
       const date = value?.toDate?.() ?? new Date(value || "");
       if (!Number.isFinite(date.getTime())) return "";
       return new Intl.DateTimeFormat(navigator.language || "es", { dateStyle: "medium", timeStyle: "short" }).format(date);
     }
-    function badge(status) {
+    function badgeNode(status) {
       const normalized = String(status || "pendiente").toLowerCase();
       const [label, classes] = BADGES[normalized] || BADGES.pendiente;
-      return `<span class="inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-xs font-medium ${classes}">${label}</span>`;
+      return createElement("span", `inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-xs font-medium ${classes}`, label);
     }
     function profileHref(profile) {
       return `?u=${encodeURIComponent(profile.username || "")}`;
@@ -200,19 +213,50 @@
       $("onlineCount").textContent = String(allOnline.length);
       $("onlineIndicator").className = `h-2.5 w-2.5 shrink-0 rounded-full ${allOnline.length ? "bg-emerald-300" : "bg-zinc-600"}`;
       $("onlineGrid").setAttribute("aria-busy", "false");
-      const markup = online.length ? online.map(profile => `
-        <a href="${esc(profileHref(profile))}" data-username="${esc(profile.username)}" class="profile-card control group min-w-0 overflow-hidden rounded-2xl border border-white/[.08] bg-[#111114] p-3.5 sm:p-4">
-          <div class="relative mb-3 aspect-[4/3] overflow-hidden rounded-xl bg-zinc-900">
-            <div aria-hidden="true" class="absolute inset-0 grid place-items-center text-4xl font-bold text-emerald-100">${esc((profile.nombre_publico || profile.username || "T").trim().charAt(0).toUpperCase())}</div>
-            ${safeImageSource(profile.avatar_url, IMAGE_DATA_LIMITS.avatar)
-              ? `<img src="${esc(safeImageSource(profile.avatar_url, IMAGE_DATA_LIMITS.avatar))}" alt="" loading="lazy" width="256" height="192" class="absolute inset-0 h-full w-full object-cover" onerror="this.remove()">`
-              : ""}
-            <span class="absolute bottom-2.5 left-2.5 inline-flex items-center gap-1.5 rounded-full border border-black/20 bg-[#09090b]/90 px-2.5 py-1 text-[11px] font-semibold text-emerald-100"><span class="h-1.5 w-1.5 rounded-full bg-emerald-300"></span>En plataforma</span>
-          </div>
-          <p class="truncate text-sm font-semibold text-zinc-100">${esc(profile.nombre_publico || profile.username || "Tipster")}</p>
-          <p class="mt-1 truncate text-xs text-zinc-500">@${esc(profile.username || "")}</p>
-        </a>`).join("") : `<div class="col-span-full rounded-xl border border-dashed border-white/[.12] px-5 py-8 text-center"><p class="text-sm font-medium text-zinc-300">No hay tipsters conectados en este momento.</p><p class="mt-1.5 text-sm text-zinc-500">Busca a alguien en el directorio o vuelve más tarde.</p></div>`;
-      if ($("onlineGrid").innerHTML !== markup) $("onlineGrid").innerHTML = markup;
+      const renderKey = JSON.stringify(online.map(profile => [
+        profile.id, profile.username, profile.nombre_publico, profile.avatar_url
+      ]));
+      if (renderKey === onlineRenderKey) return;
+      onlineRenderKey = renderKey;
+      const grid = $("onlineGrid");
+      grid.replaceChildren();
+      if (!online.length) {
+        const empty = createElement("div", "col-span-full rounded-xl border border-dashed border-white/[.12] px-5 py-8 text-center");
+        empty.append(
+          createElement("p", "text-sm font-medium text-zinc-300", "No hay tipsters conectados en este momento."),
+          createElement("p", "mt-1.5 text-sm text-zinc-500", "Busca a alguien en el directorio o vuelve más tarde.")
+        );
+        grid.append(empty);
+        return;
+      }
+      for (const profile of online) {
+        const link = createElement("a", "profile-card control group min-w-0 overflow-hidden rounded-2xl border border-white/[.08] bg-[#111114] p-3.5 sm:p-4");
+        link.href = profileHref(profile);
+        link.dataset.username = profile.username || "";
+        const imageFrame = createElement("div", "relative mb-3 aspect-[4/3] overflow-hidden rounded-xl bg-zinc-900");
+        imageFrame.append(createElement("div", "absolute inset-0 grid place-items-center text-4xl font-bold text-emerald-100", (profile.nombre_publico || profile.username || "T").trim().charAt(0).toUpperCase()));
+        const avatar = safeImageSource(profile.avatar_url, IMAGE_DATA_LIMITS.avatar);
+        if (avatar) {
+          const image = createElement("img");
+          image.src = avatar;
+          image.alt = "";
+          image.loading = "lazy";
+          image.width = 256;
+          image.height = 192;
+          image.className = "absolute inset-0 h-full w-full object-cover";
+          image.addEventListener("error", () => image.remove(), { once: true });
+          imageFrame.append(image);
+        }
+        const onlineBadge = createElement("span", "absolute bottom-2.5 left-2.5 inline-flex items-center gap-1.5 rounded-full border border-black/20 bg-[#09090b]/90 px-2.5 py-1 text-[11px] font-semibold text-emerald-100", "En plataforma");
+        onlineBadge.prepend(createElement("span", "h-1.5 w-1.5 rounded-full bg-emerald-300"));
+        imageFrame.append(onlineBadge);
+        link.append(
+          imageFrame,
+          createElement("p", "truncate text-sm font-semibold text-zinc-100", profile.nombre_publico || profile.username || "Tipster"),
+          createElement("p", "mt-1 truncate text-xs text-zinc-500", `@${profile.username || ""}`)
+        );
+        grid.append(link);
+      }
     }
     function renderDirectory() {
       const term = $("searchTipsters").value.trim().replace(/^@/, "").toLocaleLowerCase();
@@ -223,16 +267,47 @@
       const matches = ordered.filter(profile => `${profile.nombre_publico || ""} ${profile.username || ""}`.toLocaleLowerCase().includes(term));
       $("directorySummary").textContent = term ? `${matches.length} ${matches.length === 1 ? "resultado" : "resultados"}` : `${profiles.length} ${profiles.length === 1 ? "tipster" : "tipsters"} disponibles`;
       $("directoryList").setAttribute("aria-busy", "false");
-      const markup = matches.length ? matches.map(profile => `
-        <a href="${esc(profileHref(profile))}" data-username="${esc(profile.username)}" class="control flex min-h-[76px] items-center gap-3 py-3.5 hover:bg-white/[.025] sm:gap-4 sm:px-3">
-          ${avatarMarkup(profile, "h-11 w-11 shrink-0 rounded-xl")}
-          <span class="min-w-0 flex-1"><span class="block truncate text-sm font-semibold text-zinc-200">${esc(profile.nombre_publico || profile.username || "Tipster")}</span><span class="mt-1 block truncate text-xs text-zinc-500">@${esc(profile.username || "")}</span></span>
-          ${profileOnline(profile) ? `<span class="inline-flex shrink-0 items-center gap-1.5 text-xs font-medium text-emerald-200"><span class="h-1.5 w-1.5 rounded-full bg-emerald-300"></span>Conectado</span>` : `<span class="shrink-0 text-xs text-zinc-500">Ver perfil</span>`}
-        </a>`).join("") : `<p class="py-7 text-sm text-zinc-500">${profiles.length ? "No encontramos ese tipster. Prueba con otro nombre o usuario." : "El directorio aparecerá cuando los tipsters completen su perfil."}</p>`;
-      if ($("directoryList").innerHTML !== markup) $("directoryList").innerHTML = markup;
+      const renderKey = JSON.stringify([term, matches.map(profile => [
+        profile.id, profile.username, profile.nombre_publico, profile.avatar_url, profileOnline(profile)
+      ])]);
+      if (renderKey === directoryRenderKey) return;
+      directoryRenderKey = renderKey;
+      const list = $("directoryList");
+      list.replaceChildren();
+      if (!matches.length) {
+        list.append(createElement("p", "py-7 text-sm text-zinc-500", profiles.length
+          ? "No encontramos ese tipster. Prueba con otro nombre o usuario."
+          : "El directorio aparecerá cuando los tipsters completen su perfil."));
+        return;
+      }
+      for (const profile of matches) {
+        const link = createElement("a", "control flex min-h-[76px] items-center gap-3 py-3.5 hover:bg-white/[.025] sm:gap-4 sm:px-3");
+        link.href = profileHref(profile);
+        link.dataset.username = profile.username || "";
+        const nameGroup = createElement("span", "min-w-0 flex-1");
+        nameGroup.append(
+          createElement("span", "block truncate text-sm font-semibold text-zinc-200", profile.nombre_publico || profile.username || "Tipster"),
+          createElement("span", "mt-1 block truncate text-xs text-zinc-500", `@${profile.username || ""}`)
+        );
+        const presence = profileOnline(profile)
+          ? createElement("span", "inline-flex shrink-0 items-center gap-1.5 text-xs font-medium text-emerald-200", "Conectado")
+          : createElement("span", "shrink-0 text-xs text-zinc-500", "Ver perfil");
+        if (profileOnline(profile)) presence.prepend(createElement("span", "h-1.5 w-1.5 rounded-full bg-emerald-300"));
+        link.append(avatarNode(profile, "h-11 w-11 shrink-0 rounded-xl"), nameGroup, presence);
+        list.append(link);
+      }
     }
     function renderFilters() {
-      $("filters").innerHTML = FILTERS.map(([key, label]) => `<button type="button" data-filter="${key}" aria-pressed="${selectedFilter === key}" class="control min-h-9 rounded-full border px-3.5 text-xs font-medium ${selectedFilter === key ? "border-emerald-300/30 bg-emerald-300/[.08] text-emerald-100" : "border-white/[.08] text-zinc-400 hover:border-white/20 hover:text-zinc-200"}">${label}</button>`).join("");
+      const filters = $("filters");
+      filters.replaceChildren();
+      for (const [key, label] of FILTERS) {
+        const selected = selectedFilter === key;
+        const button = createElement("button", `control min-h-9 rounded-full border px-3.5 text-xs font-medium ${selected ? "border-emerald-300/30 bg-emerald-300/[.08] text-emerald-100" : "border-white/[.08] text-zinc-400 hover:border-white/20 hover:text-zinc-200"}`, label);
+        button.type = "button";
+        button.dataset.filter = key;
+        button.setAttribute("aria-pressed", String(selected));
+        filters.append(button);
+      }
     }
     function renderStats() {
       const won = profilePicks.filter(pick => String(pick.estado || "").toLowerCase() === "ganada").length;
@@ -244,24 +319,55 @@
     function renderPicks() {
       const visible = profilePicks.filter(pick => selectedFilter === "todas" || String(pick.estado || "").toLowerCase() === selectedFilter);
       const featured = visible.find(pick => pick.destacada);
-      $("featured").innerHTML = featured ? `
-        <article class="mb-4 rounded-2xl border border-emerald-300/20 bg-[#111512] p-5 sm:p-6">
-          <div class="flex flex-wrap items-center justify-between gap-3"><span class="text-xs font-semibold text-emerald-200">Fija destacada</span>${badge(featured.estado)}</div>
-          <p class="mt-4 text-xs font-medium text-zinc-500">${esc(featured.deporte || "Deporte")} <span class="px-1.5 text-zinc-500">/</span> ${esc(featured.evento || "")}</p>
-          <h4 class="mt-1 text-lg font-bold tracking-tight">${esc(featured.seleccion || featured.prediccion || "Pronóstico")}</h4>
-          ${featured.nota ? `<p class="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">${esc(featured.nota)}</p>` : ""}
-          <div class="mt-4 flex flex-wrap items-end justify-between gap-4"><p class="text-xs text-zinc-500">${esc(featured.casa_de_apuestas || featured.casa_apuestas || "")}${pickDate(featured.fecha_evento || featured.created_at) ? ` / ${esc(pickDate(featured.fecha_evento || featured.created_at))}` : ""}</p><p class="text-xs text-zinc-500">Cuota <strong class="ml-1 text-xl tabular-nums text-zinc-100">${Number(featured.cuota || 0).toFixed(2)}</strong></p></div>
-        </article>` : "";
-      $("picksGrid").innerHTML = visible.length ? visible.map(pick => `
-        <article class="rounded-xl border border-white/[.08] bg-[#111114] p-4">
-          <div class="flex items-center justify-between gap-3">${badge(pick.estado)}<span class="truncate text-xs text-zinc-500">${esc(pick.deporte || "Deporte")}</span></div>
-          <h4 class="mt-3 font-semibold leading-5">${esc(pick.evento || "")}</h4>
-          <p class="mt-1.5 text-sm leading-5 text-zinc-400">${esc(pick.seleccion || pick.prediccion || "")}</p>
-          <div class="mt-4 flex items-end justify-between gap-3 border-t border-white/[.07] pt-3">
-            <p class="min-w-0 truncate text-xs text-zinc-500">${esc(pick.casa_de_apuestas || pick.casa_apuestas || "")}<span class="mt-1 block">${esc(pickDate(pick.fecha_evento || pick.created_at))}</span></p>
-            <p class="shrink-0 text-xs text-zinc-500">Cuota <strong class="ml-1 text-lg tabular-nums text-zinc-100">${Number(pick.cuota || 0).toFixed(2)}</strong></p>
-          </div>
-        </article>`).join("") : `<p class="col-span-full rounded-xl border border-dashed border-white/[.12] px-5 py-7 text-center text-sm text-zinc-500">${profilePicks.length ? "No hay pronósticos en este filtro." : "Este tipster todavía no ha publicado pronósticos."}</p>`;
+      const featuredContainer = $("featured");
+      featuredContainer.replaceChildren();
+      if (featured) {
+        const article = createElement("article", "mb-4 rounded-2xl border border-emerald-300/20 bg-[#111512] p-5 sm:p-6");
+        const heading = createElement("div", "flex flex-wrap items-center justify-between gap-3");
+        heading.append(createElement("span", "text-xs font-semibold text-emerald-200", "Fija destacada"), badgeNode(featured.estado));
+        const metadata = createElement("p", "mt-4 text-xs font-medium text-zinc-500");
+        metadata.append(
+          document.createTextNode(featured.deporte || "Deporte"),
+          createElement("span", "px-1.5 text-zinc-500", "/"),
+          document.createTextNode(featured.evento || "")
+        );
+        const selection = createElement("h4", "mt-1 text-lg font-bold tracking-tight", featured.seleccion || featured.prediccion || "Pronóstico");
+        article.append(heading, metadata, selection);
+        if (featured.nota) article.append(createElement("p", "mt-2 max-w-2xl text-sm leading-6 text-zinc-400", featured.nota));
+        const footer = createElement("div", "mt-4 flex flex-wrap items-end justify-between gap-4");
+        const date = pickDate(featured.fecha_evento || featured.created_at);
+        footer.append(
+          createElement("p", "text-xs text-zinc-500", `${featured.casa_de_apuestas || featured.casa_apuestas || ""}${date ? ` / ${date}` : ""}`)
+        );
+        const odds = createElement("p", "text-xs text-zinc-500", "Cuota");
+        odds.append(createElement("strong", "ml-1 text-xl tabular-nums text-zinc-100", Number(featured.cuota || 0).toFixed(2)));
+        footer.append(odds);
+        article.append(footer);
+        featuredContainer.append(article);
+      }
+      const grid = $("picksGrid");
+      grid.replaceChildren();
+      if (!visible.length) {
+        grid.append(createElement("p", "col-span-full rounded-xl border border-dashed border-white/[.12] px-5 py-7 text-center text-sm text-zinc-500", profilePicks.length
+          ? "No hay pronósticos en este filtro."
+          : "Este tipster todavía no ha publicado pronósticos."));
+      } else {
+        for (const pick of visible) {
+          const article = createElement("article", "rounded-xl border border-white/[.08] bg-[#111114] p-4");
+          const heading = createElement("div", "flex items-center justify-between gap-3");
+          heading.append(badgeNode(pick.estado), createElement("span", "truncate text-xs text-zinc-500", pick.deporte || "Deporte"));
+          const event = createElement("h4", "mt-3 font-semibold leading-5", pick.evento || "");
+          const selection = createElement("p", "mt-1.5 text-sm leading-5 text-zinc-400", pick.seleccion || pick.prediccion || "");
+          const footer = createElement("div", "mt-4 flex items-end justify-between gap-3 border-t border-white/[.07] pt-3");
+          const bookmaker = createElement("p", "min-w-0 truncate text-xs text-zinc-500", pick.casa_de_apuestas || pick.casa_apuestas || "");
+          bookmaker.append(createElement("span", "mt-1 block", pickDate(pick.fecha_evento || pick.created_at)));
+          const odds = createElement("p", "shrink-0 text-xs text-zinc-500", "Cuota");
+          odds.append(createElement("strong", "ml-1 text-lg tabular-nums text-zinc-100", Number(pick.cuota || 0).toFixed(2)));
+          footer.append(bookmaker, odds);
+          article.append(heading, event, selection, footer);
+          grid.append(article);
+        }
+      }
       renderStats();
     }
     function renderProfile(profile) {
@@ -283,7 +389,17 @@
       const banner = safeImageSource(profile.banner_url, IMAGE_DATA_LIMITS.banner);
       $("profileBanner").classList.toggle("hidden", !banner);
       $("profileBanner").style.backgroundImage = banner ? `url("${banner}")` : "";
-      $("profileSocials").innerHTML = NETWORKS.filter(([key]) => safeExternalUrl(profile[key])).map(([key, label]) => `<a href="${esc(safeExternalUrl(profile[key]))}" target="_blank" rel="noopener noreferrer" class="control inline-flex min-h-9 items-center rounded-lg border border-white/[.08] px-3 text-xs font-medium text-zinc-300 hover:border-emerald-300/30 hover:text-emerald-100">${label}</a>`).join("");
+      const socials = $("profileSocials");
+      socials.replaceChildren();
+      for (const [key, label] of NETWORKS) {
+        const url = safeExternalUrl(profile[key]);
+        if (!url) continue;
+        const link = createElement("a", "control inline-flex min-h-9 items-center rounded-lg border border-white/[.08] px-3 text-xs font-medium text-zinc-300 hover:border-emerald-300/30 hover:text-emerald-100", label);
+        link.href = url;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        socials.append(link);
+      }
       profileRenderKey = JSON.stringify([
         profile.nombre_publico, profile.username, profile.bio, profile.avatar_url, profile.banner_url,
         ...NETWORKS.map(([key]) => profile[key])
@@ -304,9 +420,15 @@
       renderProfile(selectedProfile);
       if (!match) {
         $("profileSection").classList.remove("hidden");
-        $("profilePanel").innerHTML = `<p class="p-5 text-sm text-zinc-400">No encontramos el perfil <strong class="text-zinc-200">@${esc(username)}</strong>. Busca otro tipster en el directorio.</p>`;
-        $("featured").innerHTML = "";
-        $("picksGrid").innerHTML = "";
+        $("profileTitle").textContent = `No encontramos el perfil @${username}`;
+        $("profileUsername").textContent = "";
+        $("profileBio").textContent = "Busca otro tipster en el directorio.";
+        $("profileAvatar").removeAttribute("src");
+        $("profileAvatar").classList.add("hidden");
+        $("profileBanner").classList.add("hidden");
+        $("profileSocials").replaceChildren();
+        $("featured").replaceChildren();
+        $("picksGrid").replaceChildren();
         return;
       }
       if (selectionChanged) {
@@ -322,37 +444,45 @@
         renderPicks();
       }, error => {
         console.error("No se pudieron cargar los pronósticos:", error);
-        $("picksGrid").innerHTML = `<p class="col-span-full rounded-xl border border-rose-300/15 bg-rose-300/[.05] p-4 text-sm text-rose-200">No se pudieron cargar los pronósticos. Recarga la página para intentarlo de nuevo.</p>`;
+        $("picksGrid").replaceChildren(createElement("p", "col-span-full rounded-xl border border-rose-300/15 bg-rose-300/[.05] p-4 text-sm text-rose-200", "No se pudieron cargar los pronósticos. Recarga la página para intentarlo de nuevo."));
       });
     }
     function subscribeToProfiles() {
-      stopProfiles = onSnapshot(query(collection(db, "perfiles"), where("tipster_status", "==", "approved")), snapshot => {
-        profiles = snapshot.docs.map(item => ({ id: item.id, ...item.data() }));
-        renderOnline();
-        renderDirectory();
-        if (routeUsername) {
-          const match = profiles.find(profile => String(profile.username || "").toLowerCase() === routeUsername.toLowerCase());
-          if (match && selectedProfile?.id === match.id) {
-            selectedProfile = match;
-            const renderKey = JSON.stringify([
-              match.nombre_publico, match.username, match.bio, match.avatar_url, match.banner_url,
-              ...NETWORKS.map(([key]) => match[key])
-            ]);
-            if (renderKey !== profileRenderKey) renderProfile(match);
-            else {
-              const online = profileOnline(match);
-              $("profilePresence").classList.toggle("hidden", !online);
-              $("profilePresence").classList.toggle("inline-flex", online);
+      onSnapshot(query(collection(db, "perfiles"), where("tipster_status", "==", "approved")), async snapshot => {
+        try {
+          profiles = await Promise.all(snapshot.docs.map(async item => {
+            const socialSnapshot = await getDoc(doc(db, "perfiles_social", item.id));
+            return { id: item.id, ...item.data(), ...(socialSnapshot.exists() ? socialSnapshot.data() : {}) };
+          }));
+          renderOnline();
+          renderDirectory();
+          if (routeUsername) {
+            const match = profiles.find(profile => String(profile.username || "").toLowerCase() === routeUsername.toLowerCase());
+            if (match && selectedProfile?.id === match.id) {
+              selectedProfile = match;
+              const renderKey = JSON.stringify([
+                match.nombre_publico, match.username, match.bio, match.avatar_url, match.banner_url,
+                ...NETWORKS.map(([key]) => match[key])
+              ]);
+              if (renderKey !== profileRenderKey) renderProfile(match);
+              else {
+                const online = profileOnline(match);
+                $("profilePresence").classList.toggle("hidden", !online);
+                $("profilePresence").classList.toggle("inline-flex", online);
+              }
+            } else {
+              loadProfile(routeUsername);
             }
-          } else {
-            loadProfile(routeUsername);
           }
-        }
-        else if (selectedProfile) {
-          selectedProfile = profiles.find(profile => profile.id === selectedProfile.id) || null;
-          const online = profileOnline(selectedProfile);
-          $("profilePresence").classList.toggle("hidden", !online);
-          $("profilePresence").classList.toggle("inline-flex", online);
+          else if (selectedProfile) {
+            selectedProfile = profiles.find(profile => profile.id === selectedProfile.id) || null;
+            const online = profileOnline(selectedProfile);
+            $("profilePresence").classList.toggle("hidden", !online);
+            $("profilePresence").classList.toggle("inline-flex", online);
+          }
+        } catch (error) {
+          console.error("No se pudieron combinar los perfiles sociales:", error);
+          showError("No se pudieron cargar los perfiles completos. Comprueba las reglas de Firestore e inténtalo de nuevo.");
         }
       }, error => {
         console.error("No se pudieron cargar los perfiles:", error);
@@ -404,11 +534,11 @@
       $("firebaseSetup").classList.remove("hidden");
       $("firebaseSetup").setAttribute("role", "alert");
       $("onlineGrid").setAttribute("aria-busy", "false");
-      $("onlineGrid").innerHTML = `<p class="col-span-full rounded-xl border border-amber-300/15 bg-amber-300/[.05] p-4 text-sm leading-6 text-amber-100">${esc(firebaseConfigError)}</p>`;
+      $("onlineGrid").replaceChildren(createElement("p", "col-span-full rounded-xl border border-amber-300/15 bg-amber-300/[.05] p-4 text-sm leading-6 text-amber-100", firebaseConfigError));
       $("directoryList").setAttribute("aria-busy", "false");
-      $("directoryList").innerHTML = `<p class="py-5 text-sm text-zinc-400">Conecta Firebase para habilitar la búsqueda y el directorio de tipsters.</p>`;
+      $("directoryList").replaceChildren(createElement("p", "py-5 text-sm text-zinc-400", "Conecta Firebase para habilitar la búsqueda y el directorio de tipsters."));
     } else {
-      db = getFirestore(firebaseApp);
+      db = firebaseDb;
       routeUsername = new URLSearchParams(location.search).get("u");
       subscribeToProfiles();
     }

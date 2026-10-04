@@ -132,13 +132,19 @@
   </main>
 
   <script type="module">
-    import { firebaseApp, firebaseConfigured } from "./firebase-config.js";
+    import { firebaseApp, firebaseConfigured, firebaseDb } from "./firebase-config.js";
     import { getAuth, onAuthStateChanged, sendPasswordResetEmail, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-    import { getFirestore, collection, doc, getDoc, getDocs, limit, orderBy, query, runTransaction, serverTimestamp, setDoc, where } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+    import { collection, doc, getDoc, getDocs, limit, orderBy, query, runTransaction, serverTimestamp, setDoc, where } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
     const $ = id => document.getElementById(id);
-    const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
     let auth, db;
+
+    function createElement(tag, className = "", text = "") {
+      const element = document.createElement(tag);
+      if (className) element.className = className;
+      element.textContent = text;
+      return element;
+    }
 
     function notice(id, text, success = false) {
       const element = $(id);
@@ -174,25 +180,40 @@
     }
     async function loadApplications() {
       $("applications").setAttribute("aria-busy", "true");
-      $("applications").innerHTML = `<p class="py-5 text-sm text-zinc-500">Cargando solicitudes...</p>`;
+      $("applications").replaceChildren(createElement("p", "py-5 text-sm text-zinc-500", "Cargando solicitudes..."));
       try {
         const applicationsQuery = query(collection(db, "tipsterApplications"), where("status", "==", "pending"), orderBy("submitted_at", "asc"), limit(100));
         const snapshot = await getDocs(applicationsQuery);
         const applications = snapshot.docs.map(item => ({ uid: item.id, ...item.data() }));
         $("pendingCount").textContent = String(applications.length);
         $("applications").setAttribute("aria-busy", "false");
-        $("applications").innerHTML = applications.length ? applications.map(application => `
-          <article class="flex flex-col gap-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div class="min-w-0">
-              <h3 class="truncate text-sm font-semibold">${esc(application.display_name)}</h3>
-              <p class="mt-1 truncate text-xs text-zinc-400">@${esc(application.requested_username)} | ${esc(application.email)}</p>
-              <p class="mt-1 truncate text-[11px] text-zinc-500">UID ${esc(application.uid)}</p>
-            </div>
-            <div class="flex shrink-0 gap-2">
-              <button type="button" data-review="approve" data-uid="${esc(application.uid)}" class="control min-h-9 rounded-lg bg-emerald-300 px-3 text-xs font-bold text-zinc-950 hover:bg-emerald-200 disabled:cursor-wait disabled:opacity-60">Aprobar</button>
-              <button type="button" data-review="reject" data-uid="${esc(application.uid)}" class="control min-h-9 rounded-lg border border-white/10 px-3 text-xs font-semibold text-zinc-300 hover:border-rose-300/30 hover:text-rose-200 disabled:cursor-wait disabled:opacity-60">Rechazar</button>
-            </div>
-          </article>`).join("") : `<p class="py-7 text-sm text-zinc-500">No hay solicitudes pendientes.</p>`;
+        const container = $("applications");
+        container.replaceChildren();
+        if (!applications.length) {
+          container.append(createElement("p", "py-7 text-sm text-zinc-500", "No hay solicitudes pendientes."));
+          return;
+        }
+        for (const application of applications) {
+          const article = createElement("article", "flex flex-col gap-4 py-4 sm:flex-row sm:items-center sm:justify-between");
+          const details = createElement("div", "min-w-0");
+          details.append(
+            createElement("h3", "truncate text-sm font-semibold", application.display_name || ""),
+            createElement("p", "mt-1 truncate text-xs text-zinc-400", `@${application.requested_username || ""} | ${application.email || ""}`),
+            createElement("p", "mt-1 truncate text-[11px] text-zinc-500", `UID ${application.uid}`)
+          );
+          const actions = createElement("div", "flex shrink-0 gap-2");
+          const approve = createElement("button", "control min-h-9 rounded-lg bg-emerald-300 px-3 text-xs font-bold text-zinc-950 hover:bg-emerald-200 disabled:cursor-wait disabled:opacity-60", "Aprobar");
+          approve.type = "button";
+          approve.dataset.review = "approve";
+          approve.dataset.uid = application.uid;
+          const reject = createElement("button", "control min-h-9 rounded-lg border border-white/10 px-3 text-xs font-semibold text-zinc-300 hover:border-rose-300/30 hover:text-rose-200 disabled:cursor-wait disabled:opacity-60", "Rechazar");
+          reject.type = "button";
+          reject.dataset.review = "reject";
+          reject.dataset.uid = application.uid;
+          actions.append(approve, reject);
+          article.append(details, actions);
+          container.append(article);
+        }
       } catch (error) {
         console.error("No se pudieron cargar las solicitudes:", error);
         $("applications").setAttribute("aria-busy", "false");
@@ -201,12 +222,12 @@
           : error.code === "failed-precondition"
             ? "Falta el índice de solicitudes. Publica los índices de Firestore indicados en FIREBASE_SETUP.md."
             : "No se pudieron cargar las solicitudes. Comprueba la conexión e inténtalo de nuevo.";
-        $("applications").innerHTML = `<p class="py-5 text-sm text-rose-200">${text}</p>`;
+        $("applications").replaceChildren(createElement("p", "py-5 text-sm text-rose-200", text));
       }
     }
     async function loadTipsters() {
       $("tipsters").setAttribute("aria-busy", "true");
-      $("tipsters").innerHTML = `<p class="py-5 text-sm text-zinc-500">Cargando permisos...</p>`;
+      $("tipsters").replaceChildren(createElement("p", "py-5 text-sm text-zinc-500", "Cargando permisos..."));
       try {
         const tipstersQuery = query(collection(db, "perfiles"), where("tipster_status", "in", ["approved", "revoked"]), limit(100));
         const snapshot = await getDocs(tipstersQuery);
@@ -214,18 +235,29 @@
           .sort((first, second) => String(first.nombre_publico || first.username || "").localeCompare(String(second.nombre_publico || second.username || ""), "es"));
         $("tipsterCount").textContent = String(tipsters.filter(item => item.tipster_status === "approved").length);
         $("tipsters").setAttribute("aria-busy", "false");
-        $("tipsters").innerHTML = tipsters.length ? tipsters.map(tipster => {
+        const container = $("tipsters");
+        container.replaceChildren();
+        if (!tipsters.length) {
+          container.append(createElement("p", "py-7 text-sm text-zinc-500", "Aún no hay perfiles de tipster aprobados."));
+          return;
+        }
+        for (const tipster of tipsters) {
           const approved = tipster.tipster_status === "approved";
-          return `<article class="flex flex-col gap-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div class="min-w-0">
-              <h3 class="truncate text-sm font-semibold">${esc(tipster.nombre_publico || tipster.username || "Tipster")}</h3>
-              <p class="mt-1 truncate text-xs text-zinc-400">@${esc(tipster.username || "sin usuario")} · ${approved ? "Inicial · puede publicar" : "Acceso revocado"}</p>
-              <p class="mt-1 text-[11px] text-zinc-500">${tipster.recognition_status === "verified" ? "Verificado" : "Sin distintivo de verificación"}</p>
-              <p class="mt-1 truncate text-[11px] text-zinc-500">UID ${esc(tipster.uid)}</p>
-            </div>
-            <button type="button" data-permission="${approved ? "revoke" : "restore"}" data-uid="${esc(tipster.uid)}" class="control min-h-9 self-start rounded-lg border px-3 text-xs font-semibold disabled:cursor-wait disabled:opacity-60 ${approved ? "border-white/10 text-zinc-300 hover:border-rose-300/30 hover:text-rose-200" : "border-emerald-300/20 text-emerald-100 hover:bg-emerald-300/[.06]"}">${approved ? "Revocar acceso" : "Restaurar acceso"}</button>
-          </article>`;
-        }).join("") : `<p class="py-7 text-sm text-zinc-500">Aún no hay perfiles de tipster aprobados.</p>`;
+          const article = createElement("article", "flex flex-col gap-4 py-4 sm:flex-row sm:items-center sm:justify-between");
+          const details = createElement("div", "min-w-0");
+          details.append(
+            createElement("h3", "truncate text-sm font-semibold", tipster.nombre_publico || tipster.username || "Tipster"),
+            createElement("p", "mt-1 truncate text-xs text-zinc-400", `@${tipster.username || "sin usuario"} · ${approved ? "Inicial · puede publicar" : "Acceso revocado"}`),
+            createElement("p", "mt-1 text-[11px] text-zinc-500", tipster.recognition_status === "verified" ? "Verificado" : "Sin distintivo de verificación"),
+            createElement("p", "mt-1 truncate text-[11px] text-zinc-500", `UID ${tipster.uid}`)
+          );
+          const button = createElement("button", `control min-h-9 self-start rounded-lg border px-3 text-xs font-semibold disabled:cursor-wait disabled:opacity-60 ${approved ? "border-white/10 text-zinc-300 hover:border-rose-300/30 hover:text-rose-200" : "border-emerald-300/20 text-emerald-100 hover:bg-emerald-300/[.06]"}`, approved ? "Revocar acceso" : "Restaurar acceso");
+          button.type = "button";
+          button.dataset.permission = approved ? "revoke" : "restore";
+          button.dataset.uid = tipster.uid;
+          article.append(details, button);
+          container.append(article);
+        }
       } catch (error) {
         console.error("No se pudieron cargar los permisos de tipster:", error);
         $("tipsters").setAttribute("aria-busy", "false");
@@ -234,7 +266,7 @@
           : error.code === "failed-precondition"
             ? "Firestore necesita una configuración de consulta actualizada. Revisa los índices indicados en FIREBASE_SETUP.md."
             : "No se pudieron cargar los permisos. Comprueba la conexión e inténtalo de nuevo.";
-        $("tipsters").innerHTML = `<p class="py-5 text-sm text-rose-200">${text}</p>`;
+        $("tipsters").replaceChildren(createElement("p", "py-5 text-sm text-rose-200", text));
       }
     }
     $("creatorLoginForm").addEventListener("submit", async event => {
@@ -339,35 +371,39 @@
           const username = application.requested_username;
           if (!/^[a-z0-9_-]{3,30}$/.test(username)) throw new Error("El nombre solicitado ya no es válido.");
           const profileRef = doc(db, "perfiles", uid);
+          const socialProfileRef = doc(db, "perfiles_social", uid);
           const usernameRef = doc(db, "usernames", username);
-          const [profileSnapshot, usernameSnapshot] = await Promise.all([
+          const [profileSnapshot, socialProfileSnapshot, usernameSnapshot] = await Promise.all([
             transaction.get(profileRef),
+            transaction.get(socialProfileRef),
             transaction.get(usernameRef)
           ]);
           if (usernameSnapshot.exists() && usernameSnapshot.data().uid !== uid) {
             throw new Error("El nombre solicitado ya fue reservado por otra cuenta.");
           }
           const profile = profileSnapshot.exists() ? profileSnapshot.data() : {};
+          const socialProfile = socialProfileSnapshot.exists() ? socialProfileSnapshot.data() : {};
           if (!usernameSnapshot.exists()) transaction.set(usernameRef, { uid });
           transaction.set(profileRef, {
-            ...profile,
             id: uid,
             username,
             nombre_publico: application.display_name,
             tipster_status: "approved",
             bio: profile.bio || null,
-            avatar_url: profile.avatar_url || null,
-            banner_url: profile.banner_url || null,
             color_primario: profile.color_primario || "#34d399",
-            kick_url: profile.kick_url || null,
-            twitch_url: profile.twitch_url || null,
-            youtube_url: profile.youtube_url || null,
-            telegram_url: profile.telegram_url || null,
-            twitter_url: profile.twitter_url || null,
-            instagram_url: profile.instagram_url || null,
             is_online: false,
             last_active_at: null,
             created_at: profile.created_at || serverTimestamp()
+          });
+          transaction.set(socialProfileRef, {
+            avatar_url: socialProfile.avatar_url || null,
+            banner_url: socialProfile.banner_url || null,
+            kick_url: socialProfile.kick_url || null,
+            twitch_url: socialProfile.twitch_url || null,
+            youtube_url: socialProfile.youtube_url || null,
+            telegram_url: socialProfile.telegram_url || null,
+            twitter_url: socialProfile.twitter_url || null,
+            instagram_url: socialProfile.instagram_url || null
           });
           transaction.update(applicationRef, {
             status: "approved",
@@ -436,7 +472,7 @@
       $("deniedMessage").textContent = "Completa la configuración de Firebase antes de entrar al panel.";
     } else {
       auth = getAuth(firebaseApp);
-      db = getFirestore(firebaseApp);
+      db = firebaseDb;
       onAuthStateChanged(auth, async user => {
         $("loading").classList.remove("hidden");
         $("creatorLogin").classList.add("hidden");
