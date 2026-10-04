@@ -1,3 +1,7 @@
 .agents/
 .firebase/
+node_modules/
 skills-lock.json
+firebase-debug.log
+firestore-debug.log
+.firebase/
