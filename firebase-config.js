@@ -1,4 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import { connectFirestoreEmulator, getFirestore } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 // Public web configuration from Firebase Console > Project settings.
 export const firebaseConfig = {
@@ -17,3 +18,8 @@ export const firebaseConfigured = requiredKeys.every(key => {
 
 export const firebaseConfigError = "Añade la configuración de tu app web en firebase-config.js para conectar Firebase.";
 export const firebaseApp = firebaseConfigured ? initializeApp(firebaseConfig) : null;
+export const firebaseDb = firebaseApp ? getFirestore(firebaseApp) : null;
+
+if (firebaseDb && location.hostname === "localhost") {
+  connectFirestoreEmulator(firebaseDb, "127.0.0.1", 8080);
+}
