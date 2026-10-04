@@ -5,3 +5,5 @@ skills-lock.json
 firebase-debug.log
 firestore-debug.log
 .firebase/
+playwright-report/
+test-results/
