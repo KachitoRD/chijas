@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="transparent">
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <title>Widget de pronósticos | Fijas en vivo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+      --accent: #6ee7b7;
+      --surface: rgb(9 9 11 / .9);
+      --muted: #d4d4d8;
+    }
+    * { box-sizing: border-box; }
+    html, body { min-width: 0; min-height: 0; margin: 0; background: transparent !important; }
+    body { padding: 12px; color: #fafafa; }
+    #widget { display: grid; gap: 10px; width: min(100%, 720px); }
+    #widget[hidden], #widgetMessage[hidden] { display: none; }
+    .widget-header { display: flex; align-items: center; gap: 10px; padding: 12px 15px; border: 1px solid rgb(255 255 255 / .13); border-radius: 14px; background: var(--surface); box-shadow: 0 8px 24px rgb(0 0 0 / .22); }
+    .brand-mark { display: grid; width: 30px; height: 30px; place-items: center; flex: 0 0 auto; border-radius: 9px; background: var(--accent); color: #052e23; font-size: 12px; font-weight: 800; }
+    .widget-name { min-width: 0; overflow: hidden; font-size: 15px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+    .widget-label { margin-left: auto; color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+    #pickList { display: grid; gap: 8px; }
+    .pick { overflow: hidden; padding: 14px 16px; border: 1px solid rgb(255 255 255 / .13); border-radius: 14px; background: var(--surface); box-shadow: 0 8px 24px rgb(0 0 0 / .22); }
+    .pick.pick-enter { animation: enter 180ms cubic-bezier(.23, 1, .32, 1) both; }
+    .pick-top, .pick-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
+    .pick-sport { color: var(--muted); font-size: 11px; font-weight: 600; }
+    .pick-status { border: 1px solid rgb(255 255 255 / .14); border-radius: 999px; padding: 3px 8px; color: var(--muted); font-size: 11px; font-weight: 600; }
+    .pick-event { margin: 8px 0 3px; font-size: clamp(15px, 2.8vw, 19px); font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
+    .pick-selection { margin: 0; color: var(--accent); font-size: clamp(14px, 2.5vw, 17px); font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }
+    .pick-meta { justify-content: flex-start; margin-top: 9px; color: var(--muted); font-size: 11px; font-weight: 500; }
+    .pick-odds { color: #fafafa; font-variant-numeric: tabular-nums; font-weight: 700; }
+    #widgetMessage { width: fit-content; max-width: 520px; border: 1px solid rgb(244 114 182 / .28); border-radius: 12px; background: rgb(24 24 27 / .94); padding: 12px 15px; color: #fce7f3; font-size: 13px; line-height: 1.5; }
+    @keyframes enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    #widget[data-format="compacto"] { gap: 6px; }
+    #widget[data-format="compacto"] .widget-header { padding: 8px 11px; border-radius: 10px; }
+    #widget[data-format="compacto"] .brand-mark { width: 24px; height: 24px; border-radius: 7px; }
+    #widget[data-format="compacto"] .pick { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "event odds" "selection bookie"; align-items: center; gap: 2px 10px; padding: 9px 12px; border-radius: 10px; }
+    #widget[data-format="compacto"] .pick-top { display: none; }
+    #widget[data-format="compacto"] .pick-event { grid-area: event; margin: 0; font-size: 14px; }
+    #widget[data-format="compacto"] .pick-selection { grid-area: selection; font-size: 12px; }
+    #widget[data-format="compacto"] .pick-meta { display: contents; }
+    #widget[data-format="compacto"] .pick-odds { grid-area: odds; text-align: right; font-size: 13px; }
+    #widget[data-format="compacto"] .pick-bookmaker { grid-area: bookie; overflow: hidden; color: var(--muted); font-size: 10px; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
+    #widget[data-format="marcador"] .widget-header { border-color: rgb(110 231 183 / .38); background: rgb(6 78 59 / .92); }
+    #widget[data-format="marcador"] .widget-label { color: #d1fae5; }
+    #widget[data-format="marcador"] #pickList { gap: 7px; }
+    #widget[data-format="marcador"] .pick { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "top top" "event odds" "selection odds" "meta meta"; align-items: center; gap: 4px 14px; border-color: rgb(110 231 183 / .25); padding: 12px 15px; }
+    #widget[data-format="marcador"] .pick-top { grid-area: top; }
+    #widget[data-format="marcador"] .pick-event { grid-area: event; margin: 3px 0 0; }
+    #widget[data-format="marcador"] .pick-selection { grid-area: selection; font-size: 15px; }
+    #widget[data-format="marcador"] .pick-meta { grid-area: meta; margin-top: 7px; }
+    #widget[data-format="marcador"] .pick-meta { display: contents; }
+    #widget[data-format="marcador"] .pick-odds { grid-area: odds; border: 1px solid rgb(110 231 183 / .35); border-radius: 10px; background: rgb(110 231 183 / .08); padding: 8px 10px; color: #a7f3d0; font-size: 16px; }
+    @media (max-width: 360px) {
+      #widget[data-format="compacto"] .pick { grid-template-columns: minmax(0, 1fr) auto; }
+      #widget[data-format="compacto"] .pick-bookmaker { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .pick.pick-enter { animation: none; }
+    }
+  </style>
+</head>
+<body>
+  <main id="widget" hidden aria-live="polite">
+    <header class="widget-header">
+      <span class="brand-mark" aria-hidden="true">F.</span>
+      <span id="widgetName" class="widget-name"></span>
+      <span class="widget-label">Pronósticos</span>
+    </header>
+    <div id="pickList"></div>
+  </main>
+  <p id="widgetMessage" role="status" hidden></p>
+
+  <script type="module">
+    import { firebaseApp, firebaseConfigured } from "./firebase-config.js";
+    import { getFirestore, collection, doc, getDoc, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+    const widget = document.getElementById("widget");
+    const widgetName = document.getElementById("widgetName");
+    const pickList = document.getElementById("pickList");
+    const widgetMessage = document.getElementById("widgetMessage");
+    const pickElements = new Map();
+    const widgetFormats = new Set(["cascada", "compacto", "marcador"]);
+    let stopPicks = null;
+
+    function showError(text) {
+      widget.hidden = true;
+      widgetMessage.textContent = text;
+      widgetMessage.hidden = false;
+      publishPreviewSize();
+    }
+
+    let lastPreviewSize = "";
+    function publishPreviewSize() {
+      if (window.parent === window) return;
+      requestAnimationFrame(() => {
+        const preview = {
+          type: "fijas-widget-resize",
+          height: document.documentElement.scrollHeight,
+          hasPicks: !widget.hidden,
+          hasError: !widgetMessage.hidden
+        };
+        const key = `${preview.height}:${preview.hasPicks}:${preview.hasError}`;
+        if (key === lastPreviewSize) return;
+        lastPreviewSize = key;
+        window.parent.postMessage(preview, window.location.origin);
+      });
+    }
+
+    function renderPicks(picks) {
+      if (!picks.length) {
+        pickElements.clear();
+        pickList.replaceChildren();
+        widget.hidden = true;
+        publishPreviewSize();
+        return;
+      }
+
+      const currentIds = new Set();
+      for (const [index, pick] of picks.entries()) {
+        currentIds.add(pick.id);
+        let entry = pickElements.get(pick.id);
+        if (!entry) {
+          const article = document.createElement("article");
+          article.className = "pick pick-enter";
+          article.style.animationDelay = `${Math.min(index * 50, 400)}ms`;
+          article.addEventListener("animationend", () => {
+            article.classList.remove("pick-enter");
+            article.style.removeProperty("animation-delay");
+          }, { once: true });
+
+          const top = document.createElement("div");
+          top.className = "pick-top";
+          const sport = document.createElement("span");
+          sport.className = "pick-sport";
+          const status = document.createElement("span");
+          status.className = "pick-status";
+          top.append(sport, status);
+
+          const event = document.createElement("h2");
+          event.className = "pick-event";
+          const selection = document.createElement("p");
+          selection.className = "pick-selection";
+          const meta = document.createElement("div");
+          meta.className = "pick-meta";
+          const odds = document.createElement("span");
+          odds.className = "pick-odds";
+          const bookmaker = document.createElement("span");
+          meta.append(odds, bookmaker);
+          article.append(top, event, selection, meta);
+          entry = { article, sport, status, event, selection, odds, bookmaker };
+          pickElements.set(pick.id, entry);
+        }
+        entry.sport.textContent = pick.deporte || "";
+        entry.status.textContent = String(pick.estado || "pendiente").slice(0, 1).toUpperCase()
+          + String(pick.estado || "pendiente").slice(1);
+        entry.event.textContent = pick.evento || "";
+        entry.selection.textContent = pick.seleccion || pick.prediccion || "";
+        entry.odds.textContent = `Cuota ${Number(pick.cuota || 0).toFixed(2)}`;
+        entry.bookmaker.textContent = pick.casa_de_apuestas || pick.casa_apuestas || "";
+        entry.bookmaker.className = "pick-bookmaker";
+        if (pickList.children[index] !== entry.article) {
+          pickList.insertBefore(entry.article, pickList.children[index] || null);
+        }
+      }
+      for (const [id, entry] of pickElements) {
+        if (!currentIds.has(id)) {
+          entry.article.remove();
+          pickElements.delete(id);
+        }
+      }
+      widget.hidden = false;
+      publishPreviewSize();
+    }
+
+    async function startWidget() {
+      if (!firebaseConfigured || !firebaseApp) {
+        showError("No se pudo conectar el widget. Revisa la configuración de Firebase.");
+        return;
+      }
+
+      const username = new URLSearchParams(window.location.search).get("u")?.trim().toLowerCase();
+      if (!username || !/^[a-z0-9_-]{3,30}$/.test(username)) {
+        showError("El enlace del widget no es válido. Cópialo de la pestaña Widget OBS del panel tipster.");
+        return;
+      }
+      const requestedFormat = new URLSearchParams(window.location.search).get("formato") || "cascada";
+      widget.dataset.format = widgetFormats.has(requestedFormat) ? requestedFormat : "cascada";
+
+      const db = getFirestore(firebaseApp);
+      try {
+        const usernameSnapshot = await getDoc(doc(db, "usernames", username));
+        if (!usernameSnapshot.exists() || typeof usernameSnapshot.data().uid !== "string") {
+          showError("No se encontró este perfil. Revisa el enlace del widget.");
+          return;
+        }
+
+        const profileSnapshot = await getDoc(doc(db, "perfiles", usernameSnapshot.data().uid));
+        if (!profileSnapshot.exists() || profileSnapshot.data().tipster_status !== "approved"
+          || profileSnapshot.data().username !== username) {
+          showError("Este perfil no está disponible para mostrar pronósticos.");
+          return;
+        }
+
+        widgetName.textContent = profileSnapshot.data().nombre_publico || username;
+        const picksQuery = query(
+          collection(db, "picks"),
+          where("user_id", "==", usernameSnapshot.data().uid),
+          where("show_on_stream", "==", true)
+        );
+        stopPicks = onSnapshot(picksQuery, snapshot => {
+          widgetMessage.hidden = true;
+          const picks = snapshot.docs.map(item => ({ id: item.id, ...item.data() }));
+          picks.sort((a, b) => (b.created_at?.toMillis?.() || 0) - (a.created_at?.toMillis?.() || 0));
+          renderPicks(picks);
+        }, error => {
+          console.error("No se pudieron cargar los pronósticos del widget:", error);
+          showError(error.code === "failed-precondition"
+            ? "Falta publicar el índice de Firestore para el widget. Consulta FIREBASE_SETUP.md."
+            : error.code === "permission-denied"
+              ? "Firebase no permite leer los pronósticos. Revisa y publica las reglas de Firestore."
+              : "No se pudieron cargar los pronósticos. Comprueba la conexión e inténtalo de nuevo.");
+        });
+      } catch (error) {
+        console.error("No se pudo iniciar el widget de pronósticos:", error);
+        showError("No se pudo cargar el widget. Comprueba la conexión e inténtalo de nuevo.");
+      }
+    }
+
+    window.addEventListener("pagehide", () => {
+      if (stopPicks) stopPicks();
+    });
+    if ("ResizeObserver" in window) {
+      new ResizeObserver(publishPreviewSize).observe(document.body);
+    }
+    startWidget();
+  </script>
+</body>
+</html>

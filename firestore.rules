@@ -1,0 +1,282 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function verifiedUser() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function signedInAs(userId) {
+      return verifiedUser() && request.auth.uid == userId;
+    }
+
+    function acceptedCurrentTerms(userId) {
+      return exists(/databases/$(database)/documents/legalAcceptances/$(userId)/versions/2026-10-03)
+        && get(/databases/$(database)/documents/legalAcceptances/$(userId)/versions/2026-10-03).data.terms_version == "2026-10-03"
+        && get(/databases/$(database)/documents/legalAcceptances/$(userId)/versions/2026-10-03).data.privacy_version == "2026-10-03";
+    }
+
+    function isPlatformAdmin() {
+      return verifiedUser()
+        && exists(/databases/$(database)/documents/platformAdmins/$(request.auth.uid))
+        && get(/databases/$(database)/documents/platformAdmins/$(request.auth.uid)).data.enabled == true;
+    }
+
+    function profileIsApproved(userId) {
+      return exists(/databases/$(database)/documents/perfiles/$(userId))
+        && get(/databases/$(database)/documents/perfiles/$(userId)).data.tipster_status == "approved";
+    }
+
+    function ownsUsername(username) {
+      return existsAfter(/databases/$(database)/documents/usernames/$(username))
+        && getAfter(/databases/$(database)/documents/usernames/$(username)).data.uid == request.auth.uid;
+    }
+
+    function profileOwnsUsername(userId, username) {
+      return existsAfter(/databases/$(database)/documents/perfiles/$(userId))
+        && getAfter(/databases/$(database)/documents/perfiles/$(userId)).data.tipster_status == "approved"
+        && getAfter(/databases/$(database)/documents/perfiles/$(userId)).data.username == username;
+    }
+
+    function approvedApplicationClaimsUsername(userId, username) {
+      return existsAfter(/databases/$(database)/documents/tipsterApplications/$(userId))
+        && getAfter(/databases/$(database)/documents/tipsterApplications/$(userId)).data.status == "approved"
+        && getAfter(/databases/$(database)/documents/tipsterApplications/$(userId)).data.requested_username == username
+        && profileOwnsUsername(userId, username);
+    }
+
+    function validUsername(username) {
+      return username is string && username.matches('^[a-z0-9_-]{3,30}$');
+    }
+
+    function validImage(value, maxDataUrlLength) {
+      return value == null
+        || (value is string
+          && (value.matches('^https?://.+$')
+            || (value.size() <= maxDataUrlLength
+              && value.matches('^data:image/jpeg;base64,[A-Za-z0-9+/]+=*$'))));
+    }
+
+    function validProfile(profileId) {
+      return request.resource.data.keys().hasOnly([
+          "id", "username", "nombre_publico", "bio", "avatar_url", "banner_url",
+          "color_primario", "kick_url", "twitch_url", "youtube_url",
+          "telegram_url", "twitter_url", "instagram_url", "is_online",
+          "last_active_at", "created_at", "tipster_status"
+        ])
+        && request.resource.data.id == profileId
+        && request.resource.data.tipster_status == "approved"
+        && validUsername(request.resource.data.username)
+        && request.resource.data.nombre_publico is string
+        && request.resource.data.nombre_publico.size() <= 60
+        && (!('avatar_url' in request.resource.data)
+          || validImage(request.resource.data.avatar_url, 204800))
+        && (!('banner_url' in request.resource.data)
+          || validImage(request.resource.data.banner_url, 675840));
+    }
+
+    function validPick(data, userId) {
+      return data.keys().hasOnly([
+          "user_id", "deporte", "evento", "seleccion", "prediccion", "cuota",
+          "casa_de_apuestas", "casa_apuestas", "fecha_evento", "confianza",
+          "nota", "destacada", "show_on_stream", "estado", "created_at"
+        ])
+        && data.user_id == userId
+        && data.deporte is string && data.deporte.size() > 0 && data.deporte.size() <= 50
+        && data.evento is string && data.evento.size() > 0 && data.evento.size() <= 120
+        && data.seleccion is string && data.seleccion.size() > 0 && data.seleccion.size() <= 120
+        && data.prediccion is string && data.prediccion.size() > 0 && data.prediccion.size() <= 120
+        && data.cuota is number && data.cuota >= 1.01 && data.cuota <= 1000
+        && data.casa_de_apuestas is string && data.casa_de_apuestas.size() > 0 && data.casa_de_apuestas.size() <= 60
+        && data.casa_apuestas is string && data.casa_apuestas.size() > 0 && data.casa_apuestas.size() <= 60
+        && data.fecha_evento is timestamp
+        && (data.confianza == null || (data.confianza is int && data.confianza >= 1 && data.confianza <= 5))
+        && (data.nota == null || (data.nota is string && data.nota.size() <= 2000))
+        && data.destacada is bool
+        && (!('show_on_stream' in data) || data.show_on_stream is bool)
+        && data.estado in ["pendiente", "ganada", "perdida", "anulada"]
+        && data.created_at is timestamp;
+    }
+
+    match /platformAdmins/{adminId} {
+      allow read: if signedInAs(adminId);
+      allow write: if false;
+    }
+
+    match /platformSettings/{settingId} {
+      allow read: if verifiedUser();
+      allow create, update: if isPlatformAdmin()
+        && settingId == "limits"
+        && request.resource.data.keys().hasOnly([
+          "tipsterMonthlyPickLimit", "viewerMonthlyPickLimit", "updated_at", "updated_by"
+        ])
+        && request.resource.data.tipsterMonthlyPickLimit is int
+        && request.resource.data.tipsterMonthlyPickLimit >= 1
+        && request.resource.data.tipsterMonthlyPickLimit <= 500
+        && request.resource.data.viewerMonthlyPickLimit is int
+        && request.resource.data.viewerMonthlyPickLimit >= 0
+        && request.resource.data.viewerMonthlyPickLimit <= 500
+        && request.resource.data.updated_at == request.time
+        && request.resource.data.updated_by == request.auth.uid;
+      allow delete: if false;
+    }
+
+    match /legalAcceptances/{userId}/versions/{version} {
+      allow read: if (request.auth != null && request.auth.uid == userId)
+        || isPlatformAdmin();
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly([
+          "uid", "terms_version", "privacy_version", "age_confirmed", "accepted_at"
+        ])
+        && request.auth.uid == userId
+        && version == "2026-10-03"
+        && request.resource.data.uid == userId
+        && request.resource.data.terms_version == version
+        && request.resource.data.privacy_version == version
+        && request.resource.data.age_confirmed == true
+        && request.resource.data.accepted_at == request.time;
+      allow update, delete: if false;
+    }
+
+    match /tipsterApplications/{userId} {
+      allow read: if signedInAs(userId) || isPlatformAdmin();
+      allow create: if signedInAs(userId)
+        && acceptedCurrentTerms(userId)
+        && request.resource.data.keys().hasOnly([
+          "uid", "display_name", "email", "requested_username", "status",
+          "submitted_at", "reviewed_at", "reviewed_by"
+        ])
+        && request.resource.data.uid == userId
+        && request.resource.data.display_name is string
+        && request.resource.data.display_name.size() > 0
+        && request.resource.data.display_name.size() <= 60
+        && request.resource.data.email == request.auth.token.email
+        && validUsername(request.resource.data.requested_username)
+        && request.resource.data.status == "pending"
+        && request.resource.data.submitted_at == request.time
+        && request.resource.data.reviewed_at == null
+        && request.resource.data.reviewed_by == null
+        && !profileIsApproved(userId)
+        && (!exists(/databases/$(database)/documents/usernames/$(request.resource.data.requested_username))
+          || get(/databases/$(database)/documents/usernames/$(request.resource.data.requested_username)).data.uid == userId);
+      allow update: if (
+          signedInAs(userId)
+          && acceptedCurrentTerms(userId)
+          && resource.data.status == "rejected"
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            "display_name", "email", "requested_username", "status",
+            "submitted_at", "reviewed_at", "reviewed_by"
+          ])
+          && request.resource.data.uid == userId
+          && request.resource.data.display_name is string
+          && request.resource.data.display_name.size() > 0
+          && request.resource.data.display_name.size() <= 60
+          && request.resource.data.email == request.auth.token.email
+          && validUsername(request.resource.data.requested_username)
+          && request.resource.data.status == "pending"
+          && request.resource.data.submitted_at == request.time
+          && request.resource.data.reviewed_at == null
+          && request.resource.data.reviewed_by == null
+          && !profileIsApproved(userId)
+          && (!exists(/databases/$(database)/documents/usernames/$(request.resource.data.requested_username))
+            || get(/databases/$(database)/documents/usernames/$(request.resource.data.requested_username)).data.uid == userId)
+        )
+        || (
+          isPlatformAdmin()
+          && resource.data.status == "pending"
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "reviewed_at", "reviewed_by"])
+          && request.resource.data.status in ["approved", "rejected"]
+          && request.resource.data.reviewed_at == request.time
+          && request.resource.data.reviewed_by == request.auth.uid
+          && (request.resource.data.status == "rejected"
+            || approvedApplicationClaimsUsername(userId, resource.data.requested_username))
+        );
+      allow delete: if false;
+    }
+
+    match /perfiles/{profileId} {
+      allow read: if resource.data.tipster_status == "approved"
+        || signedInAs(profileId)
+        || isPlatformAdmin();
+      allow create: if isPlatformAdmin()
+        && validProfile(profileId)
+        && approvedApplicationClaimsUsername(profileId, request.resource.data.username);
+      allow update: if (
+          signedInAs(profileId)
+          && acceptedCurrentTerms(profileId)
+          && resource.data.tipster_status == "approved"
+          && validProfile(profileId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            "username", "nombre_publico", "bio", "avatar_url", "banner_url",
+            "color_primario", "kick_url", "twitch_url", "youtube_url",
+            "telegram_url", "twitter_url", "instagram_url", "is_online",
+            "last_active_at"
+          ])
+          && ownsUsername(request.resource.data.username)
+        )
+        || (
+          isPlatformAdmin()
+          && validProfile(profileId)
+          && approvedApplicationClaimsUsername(profileId, request.resource.data.username)
+        )
+        || (
+          isPlatformAdmin()
+          && resource.data.tipster_status in ["approved", "revoked"]
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["tipster_status"])
+          && request.resource.data.tipster_status in ["approved", "revoked"]
+        );
+      allow delete: if false;
+    }
+
+    match /usernames/{username} {
+      allow read: if true;
+      allow create: if (
+          signedInAs(request.resource.data.uid)
+          && acceptedCurrentTerms(request.auth.uid)
+          && request.resource.data.keys().hasOnly(["uid"])
+          && validUsername(username)
+          && profileOwnsUsername(request.resource.data.uid, username)
+        )
+        || (
+          isPlatformAdmin()
+          && request.resource.data.keys().hasOnly(["uid"])
+          && validUsername(username)
+          && approvedApplicationClaimsUsername(request.resource.data.uid, username)
+        )
+        && !exists(/databases/$(database)/documents/usernames/$(username));
+      allow update: if signedInAs(resource.data.uid)
+        && acceptedCurrentTerms(request.auth.uid)
+        && request.resource.data.keys().hasOnly(["uid"])
+        && request.resource.data.uid == resource.data.uid
+        && profileOwnsUsername(resource.data.uid, username);
+      allow delete: if signedInAs(resource.data.uid)
+        && acceptedCurrentTerms(request.auth.uid)
+        && existsAfter(/databases/$(database)/documents/perfiles/$(request.auth.uid))
+        && getAfter(/databases/$(database)/documents/perfiles/$(request.auth.uid)).data.username != username;
+    }
+
+    match /picks/{pickId} {
+      allow read: if profileIsApproved(resource.data.user_id);
+      allow create: if verifiedUser()
+        && acceptedCurrentTerms(request.auth.uid)
+        && profileIsApproved(request.auth.uid)
+        && validPick(request.resource.data, request.auth.uid)
+        && request.resource.data.estado == "pendiente"
+        && request.resource.data.created_at == request.time;
+      allow update: if verifiedUser()
+        && acceptedCurrentTerms(request.auth.uid)
+        && profileIsApproved(request.auth.uid)
+        && resource.data.user_id == request.auth.uid
+        && validPick(request.resource.data, request.auth.uid)
+        && request.resource.data.created_at == resource.data.created_at
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "deporte", "evento", "seleccion", "prediccion", "cuota",
+          "casa_de_apuestas", "casa_apuestas", "fecha_evento",
+          "confianza", "nota", "destacada", "show_on_stream", "estado"
+        ]);
+      allow delete: if verifiedUser()
+        && acceptedCurrentTerms(request.auth.uid)
+        && profileIsApproved(request.auth.uid)
+        && resource.data.user_id == request.auth.uid;
+    }
+  }
+}

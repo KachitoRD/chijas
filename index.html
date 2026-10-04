@@ -1,339 +1,417 @@
 <!DOCTYPE html>
-<html lang="es" class="dark">
+<html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Fijas en vivo</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="https://cdn.tailwindcss.com"></script>
-<script>tailwind.config={theme:{extend:{fontFamily:{sans:['"Plus Jakarta Sans"','system-ui','sans-serif']}}}}</script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<style>
-  @keyframes ping-soft{0%{box-shadow:0 0 0 0 rgba(244,63,94,.55)}100%{box-shadow:0 0 0 8px rgba(244,63,94,0)}}
-  .live-dot{animation:ping-soft 1.6s ease-out infinite}
-  @media (prefers-reduced-motion:reduce){.live-dot{animation:none}}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#09090b">
+  <meta name="description" content="Encuentra tipsters activos, consulta sus apuestas y revisa sus resultados.">
+  <title>Tipsters en vivo | Fijas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config={theme:{extend:{fontFamily:{sans:['"Plus Jakarta Sans"','system-ui','sans-serif']}}}}</script>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ease-out: cubic-bezier(.23, 1, .32, 1);
+    }
+    html { scroll-behavior: smooth; }
+    body { background: #09090b; }
+    .text-zinc-500 { color: #8b8b93; }
+    ::selection { color: #052e23; background: #6ee7b7; }
+    :focus-visible { outline: 2px solid #6ee7b7; outline-offset: 3px; }
+    button, a, input, select { -webkit-tap-highlight-color: transparent; }
+    button:active, a[role="button"]:active { transform: scale(.98); }
+    .control { transition: border-color 180ms var(--ease-out), background-color 180ms var(--ease-out), color 180ms var(--ease-out), transform 180ms var(--ease-out); }
+    .profile-card { animation: reveal .3s var(--ease-out) both; }
+    .profile-card:nth-child(2) { animation-delay: 35ms; }
+    .profile-card:nth-child(3) { animation-delay: 70ms; }
+    .profile-card:nth-child(4) { animation-delay: 105ms; }
+    .skeleton { background: linear-gradient(100deg, #18181b 30%, #27272a 45%, #18181b 60%); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; }
+    @keyframes reveal { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes shimmer { to { background-position: -200% 0; } }
+    @media (hover: hover) and (pointer: fine) {
+      .profile-card:hover { transform: translateY(-2px); border-color: rgb(110 231 183 / .36); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+  </style>
 </head>
-<body class="bg-[#09090b] font-sans text-zinc-100 antialiased">
-<div class="mx-auto max-w-5xl space-y-4 px-4 py-8 sm:py-12">
-
-  <!-- Selector global de streamer -->
-  <div class="flex items-center justify-between gap-4 rounded-2xl border border-white/[0.08] bg-[#121215] px-5 py-3">
-    <label for="streamerSelect" class="text-xs font-semibold uppercase tracking-wider text-zinc-400">Seleccionar Streamer:</label>
-    <select id="streamerSelect" class="rounded-xl border border-white/10 bg-[#1a1a1e] px-3 py-1.5 text-sm font-medium text-emerald-400 outline-none transition hover:border-emerald-500/50 focus:border-emerald-400">
-      <option value="">Cargando lista...</option>
-    </select>
+<body class="min-h-[100dvh] font-sans text-zinc-100 antialiased">
+  <div id="firebaseSetup" class="hidden border-b border-amber-300/20 bg-amber-300/[.07] px-4 py-3 text-sm text-amber-100" role="status">
+    <div class="mx-auto max-w-6xl"><strong class="font-semibold">Falta conectar Firebase.</strong> Completa las credenciales web en <code class="rounded bg-black/30 px-1.5 py-0.5">firebase-config.js</code> y sigue <a class="underline underline-offset-4" href="FIREBASE_SETUP.md">la guía de configuración</a>.</div>
   </div>
 
-  <!-- Hero / Header del Streamer -->
-  <header class="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-[#121215] p-6 transition-all duration-200 ease-out hover:border-white/15 sm:p-10">
-    <div class="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-emerald-500/10 blur-3xl"></div>
-    <div class="relative flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
-      <div class="flex items-center gap-5">
-        <div id="avatar" class="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-700 bg-cover bg-center text-2xl font-extrabold text-black ring-1 ring-white/10"></div>
-        <div>
-          <div class="flex items-center gap-2 flex-wrap">
-            <span class="inline-flex items-center gap-2 rounded-full border border-rose-500/30 bg-rose-500/10 px-2.5 py-1 text-xs font-semibold text-rose-400 backdrop-blur-md">
-              <span class="live-dot h-1.5 w-1.5 rounded-full bg-rose-500"></span>EN VIVO
-            </span>
-            <span id="usernameBadge" class="text-xs font-mono text-zinc-500"></span>
-          </div>
-          <h1 id="name" class="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">Cargando...</h1>
-          <p id="bio" class="mt-1 text-sm text-zinc-400">Sus fijas, publicadas al momento y con resultado verificable.</p>
-          
-          <!-- Redes Sociales -->
-          <div id="socials" class="mt-3 flex flex-wrap gap-2"></div>
-        </div>
-      </div>
-      <div class="grid grid-cols-2 gap-3 shrink-0">
-        <div class="rounded-2xl border border-white/[0.08] bg-white/[0.03] px-5 py-4 backdrop-blur-md">
-          <p class="text-xs text-zinc-500">Efectividad</p>
-          <p id="winrate" class="mt-1 text-3xl font-bold tabular-nums text-emerald-400">–</p>
-        </div>
-        <div class="rounded-2xl border border-white/[0.08] bg-white/[0.03] px-5 py-4 backdrop-blur-md">
-          <p class="text-xs text-zinc-500">Fijas resueltas</p>
-          <p id="resolved" class="mt-1 text-3xl font-bold tabular-nums">–</p>
-        </div>
-      </div>
-    </div>
+  <header class="border-b border-white/[.07]">
+    <nav class="mx-auto flex min-h-[68px] max-w-6xl items-center justify-between gap-4 px-4 sm:px-6" aria-label="Navegación principal">
+      <a href="./" class="flex items-center gap-3 rounded-lg" aria-label="Fijas, inicio">
+        <span class="grid h-9 w-9 place-items-center rounded-xl bg-emerald-300 text-sm font-extrabold tracking-tight text-zinc-950">F.</span>
+        <span class="text-sm font-bold tracking-tight sm:text-base">Fijas <span class="font-medium text-zinc-500">en vivo</span></span>
+      </a>
+      <a href="admin.html" class="control inline-flex min-h-10 items-center justify-center rounded-xl border border-white/10 px-3.5 text-sm font-semibold text-zinc-200 hover:border-emerald-300/40 hover:text-emerald-200 sm:px-4">Panel tipster</a>
+    </nav>
   </header>
 
-  <!-- Fija destacada -->
-  <section id="featured"></section>
-
-  <!-- Filtros -->
-  <nav id="filters" class="flex flex-wrap gap-2 pt-2" aria-label="Filtrar fijas"></nav>
-
-  <!-- Grid -->
-  <section id="grid" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"></section>
-</div>
-
-<script>
-const SUPABASE_URL = "https://bczbgryqhismhxkpjqak.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_HWeyLs26bxXzgA9SddyWsQ_OHEGcoqB";
-
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-const $ = id => document.getElementById(id);
-const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-
-// Formateador automático a la zona horaria del cliente (móvil o desktop)
-function formatDate(isoStr) {
-  if (!isoStr) return "";
-  const d = new Date(isoStr);
-  if (isNaN(d.getTime())) return "";
-  return new Intl.DateTimeFormat(navigator.language || 'es-ES', {
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false
-  }).format(d);
-}
-
-const BADGE = {
-  pendiente: ["Pendiente", "bg-amber-500/10 text-amber-400 ring-amber-500/30 shadow-[0_0_14px_rgba(245,158,11,.25)]"],
-  ganada:    ["Ganada",    "bg-emerald-500/10 text-emerald-400 ring-emerald-500/30 shadow-[0_0_14px_rgba(16,185,129,.3)]"],
-  perdida:   ["Perdida",   "bg-rose-500/10 text-rose-400 ring-rose-500/30 shadow-[0_0_14px_rgba(244,63,94,.25)]"],
-  anulada:   ["Anulada",   "bg-zinc-500/10 text-zinc-400 ring-zinc-500/30"],
-  PENDIENTE: ["Pendiente", "bg-amber-500/10 text-amber-400 ring-amber-500/30 shadow-[0_0_14px_rgba(245,158,11,.25)]"],
-  GANADA:    ["Ganada",    "bg-emerald-500/10 text-emerald-400 ring-emerald-500/30 shadow-[0_0_14px_rgba(16,185,129,.3)]"],
-  PERDIDA:   ["Perdida",   "bg-rose-500/10 text-rose-400 ring-rose-500/30 shadow-[0_0_14px_rgba(244,63,94,.25)]"],
-  ANULADA:   ["Anulada",   "bg-zinc-500/10 text-zinc-400 ring-zinc-500/30"]
-};
-
-const badge = e => { const [t, c] = BADGE[e] || BADGE.anulada; return `<span class="rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${c}">${t}</span>`; };
-const FILTERS = [["todas","Todas"],["pendiente","Pendientes"],["ganada","Ganadas"],["perdida","Perdidas"]];
-
-let picks = [], filter = "todas", currentProfile = null, allProfiles = [];
-
-function renderFilters() {
-  $("filters").innerHTML = FILTERS.map(([k, l]) =>
-    `<button data-f="${k}" class="rounded-full border px-4 py-1.5 text-sm font-medium transition-all duration-200 ease-out ${k === filter ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-300" : "border-white/[0.08] bg-[#121215] text-zinc-400 hover:border-white/15 hover:text-zinc-200"}">${l}</button>`).join("");
-}
-
-function renderProfile(p) {
-  if (!p) {
-    $("name").textContent = "Sin streamer seleccionado";
-    $("usernameBadge").textContent = "";
-    $("bio").textContent = "Selecciona un streamer de la lista superior para ver sus fijas.";
-    $("avatar").style.backgroundImage = "none";
-    $("avatar").textContent = "?";
-    $("socials").innerHTML = "";
-    return;
-  }
-  $("name").textContent = p.nombre_publico || "Streamer";
-  $("usernameBadge").textContent = p.username ? `@${p.username}` : "";
-  $("bio").textContent = p.bio || "Sus fijas, publicadas al momento y con resultado verificable.";
-
-  if (p.avatar_url) {
-    $("avatar").style.backgroundImage = `url("${p.avatar_url}")`;
-    $("avatar").textContent = "";
-  } else {
-    $("avatar").style.backgroundImage = "none";
-    $("avatar").textContent = (p.nombre_publico || "S").trim().charAt(0).toUpperCase();
-  }
-
-  const redes = [
-    { k: 'kick_url', l: 'Kick', c: 'hover:border-emerald-500/40 hover:text-emerald-400' },
-    { k: 'telegram_url', l: 'Telegram VIP', c: 'hover:border-sky-500/40 hover:text-sky-400' },
-    { k: 'twitch_url', l: 'Twitch', c: 'hover:border-purple-500/40 hover:text-purple-400' },
-    { k: 'youtube_url', l: 'YouTube', c: 'hover:border-red-500/40 hover:text-red-400' },
-    { k: 'twitter_url', l: 'X / Twitter', c: 'hover:border-zinc-500 hover:text-zinc-200' },
-    { k: 'instagram_url', l: 'Instagram', c: 'hover:border-pink-500/40 hover:text-pink-400' }
-  ];
-
-  $("socials").innerHTML = redes
-    .filter(r => p[r.k])
-    .map(r => `<a href="${esc(p[r.k])}" target="_blank" rel="noopener" class="rounded-lg border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-xs text-zinc-400 transition-all duration-200 ${r.c}">${r.l} ↗</a>`)
-    .join("");
-}
-
-function renderStats() {
-  const g = picks.filter(p => (p.estado || "").toLowerCase() === "ganada").length;
-  const r = g + picks.filter(p => (p.estado || "").toLowerCase() === "perdida").length;
-  $("winrate").textContent = r ? Math.round(g / r * 100) + "%" : "–";
-  $("resolved").textContent = r;
-}
-
-function renderFeatured() {
-  const p = picks.find(x => x.destacada && (x.estado || "").toLowerCase() === "pendiente") || picks.find(x => x.destacada);
-  if (!p) { $("featured").innerHTML = ""; return; }
-  const dots = Array.from({length: 5}, (_, i) => `<span class="h-1.5 w-5 rounded-full ${i < (p.confianza || 0) ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,.6)]" : "bg-white/10"}"></span>`).join("");
-  const seleccion = p.seleccion || p.prediccion || "";
-  const casa = p.casa_de_apuestas || p.casa_apuestas || "";
-  const rawDate = p.fecha_evento || p.fecha || p.created_at || p.timestamp;
-  const fechaFormatted = formatDate(rawDate);
-
-  $("featured").innerHTML = `
-  <div class="relative overflow-hidden rounded-3xl border border-emerald-400/20 bg-[#121215] p-6 transition-all duration-200 ease-out hover:border-emerald-400/35 sm:p-8">
-    <div class="pointer-events-none absolute -left-20 -bottom-24 h-64 w-64 rounded-full bg-emerald-500/10 blur-3xl"></div>
-    <div class="relative grid gap-6 md:grid-cols-[1fr_auto] md:items-center">
+  <main class="mx-auto max-w-6xl px-4 pb-20 pt-9 sm:px-6 sm:pt-14">
+    <section class="grid items-end gap-6 border-b border-white/[.08] pb-8 md:grid-cols-[minmax(0,1fr)_minmax(250px,360px)] md:gap-10 md:pb-10">
       <div>
-        <div class="flex items-center gap-3 flex-wrap">
-          <span class="rounded-full bg-emerald-400/10 px-2.5 py-1 text-xs font-semibold text-emerald-300 ring-1 ring-inset ring-emerald-400/30">Fija destacada del día</span>
-          ${badge(p.estado)}
-          ${fechaFormatted ? `<span class="text-xs font-medium text-zinc-500 ml-auto md:ml-0">🕒 ${fechaFormatted}</span>` : ""}
-        </div>
-        <p class="mt-4 text-sm text-zinc-400">${esc(p.deporte)} · ${esc(p.evento)}</p>
-        <h2 class="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">${esc(seleccion)}</h2>
-        ${p.nota ? `<p class="mt-4 max-w-xl text-sm leading-relaxed text-zinc-400">${esc(p.nota)}</p>` : ""}
-        ${p.confianza ? `<div class="mt-5 flex items-center gap-3"><div class="flex gap-1">${dots}</div><span class="text-xs text-zinc-500">Confianza ${p.confianza}/5</span></div>` : ""}
+        <h1 class="max-w-3xl text-4xl font-extrabold leading-[1.08] tracking-[-.035em] sm:text-5xl">Encuentra a quien seguir.</h1>
+        <p class="mt-4 max-w-xl text-sm leading-6 text-zinc-400 sm:text-base">Explora perfiles activos, revisa sus pronósticos y consulta los resultados publicados.</p>
       </div>
-      <div class="rounded-2xl border border-white/[0.08] bg-white/[0.03] px-8 py-5 text-center backdrop-blur-md">
-        <p class="text-xs text-zinc-500">Cuota</p>
-        <p class="text-6xl font-extrabold tabular-nums tracking-tight text-emerald-400">${Number(p.cuota).toFixed(2)}</p>
-        <p class="mt-1 text-xs text-zinc-400">${esc(casa)}</p>
+      <div class="w-full">
+        <label for="searchTipsters" class="mb-2 block text-sm font-medium text-zinc-300">Buscar en el directorio</label>
+        <input id="searchTipsters" type="search" autocomplete="off" placeholder="Nombre o @usuario" class="control min-h-11 w-full rounded-xl border border-white/10 bg-[#121215] px-3.5 text-sm text-zinc-100 placeholder:text-zinc-400 hover:border-white/20 focus:border-emerald-300/60 focus:outline-none">
+        <p class="mt-3 flex items-center gap-2 text-sm text-zinc-400"><span id="onlineIndicator" class="h-2 w-2 shrink-0 rounded-full bg-zinc-600" aria-hidden="true"></span><strong id="onlineCount" class="font-bold tabular-nums text-zinc-100">--</strong> tipsters conectados</p>
       </div>
-    </div>
-  </div>`;
-}
+    </section>
 
-function renderGrid() {
-  const list = picks.filter(p => filter === "todas" || (p.estado || "").toLowerCase() === filter);
-  $("grid").innerHTML = list.length ? list.map(p => {
-    const seleccion = p.seleccion || p.prediccion || "";
-    const casa = p.casa_de_apuestas || p.casa_apuestas || "";
-    const rawDate = p.fecha_evento || p.fecha || p.created_at || p.timestamp;
-    const fechaFormatted = formatDate(rawDate);
-
-    return `
-    <article class="rounded-2xl border border-white/[0.08] bg-[#121215] p-5 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-white/15">
-      <div class="flex items-center justify-between">
-        <span class="text-xs font-medium text-zinc-400">${esc(p.deporte)}</span>
-        ${badge(p.estado)}
-      </div>
-      <h3 class="mt-3 font-semibold">${esc(p.evento)}</h3>
-      <p class="mt-1 text-sm text-zinc-400">${esc(seleccion)}</p>
-      <div class="mt-5 flex items-end justify-between border-t border-white/[0.06] pt-4">
+    <section class="pt-8 sm:pt-10" aria-labelledby="onlineTitle">
+      <div class="mb-5 flex items-end justify-between gap-4">
         <div>
-          <p class="text-xs text-zinc-500">Cuota</p>
-          <p class="text-2xl font-bold tabular-nums">${Number(p.cuota).toFixed(2)}</p>
+          <h2 id="onlineTitle" class="text-xl font-bold tracking-tight sm:text-2xl">Conectados</h2>
+          <p class="mt-1.5 text-sm text-zinc-500">Tipsters conectados dentro de la plataforma.</p>
         </div>
-        <div class="text-right">
-          <span class="block text-xs font-medium text-zinc-400">${esc(casa)}</span>
-          ${fechaFormatted ? `<span class="block text-[11px] text-zinc-500 mt-0.5">🕒 ${fechaFormatted}</span>` : ""}
+        <span class="hidden text-xs font-medium text-zinc-500 sm:block">Hasta 20 perfiles</span>
+      </div>
+      <div id="onlineGrid" class="grid grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-3 sm:gap-x-5 sm:gap-y-6 lg:grid-cols-4 xl:grid-cols-5" aria-live="polite" aria-busy="true">
+        <div class="skeleton h-[190px] rounded-2xl"></div><div class="skeleton h-[190px] rounded-2xl"></div><div class="skeleton h-[190px] rounded-2xl"></div><div class="skeleton h-[190px] rounded-2xl"></div><div class="skeleton hidden h-[190px] rounded-2xl xl:block"></div>
+      </div>
+    </section>
+
+    <section id="profileSection" class="hidden scroll-mt-6 pt-12 sm:pt-16" aria-labelledby="profileTitle">
+      <div id="profilePanel" class="overflow-hidden rounded-2xl border border-white/[.09] bg-[#111114]">
+        <div id="profileBanner" class="hidden h-32 bg-zinc-900 bg-cover bg-center sm:h-44"></div>
+        <div class="p-5 sm:p-7">
+          <div class="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+            <div class="flex min-w-0 items-start gap-4">
+              <div class="relative -mt-10 grid h-[76px] w-[76px] shrink-0 place-items-center rounded-2xl border-4 border-[#111114] bg-emerald-300/10 text-xl font-bold text-emerald-100 sm:-mt-12 sm:h-24 sm:w-24" aria-hidden="true"><span id="profileInitial">T</span><img id="profileAvatar" src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" class="absolute hidden h-[68px] w-[68px] rounded-xl object-cover sm:h-[88px] sm:w-[88px]" alt="" width="88" height="88"></div>
+              <div class="min-w-0 pt-1">
+                <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                  <h2 id="profileTitle" class="text-xl font-bold tracking-tight sm:text-2xl"></h2>
+                  <span id="profilePresence" class="hidden items-center gap-1.5 rounded-full border border-emerald-300/20 bg-emerald-300/[.08] px-2 py-1 text-[11px] font-semibold text-emerald-200"><span class="h-1.5 w-1.5 rounded-full bg-emerald-300"></span>En la plataforma</span>
+                </div>
+                <p id="profileUsername" class="mt-1 text-sm text-zinc-500"></p>
+                <p id="profileBio" class="mt-3 max-w-2xl text-sm leading-6 text-zinc-300"></p>
+                <div id="profileSocials" class="mt-4 flex flex-wrap gap-2"></div>
+              </div>
+            </div>
+            <div class="grid shrink-0 grid-cols-2 gap-x-7 gap-y-3 px-2 py-1 sm:min-w-[188px]">
+              <div>              <p class="text-xs text-zinc-500">Efectividad reciente</p><p id="winRate" class="mt-1 text-lg font-bold tabular-nums text-emerald-200">-</p></div>
+              <div><p class="text-xs text-zinc-500">Resueltas</p><p id="resolvedCount" class="mt-1 text-lg font-bold tabular-nums">-</p></div>
+            </div>
+          </div>
         </div>
       </div>
-    </article>`;
-  }).join("")
-  : `<p class="col-span-full rounded-2xl border border-dashed border-white/10 p-10 text-center text-sm text-zinc-500">No hay fijas en este estado todavía.</p>`;
-}
+      <div class="mb-4 mt-8 flex flex-wrap items-end justify-between gap-4">
+        <div><h3 class="text-lg font-bold tracking-tight">Pronósticos</h3><p id="picksCaption" class="mt-1 text-sm text-zinc-500">Mostrando hasta 60 pronósticos recientes.</p></div>
+        <nav id="filters" class="flex flex-wrap gap-2" aria-label="Filtrar pronósticos"></nav>
+      </div>
+      <div id="featured"></div>
+      <div id="picksGrid" class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-live="polite"></div>
+    </section>
 
-async function initStreamerSelect(targetUser) {
-  const { data: profiles } = await supabaseClient.from("perfiles").select("username, nombre_publico").order("nombre_publico");
-  allProfiles = profiles || [];
-  
-  const select = $("streamerSelect");
-  if (!allProfiles.length) {
-    select.innerHTML = `<option value="">Sin streamers</option>`;
-    return null;
-  }
+    <section id="directorySection" class="border-t border-white/[.08] pt-10 sm:pt-12" aria-labelledby="directoryTitle">
+      <div><h2 id="directoryTitle" class="text-xl font-bold tracking-tight sm:text-2xl">Directorio de tipsters</h2><p class="mt-1.5 text-sm text-zinc-500">Perfiles conectados y desconectados. Filtra con el buscador de arriba.</p></div>
+      <p id="directorySummary" class="mb-2 mt-5 text-xs text-zinc-500" aria-live="polite"></p>
+      <div id="directoryList" class="divide-y divide-white/[.07]" aria-live="polite" aria-busy="true">
+        <div class="skeleton h-16 rounded-xl"></div><div class="skeleton mt-2 h-16 rounded-xl"></div><div class="skeleton mt-2 h-16 rounded-xl"></div>
+      </div>
+    </section>
+  </main>
 
-  // Determinar streamer inicial
-  let selectedUser = targetUser;
-  if (!selectedUser || !allProfiles.some(p => p.username?.toLowerCase() === selectedUser)) {
-    selectedUser = allProfiles[0].username?.toLowerCase();
-  }
+  <footer class="border-t border-white/[.07] px-4 py-6 text-center text-xs leading-5 text-zinc-500">
+    <p>Fijas en vivo comparte información publicada por usuarios; no es una casa de apuestas. Si decides apostar, hazlo bajo tu responsabilidad y con prudencia.</p>
+    <nav class="mt-3 flex justify-center gap-5" aria-label="Información legal">
+      <a class="underline underline-offset-4 hover:text-zinc-300" href="legal.html#terminos">Términos y condiciones</a>
+      <a class="underline underline-offset-4 hover:text-zinc-300" href="legal.html#privacidad">Privacidad</a>
+    </nav>
+  </footer>
 
-  select.innerHTML = allProfiles
-    .map(p => `<option value="${esc(p.username)}"${p.username?.toLowerCase() === selectedUser ? " selected" : ""}>${esc(p.nombre_publico || p.username)} (@${esc(p.username)})</option>`)
-    .join("");
+  <script type="module">
+    import { firebaseApp, firebaseConfigured, firebaseConfigError } from "./firebase-config.js";
+    import { getFirestore, collection, doc, onSnapshot, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
-  return selectedUser;
-}
+    const $ = id => document.getElementById(id);
+    const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
+    const ONLINE_WINDOW = 90_000;
+    const IMAGE_DATA_LIMITS = { avatar: 200 * 1024, banner: 660 * 1024 };
+    const IMAGE_DATA_PATTERN = /^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/;
+    const NETWORKS = [
+      ["kick_url", "Kick"], ["twitch_url", "Twitch"], ["youtube_url", "YouTube"],
+      ["telegram_url", "Telegram"], ["twitter_url", "X"], ["instagram_url", "Instagram"]
+    ];
+    const FILTERS = [["todas", "Todas"], ["pendiente", "Pendientes"], ["ganada", "Ganadas"], ["perdida", "Perdidas"], ["anulada", "Anuladas"]];
+    const BADGES = {
+      pendiente: ["Pendiente", "border-amber-300/20 bg-amber-300/[.08] text-amber-200"],
+      ganada: ["Ganada", "border-emerald-300/20 bg-emerald-300/[.08] text-emerald-200"],
+      perdida: ["Perdida", "border-rose-300/20 bg-rose-300/[.08] text-rose-200"],
+      anulada: ["Anulada", "border-zinc-300/10 bg-white/[.04] text-zinc-300"]
+    };
+    let db, profiles = [], selectedProfile = null, profilePicks = [], selectedFilter = "todas", stopProfiles = null, stopPicks = null, routeUsername = null, profileRenderKey = "";
 
-async function loadPicksForUser(userParam) {
-  if (!userParam) return;
-
-  // 1. Obtener Perfil
-  const { data: profData } = await supabaseClient
-    .from("perfiles")
-    .select("*")
-    .ilike("username", userParam)
-    .limit(1);
-
-  currentProfile = profData && profData.length ? profData[0] : null;
-
-  renderProfile(currentProfile);
-
-  if (!currentProfile) {
-    picks = [];
-    renderStats();
-    renderFeatured();
-    renderGrid();
-    return;
-  }
-
-  // Sincronizar el selector si difiere
-  if ($("streamerSelect").value !== currentProfile.username) {
-    $("streamerSelect").value = currentProfile.username;
-  }
-
-  // 2. Cargar las fijas del streamer
-  const { data, error } = await supabaseClient
-    .from("picks")
-    .select("*")
-    .eq("user_id", currentProfile.id)
-    .order("created_at", { ascending: false })
-    .limit(60);
-
-  if (error) {
-    $("grid").innerHTML = `<p class="col-span-full rounded-2xl border border-rose-500/20 bg-rose-500/5 p-6 text-sm text-rose-300">Error al cargar fijas.</p>`;
-    return;
-  }
-
-  picks = data || [];
-  renderStats();
-  renderFeatured();
-  renderGrid();
-}
-
-async function start() {
-  const urlParams = new URLSearchParams(window.location.search);
-  const targetUser = urlParams.get('u')?.toLowerCase() || null;
-
-  const activeUser = await initStreamerSelect(targetUser);
-  
-  if (activeUser) {
-    // Sincronizar la URL si no tenía parámetro originalmente
-    if (!targetUser) {
-      const newUrl = `${window.location.pathname}?u=${encodeURIComponent(activeUser)}`;
-      window.history.replaceState({ path: newUrl }, '', newUrl);
+    function showError(message) {
+      $("onlineGrid").setAttribute("aria-busy", "false");
+      $("onlineGrid").innerHTML = `<p class="col-span-full rounded-xl border border-rose-300/15 bg-rose-300/[.05] p-4 text-sm leading-6 text-rose-200">${esc(message)}</p>`;
+      $("directoryList").setAttribute("aria-busy", "false");
+      $("directoryList").innerHTML = `<p class="py-5 text-sm text-zinc-400">No se pudo cargar el directorio. Recarga la página para intentarlo de nuevo.</p>`;
     }
-    await loadPicksForUser(activeUser);
-  }
-}
+    function profileOnline(profile, now = Date.now()) {
+      const activity = profile.last_active_at?.toDate?.()?.getTime() ?? (profile.last_active_at instanceof Date ? profile.last_active_at.getTime() : Date.parse(profile.last_active_at || ""));
+      return profile.is_online === true && Number.isFinite(activity) && now - activity < ONLINE_WINDOW && now >= activity;
+    }
+    function safeExternalUrl(value) {
+      try {
+        const url = new URL(value);
+        return ["http:", "https:"].includes(url.protocol) ? url.href : "";
+      } catch {
+        return "";
+      }
+    }
+    function safeImageSource(value, maxDataLength = IMAGE_DATA_LIMITS.banner) {
+      if (typeof value === "string" && value.length <= maxDataLength && IMAGE_DATA_PATTERN.test(value)) return value;
+      return safeExternalUrl(value);
+    }
+    function avatarMarkup(profile, extra = "") {
+      const name = profile.nombre_publico || profile.username || "Tipster";
+      const url = safeImageSource(profile.avatar_url, IMAGE_DATA_LIMITS.avatar);
+      return url
+        ? `<img src="${esc(url)}" alt="" loading="lazy" width="64" height="64" class="${extra} bg-zinc-800 object-cover" onerror="this.remove()">`
+        : `<span aria-hidden="true" class="${extra} grid place-items-center bg-emerald-300/10 font-bold text-emerald-100">${esc(name.trim().charAt(0).toUpperCase())}</span>`;
+    }
+    function pickDate(value) {
+      const date = value?.toDate?.() ?? new Date(value || "");
+      if (!Number.isFinite(date.getTime())) return "";
+      return new Intl.DateTimeFormat(navigator.language || "es", { dateStyle: "medium", timeStyle: "short" }).format(date);
+    }
+    function badge(status) {
+      const normalized = String(status || "pendiente").toLowerCase();
+      const [label, classes] = BADGES[normalized] || BADGES.pendiente;
+      return `<span class="inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-xs font-medium ${classes}">${label}</span>`;
+    }
+    function profileHref(profile) {
+      return `?u=${encodeURIComponent(profile.username || "")}`;
+    }
+    function renderOnline() {
+      const allOnline = profiles.filter(profile => profileOnline(profile)).sort((a, b) =>
+        String(a.nombre_publico || a.username || "").localeCompare(String(b.nombre_publico || b.username || ""), navigator.language || "es"));
+      const online = allOnline.slice(0, 20);
+      $("onlineCount").textContent = String(allOnline.length);
+      $("onlineIndicator").className = `h-2.5 w-2.5 shrink-0 rounded-full ${allOnline.length ? "bg-emerald-300" : "bg-zinc-600"}`;
+      $("onlineGrid").setAttribute("aria-busy", "false");
+      const markup = online.length ? online.map(profile => `
+        <a href="${esc(profileHref(profile))}" data-username="${esc(profile.username)}" class="profile-card control group min-w-0 overflow-hidden rounded-2xl border border-white/[.08] bg-[#111114] p-3.5 sm:p-4">
+          <div class="relative mb-3 aspect-[4/3] overflow-hidden rounded-xl bg-zinc-900">
+            <div aria-hidden="true" class="absolute inset-0 grid place-items-center text-4xl font-bold text-emerald-100">${esc((profile.nombre_publico || profile.username || "T").trim().charAt(0).toUpperCase())}</div>
+            ${safeImageSource(profile.avatar_url, IMAGE_DATA_LIMITS.avatar)
+              ? `<img src="${esc(safeImageSource(profile.avatar_url, IMAGE_DATA_LIMITS.avatar))}" alt="" loading="lazy" width="256" height="192" class="absolute inset-0 h-full w-full object-cover" onerror="this.remove()">`
+              : ""}
+            <span class="absolute bottom-2.5 left-2.5 inline-flex items-center gap-1.5 rounded-full border border-black/20 bg-[#09090b]/90 px-2.5 py-1 text-[11px] font-semibold text-emerald-100"><span class="h-1.5 w-1.5 rounded-full bg-emerald-300"></span>En plataforma</span>
+          </div>
+          <p class="truncate text-sm font-semibold text-zinc-100">${esc(profile.nombre_publico || profile.username || "Tipster")}</p>
+          <p class="mt-1 truncate text-xs text-zinc-500">@${esc(profile.username || "")}</p>
+        </a>`).join("") : `<div class="col-span-full rounded-xl border border-dashed border-white/[.12] px-5 py-8 text-center"><p class="text-sm font-medium text-zinc-300">No hay tipsters conectados en este momento.</p><p class="mt-1.5 text-sm text-zinc-500">Busca a alguien en el directorio o vuelve más tarde.</p></div>`;
+      if ($("onlineGrid").innerHTML !== markup) $("onlineGrid").innerHTML = markup;
+    }
+    function renderDirectory() {
+      const term = $("searchTipsters").value.trim().replace(/^@/, "").toLocaleLowerCase();
+      const ordered = [...profiles].sort((a, b) => {
+        const onlineDifference = Number(profileOnline(b)) - Number(profileOnline(a));
+        return onlineDifference || String(a.nombre_publico || a.username || "").localeCompare(String(b.nombre_publico || b.username || ""), navigator.language || "es");
+      });
+      const matches = ordered.filter(profile => `${profile.nombre_publico || ""} ${profile.username || ""}`.toLocaleLowerCase().includes(term));
+      $("directorySummary").textContent = term ? `${matches.length} ${matches.length === 1 ? "resultado" : "resultados"}` : `${profiles.length} ${profiles.length === 1 ? "tipster" : "tipsters"} disponibles`;
+      $("directoryList").setAttribute("aria-busy", "false");
+      const markup = matches.length ? matches.map(profile => `
+        <a href="${esc(profileHref(profile))}" data-username="${esc(profile.username)}" class="control flex min-h-[76px] items-center gap-3 py-3.5 hover:bg-white/[.025] sm:gap-4 sm:px-3">
+          ${avatarMarkup(profile, "h-11 w-11 shrink-0 rounded-xl")}
+          <span class="min-w-0 flex-1"><span class="block truncate text-sm font-semibold text-zinc-200">${esc(profile.nombre_publico || profile.username || "Tipster")}</span><span class="mt-1 block truncate text-xs text-zinc-500">@${esc(profile.username || "")}</span></span>
+          ${profileOnline(profile) ? `<span class="inline-flex shrink-0 items-center gap-1.5 text-xs font-medium text-emerald-200"><span class="h-1.5 w-1.5 rounded-full bg-emerald-300"></span>Conectado</span>` : `<span class="shrink-0 text-xs text-zinc-500">Ver perfil</span>`}
+        </a>`).join("") : `<p class="py-7 text-sm text-zinc-500">${profiles.length ? "No encontramos ese tipster. Prueba con otro nombre o usuario." : "El directorio aparecerá cuando los tipsters completen su perfil."}</p>`;
+      if ($("directoryList").innerHTML !== markup) $("directoryList").innerHTML = markup;
+    }
+    function renderFilters() {
+      $("filters").innerHTML = FILTERS.map(([key, label]) => `<button type="button" data-filter="${key}" aria-pressed="${selectedFilter === key}" class="control min-h-9 rounded-full border px-3.5 text-xs font-medium ${selectedFilter === key ? "border-emerald-300/30 bg-emerald-300/[.08] text-emerald-100" : "border-white/[.08] text-zinc-400 hover:border-white/20 hover:text-zinc-200"}">${label}</button>`).join("");
+    }
+    function renderStats() {
+      const won = profilePicks.filter(pick => String(pick.estado || "").toLowerCase() === "ganada").length;
+      const lost = profilePicks.filter(pick => String(pick.estado || "").toLowerCase() === "perdida").length;
+      const total = won + lost;
+      $("winRate").textContent = total ? `${Math.round(won / total * 100)}%` : "-";
+      $("resolvedCount").textContent = String(total);
+    }
+    function renderPicks() {
+      const visible = profilePicks.filter(pick => selectedFilter === "todas" || String(pick.estado || "").toLowerCase() === selectedFilter);
+      const featured = visible.find(pick => pick.destacada);
+      $("featured").innerHTML = featured ? `
+        <article class="mb-4 rounded-2xl border border-emerald-300/20 bg-[#111512] p-5 sm:p-6">
+          <div class="flex flex-wrap items-center justify-between gap-3"><span class="text-xs font-semibold text-emerald-200">Fija destacada</span>${badge(featured.estado)}</div>
+          <p class="mt-4 text-xs font-medium text-zinc-500">${esc(featured.deporte || "Deporte")} <span class="px-1.5 text-zinc-500">/</span> ${esc(featured.evento || "")}</p>
+          <h4 class="mt-1 text-lg font-bold tracking-tight">${esc(featured.seleccion || featured.prediccion || "Pronóstico")}</h4>
+          ${featured.nota ? `<p class="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">${esc(featured.nota)}</p>` : ""}
+          <div class="mt-4 flex flex-wrap items-end justify-between gap-4"><p class="text-xs text-zinc-500">${esc(featured.casa_de_apuestas || featured.casa_apuestas || "")}${pickDate(featured.fecha_evento || featured.created_at) ? ` / ${esc(pickDate(featured.fecha_evento || featured.created_at))}` : ""}</p><p class="text-xs text-zinc-500">Cuota <strong class="ml-1 text-xl tabular-nums text-zinc-100">${Number(featured.cuota || 0).toFixed(2)}</strong></p></div>
+        </article>` : "";
+      $("picksGrid").innerHTML = visible.length ? visible.map(pick => `
+        <article class="rounded-xl border border-white/[.08] bg-[#111114] p-4">
+          <div class="flex items-center justify-between gap-3">${badge(pick.estado)}<span class="truncate text-xs text-zinc-500">${esc(pick.deporte || "Deporte")}</span></div>
+          <h4 class="mt-3 font-semibold leading-5">${esc(pick.evento || "")}</h4>
+          <p class="mt-1.5 text-sm leading-5 text-zinc-400">${esc(pick.seleccion || pick.prediccion || "")}</p>
+          <div class="mt-4 flex items-end justify-between gap-3 border-t border-white/[.07] pt-3">
+            <p class="min-w-0 truncate text-xs text-zinc-500">${esc(pick.casa_de_apuestas || pick.casa_apuestas || "")}<span class="mt-1 block">${esc(pickDate(pick.fecha_evento || pick.created_at))}</span></p>
+            <p class="shrink-0 text-xs text-zinc-500">Cuota <strong class="ml-1 text-lg tabular-nums text-zinc-100">${Number(pick.cuota || 0).toFixed(2)}</strong></p>
+          </div>
+        </article>`).join("") : `<p class="col-span-full rounded-xl border border-dashed border-white/[.12] px-5 py-7 text-center text-sm text-zinc-500">${profilePicks.length ? "No hay pronósticos en este filtro." : "Este tipster todavía no ha publicado pronósticos."}</p>`;
+      renderStats();
+    }
+    function renderProfile(profile) {
+      if (!profile) {
+        $("profileSection").classList.add("hidden");
+        return;
+      }
+      $("profileSection").classList.remove("hidden");
+      $("profileTitle").textContent = profile.nombre_publico || profile.username || "Tipster";
+      $("profileUsername").textContent = profile.username ? `@${profile.username}` : "";
+      $("profileBio").textContent = profile.bio || "Este tipster aún no ha añadido una descripción.";
+      $("profilePresence").classList.toggle("hidden", !profileOnline(profile));
+      $("profilePresence").classList.toggle("inline-flex", profileOnline(profile));
+      const avatar = safeImageSource(profile.avatar_url, IMAGE_DATA_LIMITS.avatar);
+      if (avatar) $("profileAvatar").src = avatar;
+      else $("profileAvatar").removeAttribute("src");
+      $("profileInitial").textContent = (profile.nombre_publico || profile.username || "T").trim().charAt(0).toUpperCase();
+      $("profileAvatar").classList.toggle("hidden", !avatar);
+      const banner = safeImageSource(profile.banner_url, IMAGE_DATA_LIMITS.banner);
+      $("profileBanner").classList.toggle("hidden", !banner);
+      $("profileBanner").style.backgroundImage = banner ? `url("${banner}")` : "";
+      $("profileSocials").innerHTML = NETWORKS.filter(([key]) => safeExternalUrl(profile[key])).map(([key, label]) => `<a href="${esc(safeExternalUrl(profile[key]))}" target="_blank" rel="noopener noreferrer" class="control inline-flex min-h-9 items-center rounded-lg border border-white/[.08] px-3 text-xs font-medium text-zinc-300 hover:border-emerald-300/30 hover:text-emerald-100">${label}</a>`).join("");
+      profileRenderKey = JSON.stringify([
+        profile.nombre_publico, profile.username, profile.bio, profile.avatar_url, profile.banner_url,
+        ...NETWORKS.map(([key]) => profile[key])
+      ]);
+      renderFilters();
+      renderPicks();
+    }
+    function loadProfile(username) {
+      const match = profiles.find(profile => String(profile.username || "").toLowerCase() === username.toLowerCase());
+      if (stopPicks) {
+        stopPicks();
+        stopPicks = null;
+      }
+      const selectionChanged = selectedProfile?.id !== match?.id;
+      selectedProfile = match || null;
+      profilePicks = [];
+      selectedFilter = "todas";
+      renderProfile(selectedProfile);
+      if (!match) {
+        $("profileSection").classList.remove("hidden");
+        $("profilePanel").innerHTML = `<p class="p-5 text-sm text-zinc-400">No encontramos el perfil <strong class="text-zinc-200">@${esc(username)}</strong>. Busca otro tipster en el directorio.</p>`;
+        $("featured").innerHTML = "";
+        $("picksGrid").innerHTML = "";
+        return;
+      }
+      if (selectionChanged) {
+        requestAnimationFrame(() => $("profileSection").scrollIntoView({
+          behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
+          block: "start"
+        }));
+      }
+      history.replaceState({}, "", profileHref(match));
+      const picksQuery = query(collection(db, "picks"), where("user_id", "==", match.id), orderBy("created_at", "desc"), limit(60));
+      stopPicks = onSnapshot(picksQuery, snapshot => {
+        profilePicks = snapshot.docs.map(item => ({ id: item.id, ...item.data() }));
+        renderPicks();
+      }, error => {
+        console.error("No se pudieron cargar los pronósticos:", error);
+        $("picksGrid").innerHTML = `<p class="col-span-full rounded-xl border border-rose-300/15 bg-rose-300/[.05] p-4 text-sm text-rose-200">No se pudieron cargar los pronósticos. Recarga la página para intentarlo de nuevo.</p>`;
+      });
+    }
+    function subscribeToProfiles() {
+      stopProfiles = onSnapshot(query(collection(db, "perfiles"), where("tipster_status", "==", "approved")), snapshot => {
+        profiles = snapshot.docs.map(item => ({ id: item.id, ...item.data() }));
+        renderOnline();
+        renderDirectory();
+        if (routeUsername) {
+          const match = profiles.find(profile => String(profile.username || "").toLowerCase() === routeUsername.toLowerCase());
+          if (match && selectedProfile?.id === match.id) {
+            selectedProfile = match;
+            const renderKey = JSON.stringify([
+              match.nombre_publico, match.username, match.bio, match.avatar_url, match.banner_url,
+              ...NETWORKS.map(([key]) => match[key])
+            ]);
+            if (renderKey !== profileRenderKey) renderProfile(match);
+            else {
+              const online = profileOnline(match);
+              $("profilePresence").classList.toggle("hidden", !online);
+              $("profilePresence").classList.toggle("inline-flex", online);
+            }
+          } else {
+            loadProfile(routeUsername);
+          }
+        }
+        else if (selectedProfile) {
+          selectedProfile = profiles.find(profile => profile.id === selectedProfile.id) || null;
+          const online = profileOnline(selectedProfile);
+          $("profilePresence").classList.toggle("hidden", !online);
+          $("profilePresence").classList.toggle("inline-flex", online);
+        }
+      }, error => {
+        console.error("No se pudieron cargar los perfiles:", error);
+        showError("No se pudo conectar al directorio. Comprueba las reglas de Firestore y vuelve a intentarlo.");
+      });
+    }
+    $("searchTipsters").addEventListener("input", renderDirectory);
+    $("filters").addEventListener("click", event => {
+      const button = event.target.closest("button[data-filter]");
+      if (!button) return;
+      selectedFilter = button.dataset.filter;
+      renderFilters();
+      renderPicks();
+    });
+    $("onlineGrid").addEventListener("click", event => {
+      const link = event.target.closest("a[data-username]");
+      if (link) routeUsername = link.dataset.username;
+    });
+    $("directoryList").addEventListener("click", event => {
+      const link = event.target.closest("a[data-username]");
+      if (link) routeUsername = link.dataset.username;
+    });
+    window.addEventListener("popstate", () => {
+      routeUsername = new URLSearchParams(location.search).get("u");
+      if (routeUsername) {
+        profileRenderKey = "";
+        loadProfile(routeUsername);
+      }
+      else {
+        selectedProfile = null;
+        if (stopPicks) stopPicks();
+        $("profileSection").classList.add("hidden");
+      }
+    });
+    setInterval(() => {
+      if (profiles.length) {
+        renderOnline();
+        renderDirectory();
+        if (selectedProfile) {
+          selectedProfile = profiles.find(profile => profile.id === selectedProfile.id) || selectedProfile;
+          const online = profileOnline(selectedProfile);
+          $("profilePresence").classList.toggle("hidden", !online);
+          $("profilePresence").classList.toggle("inline-flex", online);
+        }
+      }
+    }, 15_000);
 
-// Evento al cambiar de streamer en el selector
-$("streamerSelect").addEventListener("change", e => {
-  const selectedUser = e.target.value;
-  if (!selectedUser) return;
-
-  const newUrl = `${window.location.pathname}?u=${encodeURIComponent(selectedUser)}`;
-  window.history.pushState({ path: newUrl }, '', newUrl);
-
-  loadPicksForUser(selectedUser.toLowerCase());
-});
-
-$("filters").addEventListener("click", e => {
-  const b = e.target.closest("button[data-f]"); if (!b) return;
-  filter = b.dataset.f; renderFilters(); renderGrid();
-});
-
-$("grid").innerHTML = Array.from({length: 3}, () => `<div class="h-40 animate-pulse rounded-2xl border border-white/[0.08] bg-[#121215]"></div>`).join("");
-renderFilters(); 
-start();
-
-// Suscripción en tiempo real asociada al selector actual
-supabaseClient.channel("picks-live").on("postgres_changes", { event: "*", schema: "public", table: "picks" }, () => {
-  const selectedUser = $("streamerSelect").value;
-  if (selectedUser) {
-    loadPicksForUser(selectedUser.toLowerCase());
-  }
-}).subscribe();
-</script>
+    if (!firebaseConfigured) {
+      $("firebaseSetup").classList.remove("hidden");
+      $("firebaseSetup").setAttribute("role", "alert");
+      $("onlineGrid").setAttribute("aria-busy", "false");
+      $("onlineGrid").innerHTML = `<p class="col-span-full rounded-xl border border-amber-300/15 bg-amber-300/[.05] p-4 text-sm leading-6 text-amber-100">${esc(firebaseConfigError)}</p>`;
+      $("directoryList").setAttribute("aria-busy", "false");
+      $("directoryList").innerHTML = `<p class="py-5 text-sm text-zinc-400">Conecta Firebase para habilitar la búsqueda y el directorio de tipsters.</p>`;
+    } else {
+      db = getFirestore(firebaseApp);
+      routeUsername = new URLSearchParams(location.search).get("u");
+      subscribeToProfiles();
+    }
+  </script>
 </body>
 </html>
