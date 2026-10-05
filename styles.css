@@ -2,6 +2,93 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Force inclusion of color classes */
+@layer components {
+  /* Emerald utilities */
+  .bg-emerald-300 { background-color: #86efac; }
+  .bg-emerald-300\/10 { background-color: rgba(134, 239, 172, 0.1); }
+  .bg-emerald-300\/20 { background-color: rgba(134, 239, 172, 0.2); }
+  .bg-emerald-300\/30 { background-color: rgba(134, 239, 172, 0.3); }
+  .bg-emerald-300\/40 { background-color: rgba(134, 239, 172, 0.4); }
+  .bg-emerald-300\/50 { background-color: rgba(134, 239, 172, 0.5); }
+  .bg-emerald-300\/\[\.05\] { background-color: rgba(134, 239, 172, 0.05); }
+  
+  .border-emerald-300 { border-color: #86efac; }
+  .border-emerald-300\/20 { border-color: rgba(134, 239, 172, 0.2); }
+  .border-emerald-300\/30 { border-color: rgba(134, 239, 172, 0.3); }
+  .border-emerald-300\/40 { border-color: rgba(134, 239, 172, 0.4); }
+  .border-emerald-300\/60 { border-color: rgba(134, 239, 172, 0.6); }
+  
+  .text-emerald-300 { color: #86efac; }
+  .text-emerald-200 { color: #bbf7d0; }
+  .text-emerald-100 { color: #dcfce7; }
+  
+  /* Zinc utilities */
+  .bg-zinc-950 { background-color: #09090b; }
+  .bg-zinc-900 { background-color: #18181b; }
+  .bg-zinc-800 { background-color: #27272a; }
+  .bg-zinc-700 { background-color: #3f3f46; }
+  .bg-zinc-600 { background-color: #52525b; }
+  .bg-zinc-500 { background-color: #71717a; }
+  .bg-zinc-400 { background-color: #a1a1aa; }
+  .bg-zinc-300 { background-color: #d4d4d8; }
+  .bg-zinc-200 { background-color: #e4e4e7; }
+  .bg-zinc-100 { background-color: #f4f4f5; }
+  
+  .text-zinc-100 { color: #f4f4f5; }
+  .text-zinc-200 { color: #e4e4e7; }
+  .text-zinc-300 { color: #d4d4d8; }
+  .text-zinc-400 { color: #a1a1aa; }
+  .text-zinc-500 { color: #71717a; }
+  .text-zinc-600 { color: #52525b; }
+  
+  .border-zinc-700 { border-color: #3f3f46; }
+  .border-zinc-600 { border-color: #52525b; }
+  .border-zinc-500 { border-color: #71717a; }
+  .border-zinc-400 { border-color: #a1a1aa; }
+  
+  /* Opacity variants for white */
+  .border-white\/\[\.07\] { border-color: rgba(255, 255, 255, 0.07); }
+  .border-white\/\[\.08\] { border-color: rgba(255, 255, 255, 0.08); }
+  .border-white\/\[\.09\] { border-color: rgba(255, 255, 255, 0.09); }
+  .border-white\/10 { border-color: rgba(255, 255, 255, 0.1); }
+  
+  .bg-white\/\[\.05\] { background-color: rgba(255, 255, 255, 0.05); }
+  .bg-white\/\[\.08\] { background-color: rgba(255, 255, 255, 0.08); }
+  .bg-white\/\[\.12\] { background-color: rgba(255, 255, 255, 0.12); }
+  .bg-white\/10 { background-color: rgba(255, 255, 255, 0.1); }
+  .bg-white\/20 { background-color: rgba(255, 255, 255, 0.2); }
+  
+  /* Rose utilities */
+  .bg-rose-300 { background-color: #f472b6; }
+  .border-rose-300 { border-color: #f472b6; }
+  .text-rose-300 { color: #f472b6; }
+  .text-rose-200 { color: #fbcfe8; }
+  .bg-rose-300\/10 { background-color: rgba(244, 114, 182, 0.1); }
+  .bg-rose-300\/\[\.05\] { background-color: rgba(244, 114, 182, 0.05); }
+  .border-rose-300\/15 { border-color: rgba(244, 114, 182, 0.15); }
+  
+  /* Amber utilities */
+  .bg-amber-300 { background-color: #fcd34d; }
+  .border-amber-300 { border-color: #fcd34d; }
+  .text-amber-300 { color: #fcd34d; }
+  .text-amber-100 { color: #fef3c7; }
+  .bg-amber-300\/20 { background-color: rgba(252, 211, 77, 0.2); }
+  .bg-amber-300\/\[\.07\] { background-color: rgba(252, 211, 77, 0.07); }
+  
+  /* Hover state utilities */
+  .hover\:border-emerald-300\/40:hover { border-color: rgba(134, 239, 172, 0.4); }
+  .hover\:text-emerald-200:hover { color: #bbf7d0; }
+  .hover\:bg-white\/\[\.025\]:hover { background-color: rgba(255, 255, 255, 0.025); }
+  
+  /* Focus state utilities */
+  .focus\:border-emerald-300\/60:focus { border-color: rgba(134, 239, 172, 0.6); }
+  .focus\:outline-none:focus { outline: none; }
+  
+  /* Placeholder utilities */
+  .placeholder\:text-zinc-500::placeholder { color: #71717a; }
+}
+
 /* Custom animations */
 @keyframes pulse-glow {
   0% {
@@ -26,7 +113,7 @@
 
 @layer components {
   .pulse-glow {
-    @apply transition-all duration-300;
+    transition: all 300ms;
   }
 
   .pulse-glow:focus {
