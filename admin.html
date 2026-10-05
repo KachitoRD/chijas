@@ -57,8 +57,47 @@
     .input:hover { border-color: rgb(255 255 255 / .2); }
     .input:focus { border-color: rgb(110 231 183 / .7); box-shadow: 0 0 0 3px rgb(110 231 183 / .12); }
     .label { display: block; margin-bottom: 7px; font-size: 12px; font-weight: 600; color: #d4d4d8; }
+    .table-scroll { position: relative; min-width: 0; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; }
+    .dashboard-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .dashboard-table caption { text-align: left; padding-bottom: 12px; color: #a1a1aa; font-size: 12px; }
+    .dashboard-table th, .dashboard-table td { padding: 14px 16px; border-bottom: 1px solid rgb(255 255 255 / .08); text-align: left; vertical-align: top; }
+    .dashboard-table thead th { color: #a1a1aa; font-size: 12px; font-weight: 600; background: #111114; white-space: nowrap; }
+    .dashboard-table .numeric { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .dashboard-table .pick-description { min-width: 180px; max-width: 280px; overflow-wrap: anywhere; }
+    .dashboard-table .pick-actions { width: 76px; min-width: 76px; text-align: center; }
+    .pick-action-trigger { display: inline-grid; place-items: center; width: 44px; height: 44px; border: 1px solid rgb(255 255 255 / .1); border-radius: 8px; }
+    .pick-action-trigger:hover, .pick-action-trigger[aria-expanded="true"] { background: rgb(255 255 255 / .06); }
+    .pick-action-popup { position: fixed; inset: auto; margin: 0; width: min(280px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow-y: auto; padding: 12px; border: 1px solid rgb(255 255 255 / .1); border-radius: 10px; background: #111114; color: #f4f4f5; text-align: left; font-size: 12px; box-shadow: 0 8px 24px rgb(0 0 0 / .2); }
+    .pick-action-popup button, .pick-action-popup select, .pick-action-popup summary { min-height: 40px; }
+    .pick-action-popup .label { min-height: 0; margin-bottom: 5px; line-height: 1.5; }
+    .pick-action-popup .input { min-height: 40px; padding: 8px 10px; font-size: 14px; }
+    .pick-action-popup > p { margin-bottom: 8px; font-size: 12px; line-height: 1.5; }
+    .pick-action-popup form { margin-top: 8px; padding-top: 8px; }
+    .pick-action-popup summary { display: flex; align-items: center; cursor: pointer; font-weight: 600; }
+    .bankroll-filter-panel { margin-top: 16px; padding: 0 12px; border: 1px solid rgb(255 255 255 / .08); border-radius: 10px; background: #0d0d10; }
+    .bankroll-filter-panel > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; cursor: pointer; font-size: 13px; font-weight: 600; list-style: none; }
+    .bankroll-filter-panel > summary::-webkit-details-marker { display: none; }
+    .bankroll-filter-panel > summary svg { transition: transform 160ms var(--ease-out); flex-shrink: 0; }
+    .bankroll-filter-panel[open] > summary svg { transform: rotate(180deg); }
+    #bankrollFilters { margin-top: 4px; padding-bottom: 12px; gap: 12px; }
+    #bankrollFilters .label { margin-bottom: 5px; }
+    #bankrollFilters .input { padding: 8px 10px; min-height: 40px; font-size: 14px; }
+    .pick-action-popup[data-pointer-motion] { opacity: 0; transform: scale(.97); transform-origin: var(--popup-origin, top right); transition: opacity 160ms var(--ease-out), transform 160ms var(--ease-out), display 160ms allow-discrete, overlay 160ms allow-discrete; }
+    .pick-action-popup[data-pointer-motion]:popover-open { opacity: 1; transform: scale(1); }
+    .bankroll-filter-panel[data-pointer-motion]::details-content { opacity: 0; transition: opacity 160ms var(--ease-out), content-visibility 160ms allow-discrete; }
+    .bankroll-filter-panel[data-pointer-motion][open]::details-content { opacity: 1; }
+    @starting-style {
+      .pick-action-popup[data-pointer-motion]:popover-open { opacity: 0; transform: scale(.97); }
+      .bankroll-filter-panel[data-pointer-motion][open]::details-content { opacity: 0; }
+    }
+    @media (pointer: coarse) {
+      .pick-action-popup button, .pick-action-popup select, .pick-action-popup summary, #bankrollFilters .input { min-height: 44px; font-size: 16px; }
+    }
+    .pick-action-popup button:focus-visible, .pick-action-trigger:focus-visible, .pick-action-popup summary:focus-visible { outline: 2px solid #6ee7b7; outline-offset: 2px; }
+    .dashboard-table tbody tr:last-child td { border-bottom: 0; }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+      .pick-action-popup[data-pointer-motion] { transform: none !important; }
     }
   </style>
   <!-- Plausible Analytics - Core Web Vitals Monitoring -->
@@ -146,14 +185,14 @@
         <p id="accountGateCopy" class="mt-2 text-sm leading-6 text-zinc-400">Las cuentas nuevas pueden explorar la plataforma. Para publicar pronósticos, envía una solicitud al creador.</p>
         <form id="tipsterApplicationForm" class="mt-6 space-y-4">
           <div><label for="applicationDisplayName" class="label">Nombre público</label><input id="applicationDisplayName" class="input" maxlength="60" required></div>
-          <div><label for="applicationUsername" class="label">Usuario solicitado</label><input id="applicationUsername" class="input" minlength="3" maxlength="30" pattern="[a-zA-Z0-9_-]{3,30}" autocomplete="username" required><p class="mt-1.5 text-xs text-zinc-500">Tu perfil público usará este nombre si aprueban la solicitud.</p></div>
+          <div><label for="applicationUsername" class="label">Usuario solicitado</label><input id="applicationUsername" class="input" minlength="3" maxlength="30" pattern="[a-zA-Z0-9_\-]{3,30}" autocomplete="username" required><p class="mt-1.5 text-xs text-zinc-500">Tu perfil público usará este nombre si aprueban la solicitud.</p></div>
           <p id="applicationMessage" class="hidden rounded-lg border px-3 py-2.5 text-sm leading-5" role="status"></p>
           <button id="applicationButton" type="submit" class="control min-h-11 rounded-xl bg-emerald-300 px-5 text-sm font-bold text-zinc-950 hover:bg-emerald-200 disabled:cursor-wait disabled:opacity-60">Enviar solicitud</button>
         </form>
       </section>
 
       <section id="picksView" aria-labelledby="picksTab">
-        <div class="grid items-start gap-5 lg:grid-cols-[minmax(290px,.78fr)_minmax(0,1.45fr)]">
+        <div class="grid min-w-0 items-start gap-5">
           <form id="pickForm" class="space-y-4 rounded-2xl border border-white/[.08] bg-[#111114] p-5 sm:p-6">
             <div><h2 id="pickFormTitle" class="text-lg font-bold">Publicar pronóstico</h2><p id="pickFormHint" class="mt-1 text-xs text-zinc-500">Completa los datos del evento y tu selección.</p><p id="pickLimitHint" class="mt-1 whitespace-pre-line text-xs text-zinc-500"></p></div>
             <div class="grid grid-cols-2 gap-3">
@@ -168,6 +207,14 @@
             </div>
             <div><label for="eventDate" class="label">Fecha del evento</label><input id="eventDate" class="input" type="datetime-local" required></div>
             <div><label for="note" class="label">Nota (opcional)</label><textarea id="note" class="input min-h-20 resize-y" rows="2" maxlength="500" placeholder="Contexto de tu pronóstico"></textarea></div>
+            <fieldset class="space-y-3 border-t border-white/10 pt-4">
+              <legend class="text-sm font-semibold text-zinc-200">Control financiero privado (opcional)</legend>
+              <p id="bankrollHelp" class="text-xs leading-5 text-zinc-400">Solo tú puedes consultar este importe desde la aplicación. No aparece en tu perfil público ni en el widget. Déjalo vacío para no registrarlo.</p>
+              <div class="grid grid-cols-2 gap-3">
+                <div><label for="stakeAmount" class="label">Monto arriesgado</label><input id="stakeAmount" class="input" type="number" min="0.01" max="1000000000" step="0.01" inputmode="decimal" aria-describedby="bankrollHelp"></div>
+                <div><label for="stakeCurrency" class="label">Moneda</label><select id="stakeCurrency" class="input" aria-describedby="bankrollHelp"></select></div>
+              </div>
+            </fieldset>
             <label class="flex cursor-pointer items-center gap-2.5 text-sm text-zinc-300"><input id="featured" type="checkbox" class="h-4 w-4 accent-emerald-300"><span>Destacar en mi perfil</span></label>
             <p id="pickMessage" class="hidden rounded-lg border px-3 py-2.5 text-sm leading-5" role="status"></p>
             <div class="flex gap-2">
@@ -176,10 +223,41 @@
             </div>
           </form>
 
-          <section class="rounded-2xl border border-white/[.08] bg-[#111114] p-5 sm:p-6" aria-labelledby="myPicksTitle">
+          <section class="min-w-0 border-y border-white/[.08] py-5" aria-labelledby="bankrollDashboardTitle">
+            <h2 id="bankrollDashboardTitle" class="text-lg font-bold">Resumen financiero privado</h2>
+            <p class="mt-1 text-xs leading-5 text-zinc-400">Historial del período por fecha del evento, en tu zona horaria. Monedas separadas, sin conversiones. No es el saldo de tu cuenta de apuestas.</p>
+            <p class="mt-1 text-xs leading-5 text-zinc-400">Ganadas: retorno teórico según cuota; anuladas: devolución del importe. Cierre anticipado: retorno real registrado, incluido el capital.</p>
+            <details id="bankrollFilterPanel" class="bankroll-filter-panel">
+              <summary>Filtros del historial <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
+              <div id="bankrollFilters" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                <div><label for="bankrollPeriod" class="label">Período</label><select id="bankrollPeriod" class="input"><option value="month">Mes en curso</option><option value="custom">Personalizado</option></select></div>
+                <div><label for="bankrollFrom" class="label">Desde</label><input id="bankrollFrom" class="input" type="date" disabled></div>
+                <div><label for="bankrollThrough" class="label">Hasta (inclusive)</label><input id="bankrollThrough" class="input" type="date" disabled></div>
+                <div><label for="bankrollStatus" class="label">Estado</label><select id="bankrollStatus" class="input"><option value="">Todas</option><option value="ganada">Ganadas</option><option value="perdida">Perdidas</option><option value="pendiente">Pendientes</option><option value="cash_out">Cashback / Cash out</option><option value="anulada">Anuladas</option></select></div>
+                <div><label for="bankrollSport" class="label">Deporte / categoría</label><select id="bankrollSport" class="input"><option value="">Todos</option></select></div>
+                <div><label for="bankrollBookmaker" class="label">Casa de apuestas</label><select id="bankrollBookmaker" class="input"><option value="">Todas</option></select></div>
+              </div>
+            </details>
+            <p class="mt-3 text-xs leading-5 text-zinc-400">Yield = profit neto / stake cerrado × 100. Excluye pendientes y anuladas; incluye Cash out. «Cashback» aquí corresponde a cierre anticipado, no a un reembolso adicional.</p>
+            <div class="mt-3 flex flex-wrap gap-2">
+              <button id="bankrollExport" type="button" class="control min-h-11 rounded-lg border border-white/10 px-3 text-xs font-semibold" disabled>Exportar CSV (Excel)</button>
+              <button id="bankrollReport" type="button" class="control min-h-11 rounded-lg border border-white/10 px-3 text-xs font-semibold" disabled>Descargar resumen CSV</button>
+              <button id="bankrollPDF" type="button" class="control min-h-11 rounded-lg border border-white/10 px-3 text-xs font-semibold" disabled>Exportar Resumen en PDF</button>
+              <button id="bankrollReload" type="button" class="control min-h-11 rounded-lg border border-white/10 px-3 text-xs font-semibold">Actualizar historial</button>
+            </div>
+            <p id="bankrollLoadMessage" class="mt-3 text-xs leading-5 text-zinc-400" role="status"></p>
+            <div id="bankrollSummary" class="mt-4 space-y-4" aria-live="polite"></div>
+          </section>
+
+          <section class="min-w-0 rounded-2xl border border-white/[.08] bg-[#111114] p-5 sm:p-6" aria-labelledby="myPicksTitle">
             <div class="mb-4 flex flex-wrap items-end justify-between gap-2"><div><h2 id="myPicksTitle" class="text-lg font-bold">Mis pronósticos</h2><p class="mt-1 text-xs text-zinc-500">Actualizados al momento.</p></div><div class="flex gap-3 text-xs tabular-nums text-zinc-500"><span id="pickCount"></span><span id="streamPickCount">0 seleccionados</span></div></div>
-            <div id="myPicks" class="space-y-3" aria-live="polite" aria-busy="true">
+            <div id="myPicks" aria-live="polite" aria-busy="true">
               <div class="h-20 animate-pulse rounded-xl bg-white/[.04]"></div><div class="h-20 animate-pulse rounded-xl bg-white/[.04]"></div>
+            </div>
+            <div class="mt-4 flex flex-wrap items-center gap-3">
+              <button id="bankrollPrevious" type="button" class="control min-h-11 rounded-lg border border-white/10 px-3 text-sm disabled:opacity-40" disabled>Anterior</button>
+              <span id="bankrollPage" class="text-xs text-zinc-400"></span>
+              <button id="bankrollNext" type="button" class="control min-h-11 rounded-lg border border-white/10 px-3 text-sm disabled:opacity-40" disabled>Siguiente</button>
             </div>
           </section>
         </div>
@@ -283,9 +361,11 @@
   </div>
 
   <script type="module">
+    import { bankrollCurrencies, parseBankrollStake, parseCashOutReturn, pickFinancialResult, summarizeBankroll, eventDateRange, filterBankrollPicks, bankrollCSV, bankrollReportData } from "./bankroll.js";
+    import { openExecutiveBankrollReport } from "./bankroll-report.js";
     import { firebaseApp, firebaseConfigured, firebaseConfigError, firebaseDb } from "./firebase-config.js?v=2";
     import { connectAuthEmulator, createUserWithEmailAndPassword, getAuth, onAuthStateChanged, sendEmailVerification, signInWithEmailAndPassword, signOut, updateProfile } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-    import { collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, orderBy, query, runTransaction, serverTimestamp, setDoc, updateDoc, where, limit } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+    import { collection, doc, getDoc, getDocs, onSnapshot, orderBy, query, runTransaction, serverTimestamp, setDoc, updateDoc, where, limit, startAfter, endAt } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
     const $ = id => document.getElementById(id);
     const TERMS_VERSION = "2026-10-03";
@@ -309,6 +389,114 @@
       instagram_url: "Instagram"
     };
     const pickColors = { pendiente: "text-amber-200 bg-amber-300/[.08] border-amber-300/15", ganada: "text-emerald-200 bg-emerald-300/[.08] border-emerald-300/15", perdida: "text-rose-200 bg-rose-300/[.08] border-rose-300/15", anulada: "text-zinc-300 bg-white/[.04] border-white/[.08]" };
+    pickColors.cash_out = pickColors.anulada;
+    const bankrollRecords = new Map();
+    const bankrollSubscriptions = new Map();
+    const bankrollErrors = new Set();
+    let historyGeneration = 0, historyLoading = false, historyError = "", bankrollPage = 0;
+    let activeBankrollDates = { from: "", through: "" };
+    function bankrollSelection() {
+      return filterBankrollPicks(currentPicks, {
+        status: $("bankrollStatus").value, sport: $("bankrollSport").value, bookmaker: $("bankrollBookmaker").value
+      });
+    }
+    function bankrollReady(picks) {
+      return !historyLoading && !historyError && picks.every(pick => !bankrollErrors.has(pick.id)
+        && bankrollRecords.has(pick.id)
+        && (pick.estado !== "cash_out" || Number.isSafeInteger(bankrollRecords.get(pick.id)?.returnMinorUnits)));
+    }
+    function money(minorUnits, currency) {
+      return new Intl.NumberFormat("es-PE", { style: "currency", currency }).format(minorUnits / 100);
+    }
+    function dashboardTable(headers, captionText) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "table-scroll";
+      wrapper.tabIndex = 0;
+      wrapper.setAttribute("role", "region");
+      wrapper.setAttribute("aria-label", captionText);
+      const table = document.createElement("table");
+      table.className = "dashboard-table";
+      const caption = table.createCaption();
+      caption.textContent = captionText;
+      const heading = table.createTHead().insertRow();
+      for (const [label, numeric] of headers) {
+        const cell = document.createElement("th");
+        cell.scope = "col";
+        cell.textContent = label;
+        if (numeric) cell.className = "numeric";
+        heading.append(cell);
+      }
+      const body = table.createTBody();
+      wrapper.append(table);
+      return { wrapper, body };
+    }
+    function configurePickPopup(trigger, popup) {
+      popup.setAttribute("popover", "auto");
+      popup.setAttribute("role", "region");
+      popup.setAttribute("aria-label", trigger.getAttribute("aria-label"));
+      trigger.setAttribute("aria-controls", popup.id);
+      trigger.setAttribute("aria-expanded", "false");
+      trigger.setAttribute("popovertarget", popup.id);
+      trigger.addEventListener("pointerdown", () => popup.setAttribute("data-pointer-motion", ""));
+      trigger.addEventListener("keydown", () => popup.removeAttribute("data-pointer-motion"));
+      function positionPopup() {
+        const rect = trigger.getBoundingClientRect();
+        popup.style.left = `${Math.max(12, Math.min(rect.right - popup.offsetWidth, document.documentElement.clientWidth - popup.offsetWidth - 12))}px`;
+        popup.style.top = `${Math.max(12, Math.min(rect.bottom + 6, window.innerHeight - popup.offsetHeight - 12))}px`;
+        popup.style.setProperty("--popup-origin", `${Math.max(0, Math.min(rect.left + rect.width / 2 - parseFloat(popup.style.left), popup.offsetWidth))}px ${Math.max(0, Math.min(rect.bottom - parseFloat(popup.style.top), popup.offsetHeight))}px`);
+      }
+      popup.addEventListener("keydown", event => {
+        if (event.key !== "Escape") return;
+        popup.removeAttribute("data-pointer-motion");
+        event.preventDefault();
+        event.stopPropagation();
+        popup.hidePopover();
+        trigger.focus({ preventScroll: true });
+      });
+      popup.addEventListener("toggle", event => {
+        if (event.target !== popup) {
+          if (popup.matches(":popover-open")) positionPopup();
+          return;
+        }
+        const open = event.newState === "open";
+        trigger.setAttribute("aria-expanded", String(open));
+        if (!open) return;
+        positionPopup();
+        popup.querySelector("button,summary,input,select")?.focus({ preventScroll: true });
+      }, true);
+    }
+    function renderBankrollSummary() {
+      const target = $("bankrollSummary");
+      target.replaceChildren();
+      const picks = bankrollSelection();
+      const ready = bankrollReady(picks);
+      $("bankrollExport").disabled = !ready || !picks.length;
+      $("bankrollReport").disabled = !ready || !picks.length;
+      $("bankrollPDF").disabled = !ready || !picks.length;
+      if (!ready) {
+        target.textContent = historyError || (historyLoading ? "Cargando el período completo..." : picks.some(pick => bankrollErrors.has(pick.id))
+          ? "No se pudo cargar el registro privado completo. Recarga el panel para reintentar; no se muestran totales parciales."
+          : "Cargando registros privados...");
+        return;
+      }
+      const totals = summarizeBankroll(picks, bankrollRecords);
+      if (!totals.length) {
+        target.textContent = "No hay picks con importe privado para los filtros seleccionados.";
+        return;
+      }
+      const { wrapper, body } = dashboardTable([
+        ["Moneda"], ["Picks", true], ["En riesgo", true], ["Retorno cerrado", true], ["Profit neto", true], ["Yield", true]
+      ], "Totales del período y filtros activos · importes privados");
+      for (const total of totals) {
+        const row = body.insertRow();
+        for (const [index, value] of [total.currency, String(total.count), money(total.risk, total.currency), money(total.returned, total.currency), money(total.profit, total.currency), total.yield === null ? "—" : `${total.yield.toFixed(2)}%`].entries()) {
+          const cell = row.insertCell();
+          cell.textContent = value;
+          if (index > 0) cell.className = "numeric";
+        }
+      }
+      target.append(wrapper);
+    }
     const IMAGE_DATA_LIMITS = { avatar: 200 * 1024, banner: 200 * 1024 };
     const IMAGE_DATA_PATTERN = /^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/;
     const WIDGET_FORMATS = new Set(["cascada", "compacto", "marcador"]);
@@ -790,55 +978,154 @@
       await loadProfileRequest();
     }
     function renderPicks() {
-      $("myPicks").setAttribute("aria-busy", "false");
-      $("pickCount").textContent = currentPicks.length ? `${currentPicks.length} recientes` : "";
-      const streamPickCount = currentPicks.filter(pick => pick.show_on_stream === true).length;
-      $("streamPickCount").textContent = `${streamPickCount} seleccionados`;
+      renderBankrollSummary();
+      const filteredPicks = bankrollSelection();
+      const pages = Math.max(1, Math.ceil(filteredPicks.length / 50));
+      bankrollPage = Math.min(bankrollPage, pages - 1);
+      $("bankrollPrevious").disabled = bankrollPage === 0 || historyLoading;
+      $("bankrollNext").disabled = bankrollPage >= pages - 1 || historyLoading;
+      $("bankrollPage").textContent = `Página ${bankrollPage + 1} de ${pages} · 50 por página`;
+      $("myPicks").setAttribute("aria-busy", String(historyLoading));
+      $("pickCount").textContent = `${filteredPicks.length} en el filtro`;
+      const streamPickCount = filteredPicks.filter(pick => pick.show_on_stream === true).length;
+      $("streamPickCount").textContent = `${streamPickCount} en OBS en el filtro`;
       const activePickCount = currentPicks.filter(pick => pick.estado === "pendiente").length;
       const activeLimitMessage = activePickCount >= 50
-        ? `Aviso: hay ${activePickCount} pronósticos activos en los recientes. El límite de 50 es orientativo y no bloquea publicaciones.`
-        : `Pronósticos activos recientes: ${activePickCount}. El límite orientativo es 50 y no bloquea publicaciones.`;
+        ? `Aviso: hay ${activePickCount} pronósticos activos en el período. El límite de 50 es orientativo y no bloquea publicaciones.`
+        : `Pronósticos activos en el período: ${activePickCount}. El límite orientativo es 50 y no bloquea publicaciones.`;
       const pickLimitHint = $("pickLimitHint");
       pickLimitHint.className = `mt-1 whitespace-pre-line text-xs ${activePickCount >= 50 ? "text-amber-200" : "text-zinc-500"}`;
       pickLimitHint.textContent = `Límite orientativo: ${currentMonthlyPickLimit} publicaciones al mes. En el plan gratuito no se bloquea automáticamente.\n${activeLimitMessage}`;
       const list = $("myPicks");
       list.replaceChildren();
-      if (!currentPicks.length) {
+      if (!filteredPicks.length) {
         const empty = document.createElement("p");
         empty.className = "rounded-xl border border-dashed border-white/[.12] px-4 py-8 text-center text-sm text-zinc-500";
-        empty.textContent = "Aún no tienes pronósticos. Publica el primero desde el formulario.";
+        empty.textContent = historyError || (historyLoading ? "Cargando el historial del período..." : "No hay pronósticos para este período y filtros. Ajusta el rango para ver eventos futuros o anteriores.");
         list.append(empty);
         return;
       }
-      for (const pick of currentPicks) {
+      const { wrapper, body } = dashboardTable([
+        ["Evento"], ["Selección"], ["Deporte"], ["Fecha del evento"], ["Casa de apuestas"], ["Confianza", true],
+        ["Estado"], ["Cuota", true], ["Monto privado", true],
+        ["Retorno", true], ["Ganancia / pérdida", true], ["Yield", true], ["Widget OBS"], ["Acciones"]
+      ], "Picks del período y filtros activos · información financiera solo para ti");
+      list.append(wrapper);
+      for (const pick of filteredPicks.slice(bankrollPage * 50, (bankrollPage + 1) * 50)) {
         const status = String(pick.estado || "pendiente").toLowerCase();
         const color = pickColors[status] || pickColors.pendiente;
         const timestamp = pick.fecha_evento?.toDate?.() ?? (pick.fecha_evento ? new Date(pick.fecha_evento) : null);
-        const date = timestamp && Number.isFinite(timestamp.getTime()) ? new Intl.DateTimeFormat(navigator.language || "es", { dateStyle: "medium" }).format(timestamp) : "";
-        const article = document.createElement("article");
-        article.className = "rounded-xl border border-white/[.07] bg-[#09090b] p-4";
-        const row = document.createElement("div");
-        row.className = "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between";
-        const details = document.createElement("div");
-        details.className = "min-w-0 flex-1";
+        const date = timestamp && Number.isFinite(timestamp.getTime()) ? new Intl.DateTimeFormat(navigator.language || "es", { dateStyle: "medium", timeStyle: "short" }).format(timestamp) : "";
+        const row = body.insertRow();
+        const details = row.insertCell();
+        details.className = "pick-description";
         const headline = document.createElement("div");
         headline.className = "flex flex-wrap items-center gap-2";
         const event = document.createElement("h3");
         event.className = "font-semibold";
         event.textContent = `${pick.destacada ? "Destacada · " : ""}${pick.evento || ""}`;
+        headline.append(event);
+        details.append(headline);
+        const selection = row.insertCell();
+        selection.className = "pick-description text-zinc-300";
+        selection.textContent = pick.seleccion || pick.prediccion || "Sin selección";
+        const noteButton = document.createElement("button");
+        noteButton.type = "button";
+        noteButton.className = "control mt-2 block min-h-11 rounded-lg border border-white/10 px-3 text-xs";
+        noteButton.textContent = "Ver nota";
+        noteButton.setAttribute("aria-label", `Nota de ${pick.evento || ""}`);
+        const notePopup = document.createElement("div");
+        notePopup.id = `note-${pick.id}`;
+        notePopup.className = "pick-action-popup pick-note-popup";
+        const noteTitle = document.createElement("p");
+        noteTitle.className = "mb-3 font-semibold break-words";
+        noteTitle.textContent = pick.evento || "Nota del pick";
+        const noteContent = document.createElement("p");
+        noteContent.className = "mb-3 text-sm leading-6 text-zinc-300";
+        noteContent.style.whiteSpace = "pre-wrap";
+        noteContent.style.overflowWrap = "anywhere";
+        noteContent.textContent = pick.nota || "Este pick no tiene nota.";
+        const closeNote = document.createElement("button");
+        closeNote.type = "button";
+        closeNote.className = "control rounded-lg border border-white/10 px-3 text-xs";
+        closeNote.textContent = "Cerrar nota";
+        closeNote.setAttribute("popovertarget", notePopup.id);
+        closeNote.setAttribute("popovertargetaction", "hide");
+        notePopup.append(noteTitle, noteContent, closeNote);
+        selection.append(noteButton, notePopup);
+        configurePickPopup(noteButton, notePopup);
+        const bookmaker = pick.casa_de_apuestas || pick.casa_apuestas || "";
+        const bookmakerOption = [...$("bookmaker").options].find(option => option.value === bookmaker);
+        const sportOption = [...$("sport").options].find(option => option.value === pick.deporte);
+        for (const [index, text] of [
+          sportOption?.textContent || pick.deporte || "Sin deporte",
+          date || "Sin fecha",
+          bookmakerOption?.textContent || bookmaker || "Sin indicar",
+          pick.confianza ? `${pick.confianza}/5` : "Sin indicar"
+        ].entries()) {
+          const detail = row.insertCell();
+          detail.className = index === 3 ? "numeric" : "text-xs text-zinc-300";
+          detail.textContent = text;
+        }
         const statusBadge = document.createElement("span");
         statusBadge.className = `rounded-full border px-2 py-0.5 text-[11px] font-medium ${color}`;
-        statusBadge.textContent = status[0].toUpperCase() + status.slice(1);
-        headline.append(event, statusBadge);
-        const selection = document.createElement("p");
-        selection.className = "mt-1.5 text-sm text-zinc-400";
-        selection.textContent = pick.seleccion || pick.prediccion || "";
-        const metadata = document.createElement("p");
-        metadata.className = "mt-2 text-xs text-zinc-500";
-        metadata.textContent = `${pick.deporte || ""}${date ? ` / ${date}` : ""} / Cuota ${Number(pick.cuota || 0).toFixed(2)}`;
-        details.append(headline, selection, metadata);
+        statusBadge.textContent = status === "cash_out" ? "Cierre anticipado" : status[0].toUpperCase() + status.slice(1);
+        row.insertCell().append(statusBadge);
+        const oddsCell = row.insertCell();
+        oddsCell.className = "numeric";
+        oddsCell.textContent = Number(pick.cuota || 0).toFixed(2);
+        const financial = bankrollRecords.get(pick.id);
+        let values;
+        if (bankrollErrors.has(pick.id)) values = ["Error de carga", "—", "—", "—"];
+        else if (!bankrollRecords.has(pick.id) || (status === "cash_out" && !Number.isSafeInteger(financial?.returnMinorUnits))) values = ["Cargando...", "—", "—", "—"];
+        else if (!financial) values = ["Sin registro", "—", "—", "—"];
+        else {
+          const result = pickFinancialResult(pick, financial);
+          values = [
+            money(result.stake, result.currency),
+            result.returned === null ? "Pendiente" : money(result.returned, result.currency),
+            result.profit === null ? "Pendiente" : money(result.profit, result.currency),
+            result.yield === null ? "—" : `${result.yield.toFixed(2)}%`
+          ];
+        }
+        for (const value of values) {
+          const cell = row.insertCell();
+          cell.className = "numeric";
+          cell.textContent = value;
+        }
+        const streamCell = row.insertCell();
+        const actions = row.insertCell();
+        actions.className = "pick-actions";
+        const trigger = document.createElement("button");
+        trigger.type = "button";
+        trigger.className = "pick-action-trigger control";
+        trigger.setAttribute("aria-label", `Acciones de ${pick.evento || ""}: ${pick.seleccion || pick.prediccion || ""}`);
+        trigger.setAttribute("aria-expanded", "false");
+        const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        icon.setAttribute("viewBox", "0 0 24 24");
+        icon.setAttribute("width", "20");
+        icon.setAttribute("height", "20");
+        icon.setAttribute("aria-hidden", "true");
+        for (const cy of [5, 12, 19]) {
+          const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+          dot.setAttribute("cx", "12");
+          dot.setAttribute("cy", String(cy));
+          dot.setAttribute("r", "2");
+          dot.setAttribute("fill", "currentColor");
+          icon.append(dot);
+        }
+        trigger.append(icon);
+        const popup = document.createElement("div");
+        popup.id = `actions-${pick.id}`;
+        popup.className = "pick-action-popup";
+        const context = document.createElement("p");
+        context.className = "mb-3 text-sm font-semibold break-words";
+        context.textContent = `${pick.evento || ""} · ${pick.seleccion || pick.prediccion || ""}`;
         const controls = document.createElement("div");
-        controls.className = "flex flex-wrap gap-2";
+        controls.className = "flex flex-col gap-2";
+        popup.append(context, controls);
+        actions.append(trigger, popup);
+        configurePickPopup(trigger, popup);
 
         const streamLabel = document.createElement("label");
         streamLabel.className = "flex min-h-9 cursor-pointer items-center gap-2 rounded-lg border border-white/10 px-3 text-xs font-semibold text-zinc-300 hover:bg-white/[.05]";
@@ -852,6 +1139,7 @@
         const streamText = document.createElement("span");
         streamText.textContent = "En stream";
         streamLabel.append(streamInput, streamText);
+        streamCell.append(streamLabel);
 
         const editButton = document.createElement("button");
         editButton.type = "button";
@@ -861,19 +1149,20 @@
         editButton.textContent = "Editar";
 
         const statusLabel = document.createElement("label");
-        statusLabel.className = "sr-only";
+        statusLabel.className = "label";
         statusLabel.htmlFor = `status-${pick.id}`;
-        statusLabel.textContent = `Resultado de ${pick.evento || ""}`;
+        statusLabel.textContent = "Nuevo estado";
         const statusSelect = document.createElement("select");
         statusSelect.id = `status-${pick.id}`;
         statusSelect.dataset.action = "status";
         statusSelect.dataset.id = pick.id;
         statusSelect.className = "control min-h-9 rounded-lg border border-white/10 bg-[#09090b] px-2.5 text-xs font-semibold text-zinc-300";
-        for (const [value, label] of [["pendiente", "Pendiente"], ["ganada", "Ganada"], ["perdida", "Perdida"], ["anulada", "Anulada"]]) {
+        for (const [value, label] of [["pendiente", "Pendiente"], ["ganada", "Ganada"], ["perdida", "Perdida"], ["anulada", "Anulada"], ["cash_out", "Cierre anticipado"]]) {
           const option = document.createElement("option");
           option.value = value;
           option.textContent = label;
           option.selected = status === value;
+          option.disabled = value === "cash_out";
           statusSelect.append(option);
         }
         const deleteButton = document.createElement("button");
@@ -882,27 +1171,234 @@
         deleteButton.dataset.id = pick.id;
         deleteButton.className = "control min-h-9 rounded-lg border border-white/10 px-3 text-xs font-semibold text-zinc-400 hover:border-rose-300/20 hover:text-rose-200";
         deleteButton.textContent = "Eliminar";
-        controls.append(streamLabel, editButton, statusLabel, statusSelect, deleteButton);
-        row.append(details, controls);
-        article.append(row);
-        list.append(article);
+        const statusPanel = document.createElement("details");
+        const statusSummary = document.createElement("summary");
+        statusSummary.textContent = "Cambiar estado / Anular";
+        statusPanel.append(statusSummary, statusLabel, statusSelect);
+        controls.append(editButton, statusPanel);
+        if (financial && !bankrollErrors.has(pick.id)) {
+          const cashOutPanel = document.createElement("details");
+          const cashOutSummary = document.createElement("summary");
+          cashOutSummary.textContent = "Cerrar anticipadamente (Cash out)";
+          cashOutPanel.append(cashOutSummary);
+          const cashOutForm = document.createElement("form");
+          cashOutForm.className = "mt-4 flex flex-col gap-2 border-t border-white/10 pt-3";
+          cashOutForm.dataset.cashOutId = pick.id;
+          cashOutForm.setAttribute("aria-label", `Cierre anticipado de ${pick.evento || ""}: ${pick.seleccion || pick.prediccion || ""}`);
+          const label = document.createElement("label");
+          label.className = "label";
+          label.htmlFor = `cashout-${pick.id}`;
+          label.textContent = `Retorno total recibido (${financial.currency}), incluido el capital`;
+          const input = document.createElement("input");
+          input.id = label.htmlFor;
+          input.name = "returnAmount";
+          input.className = "input";
+          input.type = "number";
+          input.min = "0";
+          input.max = "1000000000";
+          input.step = "0.01";
+          input.required = true;
+          input.inputMode = "decimal";
+          if (status === "cash_out") input.value = financial.returnAmount;
+          const group = document.createElement("div");
+          group.className = "min-w-0 flex-1";
+          group.append(label, input);
+          const submit = document.createElement("button");
+          submit.className = "control min-h-11 rounded-lg border border-white/10 px-3 text-sm font-semibold";
+          submit.textContent = status === "cash_out" ? "Actualizar retorno privado" : "Registrar cierre anticipado";
+          cashOutForm.append(group, submit);
+          cashOutPanel.append(cashOutForm);
+          controls.append(cashOutPanel);
+        } else {
+          const hint = document.createElement("p");
+          hint.className = "text-xs leading-5 text-zinc-400";
+          hint.textContent = bankrollErrors.has(pick.id)
+            ? "No se pudo cargar el monto privado. Recarga el panel antes de registrar un cierre anticipado."
+            : !bankrollRecords.has(pick.id)
+              ? "Cargando el monto privado para el cierre anticipado..."
+              : "Para un cierre anticipado, añade primero un monto privado desde Editar.";
+          controls.append(hint);
+        }
+        controls.append(deleteButton);
       }
     }
-    function subscribeToPicks() {
-      if (stopPicks) stopPicks();
-      const picksQuery = query(collection(db, "picks"), where("user_id", "==", currentUser.uid), orderBy("created_at", "desc"), limit(50));
-      stopPicks = onSnapshot(picksQuery, snapshot => {
-        currentPicks = snapshot.docs.map(item => ({ id: item.id, ...item.data() }));
-        renderPicks();
-      }, error => {
-        console.error("No se pudieron sincronizar los pronósticos:", error);
-        $("myPicks").setAttribute("aria-busy", "false");
-        const errorMessage = document.createElement("p");
-        errorMessage.className = "rounded-lg border border-rose-300/15 bg-rose-300/[.05] p-3 text-sm leading-5 text-rose-200";
-        errorMessage.textContent = "No se pudieron cargar tus pronósticos. Comprueba las reglas e índices de Firestore.";
-        $("myPicks").replaceChildren(errorMessage);
+    let renderQueued = false;
+    function schedulePicksRender() {
+      if (renderQueued) return;
+      renderQueued = true;
+      requestAnimationFrame(() => {
+        renderQueued = false;
+        if (currentUser) renderPicks();
       });
     }
+    function synchronizeBankrollRecords() {
+        const ids = new Set(currentPicks.map(pick => pick.id));
+        for (const [id, stop] of bankrollSubscriptions) {
+          if (!ids.has(id)) {
+            stop();
+            bankrollSubscriptions.delete(id);
+            bankrollRecords.delete(id);
+            bankrollErrors.delete(id);
+          }
+        }
+        for (const pick of currentPicks) {
+          if (bankrollSubscriptions.has(pick.id)) continue;
+          const generation = historyGeneration;
+          bankrollSubscriptions.set(pick.id, onSnapshot(doc(db, "picks", pick.id, "private", "bankroll"), financial => {
+            if (generation !== historyGeneration) return;
+            bankrollRecords.set(pick.id, financial.exists() ? financial.data() : null);
+            bankrollErrors.delete(pick.id);
+            schedulePicksRender();
+          }, error => {
+            if (generation !== historyGeneration) return;
+            console.error("No se pudo sincronizar el registro privado:", error);
+            bankrollErrors.add(pick.id);
+            schedulePicksRender();
+          }));
+        }
+        schedulePicksRender();
+    }
+    function setCurrentMonth() {
+      const now = new Date();
+      const localDay = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+      $("bankrollFrom").value = localDay(new Date(now.getFullYear(), now.getMonth(), 1));
+      $("bankrollThrough").value = localDay(now);
+    }
+    for (const [sourceId, targetId] of [["sport", "bankrollSport"], ["bookmaker", "bankrollBookmaker"]]) {
+      for (const option of $(sourceId).options) $(targetId).append(option.cloneNode(true));
+    }
+    async function subscribeToPicks() {
+      if (stopPicks) stopPicks();
+      for (const stop of bankrollSubscriptions.values()) stop();
+      bankrollSubscriptions.clear();
+      bankrollRecords.clear();
+      bankrollErrors.clear();
+      currentPicks = [];
+      bankrollPage = 0;
+      historyLoading = true;
+      historyError = "";
+      const generation = ++historyGeneration;
+      const stops = [];
+      stopPicks = () => {
+        if (generation === historyGeneration) historyGeneration++;
+        stops.forEach(stop => stop());
+      };
+      renderPicks();
+      if (!currentUser) {
+        historyLoading = false;
+        return;
+      }
+      const uid = currentUser.uid;
+      const chunks = new Map();
+      const pendingChunks = new Set();
+      let discoveryComplete = false;
+      function fail(error) {
+        if (generation !== historyGeneration) return;
+        console.error("No se pudo cargar el historial financiero:", error);
+        historyLoading = false;
+        historyError = error.code === "failed-precondition"
+          ? "Falta el índice del historial. Publica firestore.indexes.json y espera a que el índice esté listo."
+          : `No se pudo cargar el período completo: ${error.message}. Pulsa Actualizar historial para reintentar.`;
+        stopPicks();
+        for (const stop of bankrollSubscriptions.values()) stop();
+        $("bankrollLoadMessage").textContent = historyError;
+        schedulePicksRender();
+      }
+      try {
+        if ($("bankrollPeriod").value === "month") setCurrentMonth();
+        activeBankrollDates = { from: $("bankrollFrom").value, through: $("bankrollThrough").value };
+        const { start, end } = eventDateRange(activeBankrollDates.from, activeBankrollDates.through);
+        const base = [
+          where("user_id", "==", uid), where("fecha_evento", ">=", start),
+          where("fecha_evento", "<", end), orderBy("fecha_evento", "desc")
+        ];
+        let cursor = null, index = 0, loaded = 0;
+        do {
+          const pageConstraints = cursor ? [...base, startAfter(cursor)] : [...base];
+          const page = await getDocs(query(collection(db, "picks"), ...pageConstraints, limit(100)));
+          if (generation !== historyGeneration || currentUser?.uid !== uid) return;
+          loaded += page.size;
+          $("bankrollLoadMessage").textContent = `Cargando período completo: ${loaded} picks encontrados...`;
+          const boundary = page.size === 100 ? page.docs[page.size - 1] : null;
+          const chunkIndex = index++;
+          pendingChunks.add(chunkIndex);
+          // Fixed cursor intervals prevent gaps when live inserts move page boundaries.
+          const liveQuery = query(collection(db, "picks"), ...pageConstraints, ...(boundary ? [endAt(boundary)] : []));
+          stops.push(onSnapshot(liveQuery, snapshot => {
+            if (generation !== historyGeneration || historyError) return;
+            chunks.set(chunkIndex, snapshot.docs.map(item => ({ id: item.id, ...item.data() })));
+            pendingChunks.delete(chunkIndex);
+            currentPicks = [...new Map([...chunks.values()].flat().map(pick => [pick.id, pick])).values()]
+              .sort((a, b) => b.fecha_evento.toMillis() - a.fecha_evento.toMillis() || b.id.localeCompare(a.id));
+            historyLoading = !discoveryComplete || pendingChunks.size > 0;
+            if (!historyLoading) $("bankrollLoadMessage").textContent = `${currentPicks.length} picks del período completo. Exportación disponible al terminar de cargar los registros privados.`;
+            synchronizeBankrollRecords();
+          }, fail));
+          cursor = boundary;
+        } while (cursor);
+        discoveryComplete = true;
+        historyLoading = pendingChunks.size > 0;
+        if (!historyLoading) $("bankrollLoadMessage").textContent = `${currentPicks.length} picks del período completo.`;
+        schedulePicksRender();
+      } catch (error) {
+        fail(error);
+      }
+    }
+    const filterSummary = $("bankrollFilterPanel").querySelector("summary");
+    filterSummary.addEventListener("pointerdown", () => $("bankrollFilterPanel").setAttribute("data-pointer-motion", ""));
+    filterSummary.addEventListener("keydown", () => $("bankrollFilterPanel").removeAttribute("data-pointer-motion"));
+    $("bankrollFilters").addEventListener("change", event => {
+      bankrollPage = 0;
+      if (["bankrollPeriod", "bankrollFrom", "bankrollThrough"].includes(event.target.id)) {
+        const custom = $("bankrollPeriod").value === "custom";
+        $("bankrollFrom").disabled = !custom;
+        $("bankrollThrough").disabled = !custom;
+        subscribeToPicks();
+      } else renderPicks();
+    });
+    $("bankrollReload").addEventListener("click", subscribeToPicks);
+    $("bankrollPrevious").addEventListener("click", () => { bankrollPage--; renderPicks(); });
+    $("bankrollNext").addEventListener("click", () => { bankrollPage++; renderPicks(); });
+    function downloadBankroll(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    }
+    function exportBankroll(summaryOnly, format = "csv") {
+      try {
+        const picks = bankrollSelection();
+        if (!bankrollReady(picks) || !picks.length) throw new Error("Espera a que se cargue el período completo y sus importes privados antes de exportar.");
+        const filters = { ...activeBankrollDates, status: $("bankrollStatus").value,
+          sport: $("bankrollSport").value, bookmaker: $("bankrollBookmaker").value };
+        const filename = `bankroll-${summaryOnly ? "resumen" : "detalle"}-${filters.from}-${filters.through}.${format}`;
+        if (format === "pdf") {
+          const report = bankrollReportData(picks, bankrollRecords, filters);
+          const labels = Object.fromEntries([["status", "bankrollStatus"], ["sport", "bankrollSport"], ["bookmaker", "bankrollBookmaker"]]
+            .map(([key, id]) => [key, $(id).selectedOptions[0].textContent]));
+          openExecutiveBankrollReport(report, {
+            tipster: currentProfile?.nombre_publico || currentProfile?.username || currentUser.displayName || "",
+            labels
+          });
+        } else {
+          const csv = bankrollCSV(picks, bankrollRecords, filters, summaryOnly);
+          downloadBankroll(new Blob([csv], { type: "text/csv;charset=utf-8" }), filename);
+        }
+        $("bankrollLoadMessage").textContent = format === "pdf"
+          ? "Vista previa abierta. Selecciona Guardar como PDF en el diálogo de impresión. Contiene importes privados."
+          : "Reporte generado con los filtros activos. Contiene importes privados: compártelo solo si lo deseas.";
+      } catch (error) {
+        console.error("No se pudo exportar el bankroll:", error);
+        $("bankrollLoadMessage").textContent = error.message;
+      }
+    }
+    $("bankrollExport").addEventListener("click", () => exportBankroll(false));
+    $("bankrollReport").addEventListener("click", () => exportBankroll(true));
+    $("bankrollPDF").addEventListener("click", () => exportBankroll(true, "pdf"));
     function resetPickForm() {
       $("pickForm").reset();
       $("confidence").value = "4";
@@ -912,10 +1408,19 @@
       $("pickFormTitle").textContent = "Publicar pronóstico";
       $("pickFormHint").textContent = "Completa los datos del evento y tu selección.";
       $("savePickButton").textContent = "Publicar pronóstico";
+      $("savePickButton").disabled = false;
       $("cancelEditButton").classList.add("hidden");
       clearMessage("pickMessage");
+      $("stakeAmount").disabled = false;
+      $("stakeCurrency").disabled = false;
     }
-    function beginEdit(pick) {
+    for (const currency of bankrollCurrencies) {
+      const option = document.createElement("option");
+      option.value = currency.code;
+      option.textContent = currency.label;
+      $("stakeCurrency").append(option);
+    }
+    async function beginEdit(pick) {
       editingPickId = pick.id;
       $("sport").value = pick.deporte || "";
       $("odds").value = pick.cuota || "";
@@ -931,8 +1436,30 @@
       $("savePickButton").textContent = "Guardar cambios";
       $("cancelEditButton").classList.remove("hidden");
       clearMessage("pickMessage");
+      $("stakeAmount").value = "";
+      $("stakeCurrency").value = bankrollCurrencies[0].code;
+      $("stakeAmount").disabled = true;
+      $("stakeCurrency").disabled = true;
+      $("savePickButton").disabled = true;
       $("pickForm").scrollIntoView({ behavior: "smooth", block: "start" });
       $("sport").focus({ preventScroll: true });
+      try {
+        const snapshot = await getDoc(doc(db, "picks", pick.id, "private", "bankroll"));
+        if (editingPickId !== pick.id) return;
+        if (snapshot.exists()) {
+          $("stakeAmount").value = snapshot.data().stakeAmount;
+          $("stakeCurrency").value = snapshot.data().currency;
+          if (!$("stakeCurrency").value) throw new Error("La moneda de este registro no está configurada. No se guardaron cambios.");
+        }
+        $("stakeAmount").disabled = false;
+        $("stakeCurrency").disabled = false;
+        $("savePickButton").disabled = false;
+      } catch (error) {
+        console.error("No se pudo cargar el registro financiero privado:", error);
+        if (editingPickId === pick.id) {
+          message("pickMessage", error.message || "No se pudo cargar el importe privado. Cancela la edición y vuelve a intentarlo.");
+        }
+      }
     }
     async function savePick(event) {
       event.preventDefault();
@@ -961,6 +1488,8 @@
           : false
       };
       try {
+        if ($("stakeAmount").disabled) throw new Error("Espera a que se cargue el registro financiero privado antes de guardar.");
+        const bankroll = parseBankrollStake($("stakeAmount").value, $("stakeCurrency").value);
         if (!["futbol", "baloncesto", "tenis", "beisbol", "esports", "otro"].includes(data.deporte)
           || !["betano", "inkabet", "te_apuesto", "betsson", "doradobet", "apuesta_total", "bet365", "otra"].includes(data.casa_de_apuestas)
           || !data.evento || data.evento.length > 120
@@ -974,12 +1503,14 @@
         }
         const profileRef = doc(db, "perfiles", currentUser.uid);
         const pickRef = editedPickId ? doc(db, "picks", editedPickId) : doc(collection(db, "picks"));
+        const bankrollRef = doc(pickRef, "private", "bankroll");
         const featuredQuery = query(collection(db, "picks"), where("user_id", "==", currentUser.uid), where("destacada", "==", true));
         const featuredSnapshot = data.destacada ? await getDocs(featuredQuery) : null;
         await runTransaction(db, async transaction => {
-          const [profileSnapshot, pickSnapshot, featuredPicks] = await Promise.all([
+          const [profileSnapshot, pickSnapshot, bankrollSnapshot, featuredPicks] = await Promise.all([
             transaction.get(profileRef),
             editedPickId ? transaction.get(pickRef) : Promise.resolve(null),
+            editedPickId ? transaction.get(bankrollRef) : Promise.resolve(null),
             featuredSnapshot
               ? Promise.all(featuredSnapshot.docs
                 .filter(item => item.id !== pickRef.id)
@@ -992,12 +1523,29 @@
           if (editedPickId && (!pickSnapshot?.exists() || pickSnapshot.data().user_id !== currentUser.uid)) {
             throw new Error("No encontramos ese pronóstico en tu cuenta.");
           }
+          if (pickSnapshot?.data().estado === "cash_out" && !bankroll) {
+            throw new Error("Un cierre anticipado necesita conservar su importe privado. Cambia primero el resultado si quieres quitarlo.");
+          }
           featuredPicks.forEach(item => transaction.update(item.ref, { destacada: false }));
           transaction.set(pickRef, {
             ...data,
+            show_on_stream: editedPickId ? pickSnapshot.data().show_on_stream === true : false,
             estado: editedPickId ? (pickSnapshot.data().estado || "pendiente") : "pendiente",
             created_at: editedPickId ? pickSnapshot.data().created_at : serverTimestamp()
           });
+          if (bankroll) {
+            transaction.set(bankrollRef, {
+              ...bankroll,
+              ...(pickSnapshot?.data().estado === "cash_out" ? {
+                returnAmount: bankrollSnapshot.data().returnAmount,
+                returnMinorUnits: bankrollSnapshot.data().returnMinorUnits
+              } : {}),
+              created_at: bankrollSnapshot?.exists() ? bankrollSnapshot.data().created_at : serverTimestamp(),
+              updated_at: serverTimestamp()
+            });
+          } else if (bankrollSnapshot?.exists()) {
+            transaction.delete(bankrollRef);
+          }
         });
         resetPickForm();
         message("pickMessage", wasEditing ? "Pronóstico actualizado." : "Pronóstico publicado.", true);
@@ -1262,13 +1810,30 @@
       const pick = currentPicks.find(item => item.id === button.dataset.id);
       if (!pick) return;
       if (button.dataset.action === "edit") {
-        beginEdit(pick);
+        button.closest("[popover]")?.hidePopover();
+        await beginEdit(pick);
         return;
       }
       if (button.dataset.action === "delete" && !confirm("¿Eliminar este pronóstico? Esta acción no se puede deshacer.")) return;
       button.disabled = true;
       try {
-        if (button.dataset.action === "delete") await deleteDoc(doc(db, "picks", pick.id));
+        if (button.dataset.action === "delete") {
+          const pickRef = doc(db, "picks", pick.id);
+          const bankrollRef = doc(pickRef, "private", "bankroll");
+          await runTransaction(db, async transaction => {
+            const bankrollSnapshot = await transaction.get(bankrollRef);
+            if (bankrollSnapshot.exists()) transaction.delete(bankrollRef);
+            transaction.delete(pickRef);
+          });
+          function closePickActionPopups() {
+            document.querySelectorAll(".pick-action-popup:popover-open").forEach(popup => popup.hidePopover());
+          }
+          window.addEventListener("resize", closePickActionPopups);
+          document.addEventListener("scroll", event => {
+            if (event.target instanceof Element && event.target.closest(".pick-action-popup")) return;
+            closePickActionPopups();
+          }, true);
+        }
         else await updateDoc(doc(db, "picks", pick.id), { estado: button.dataset.action === "win" ? "ganada" : "perdida" });
       } catch (error) {
         console.error("No se pudo actualizar el pronóstico:", error);
@@ -1281,11 +1846,50 @@
       if (!select || !currentUser) return;
       select.disabled = true;
       try {
-        await updateDoc(doc(db, "picks", select.dataset.id), { estado: select.value });
+        const nextStatus = select.value;
+        if (nextStatus === "cash_out") throw new Error("Registra el retorno recibido desde el formulario de cierre anticipado.");
+        const pickRef = doc(db, "picks", select.dataset.id);
+        const bankrollRef = doc(pickRef, "private", "bankroll");
+        await runTransaction(db, async transaction => {
+          const financial = await transaction.get(bankrollRef);
+          transaction.update(pickRef, { estado: nextStatus });
+          if (financial.exists()) {
+            const { returnAmount, returnMinorUnits, ...data } = financial.data();
+            transaction.set(bankrollRef, { ...data, updated_at: serverTimestamp() });
+          }
+        });
       } catch (error) {
         console.error("No se pudo actualizar el resultado:", error);
         message("pickMessage", "No se pudo actualizar el resultado. Comprueba las reglas de Firestore e inténtalo de nuevo.");
+        select.value = currentPicks.find(pick => pick.id === select.dataset.id)?.estado || "pendiente";
         select.disabled = false;
+      }
+    });
+    $("myPicks").addEventListener("submit", async event => {
+      const form = event.target.closest("form[data-cash-out-id]");
+      if (!form || !currentUser) return;
+      event.preventDefault();
+      const button = form.querySelector("button");
+      const value = form.elements.namedItem("returnAmount").value;
+      button.disabled = true;
+      clearMessage("pickMessage");
+      try {
+        const pickRef = doc(db, "picks", form.dataset.cashOutId);
+        const bankrollRef = doc(pickRef, "private", "bankroll");
+        await runTransaction(db, async transaction => {
+          const [pick, financial] = await Promise.all([transaction.get(pickRef), transaction.get(bankrollRef)]);
+          if (!pick.exists() || pick.data().user_id !== currentUser.uid || !financial.exists()) {
+            throw new Error("Registra primero un monto privado en un pick de tu cuenta.");
+          }
+          const returned = parseCashOutReturn(value, financial.data().currency);
+          transaction.update(pickRef, { estado: "cash_out" });
+          transaction.set(bankrollRef, { ...financial.data(), ...returned, updated_at: serverTimestamp() });
+        });
+        message("pickMessage", "Cierre anticipado guardado. El importe recibido permanece privado.", true);
+      } catch (error) {
+        console.error("No se pudo guardar el cierre anticipado:", error);
+        message("pickMessage", error.message || "No se pudo guardar el cierre anticipado. No se aplicó ningún cambio.");
+        button.disabled = false;
       }
     });
     $("profileForm").addEventListener("submit", submitProfileRequest);
@@ -1385,6 +1989,24 @@
         currentUser = user;
         if (heartbeat) clearInterval(heartbeat);
         if (stopPicks) stopPicks();
+        for (const stop of bankrollSubscriptions.values()) stop();
+        bankrollSubscriptions.clear();
+        bankrollRecords.clear();
+        bankrollErrors.clear();
+        currentPicks = [];
+        historyLoading = false;
+        historyError = "";
+        $("bankrollPeriod").value = "month";
+        $("bankrollFrom").disabled = true;
+        $("bankrollThrough").disabled = true;
+        for (const id of ["bankrollStatus", "bankrollSport", "bankrollBookmaker"]) $(id).value = "";
+        setCurrentMonth();
+        $("bankrollExport").disabled = true;
+        $("bankrollReport").disabled = true;
+        $("bankrollPDF").disabled = true;
+        $("bankrollLoadMessage").textContent = "";
+        $("bankrollSummary").replaceChildren();
+        $("myPicks").replaceChildren();
         heartbeat = null;
         stopPicks = null;
         if (!user) {

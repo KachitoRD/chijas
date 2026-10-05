@@ -394,6 +394,151 @@ async function main() {
     );
   });
 
+  await runCase("Bankroll: alta atómica, privacidad y edición del dueño", async context => {
+    const owner = await createTestUser(context, "bankroll-owner");
+    const other = await createTestUser(context, "bankroll-other");
+    const admin = await createTestUser(context, "bankroll-admin", "approved", { admin: true });
+    await signInTestUser(context, owner);
+    const pickRef = doc(collection(context.db, "picks"));
+    const privateRef = doc(pickRef, "private", "bankroll");
+    await runTransaction(context.db, async transaction => {
+      transaction.set(pickRef, validPick(owner.uid));
+      transaction.set(privateRef, {
+        stakeAmount: 12.34, stakeMinorUnits: 1234, currency: "PEN",
+        created_at: serverTimestamp(), updated_at: serverTimestamp()
+      });
+    });
+    const initial = await getDoc(privateRef);
+    if (initial.data().stakeMinorUnits !== 1234) throw new Error("Importe privado incorrecto.");
+    await updateDoc(privateRef, {
+      stakeAmount: 20, stakeMinorUnits: 2000, currency: "USD", updated_at: serverTimestamp()
+    });
+    for (const user of [other, admin]) {
+      await signInTestUser(context, user);
+      await expectDenied(() => getDoc(privateRef), "Leer bankroll ajeno");
+      await expectDenied(() => updateDoc(privateRef, { stakeAmount: 99 }), "Editar bankroll ajeno");
+      await expectDenied(() => deleteDoc(privateRef), "Borrar bankroll ajeno");
+    }
+    await signOut(context.auth);
+    await getDoc(pickRef);
+    await expectDenied(() => getDoc(privateRef), "Lectura anónima del bankroll");
+    await signInTestUser(context, owner);
+    const publicPick = await getDoc(pickRef);
+    if ("stakeAmount" in publicPick.data() || "currency" in publicPick.data()) {
+      throw new Error("Datos financieros filtrados al pick público.");
+    }
+    await expectDenied(() => deleteDoc(pickRef), "Borrar padre dejando bankroll huérfano");
+    await runTransaction(context.db, async transaction => {
+      transaction.delete(privateRef);
+      transaction.delete(pickRef);
+    });
+    const deleted = await fetch(`${FIRESTORE_REST_ROOT}/picks/${pickRef.id}`, {
+      headers: { authorization: "Bearer owner" }
+    });
+    if (deleted.status !== 404) throw new Error("No se eliminó el pick.");
+  });
+
+  await runCase("Bankroll: validación y rollback de creación", async context => {
+    const owner = await createTestUser(context, "bankroll-invalid");
+    const invalidData = [
+      { stakeAmount: 0, stakeMinorUnits: 0, currency: "PEN" },
+      { stakeAmount: -1, stakeMinorUnits: -100, currency: "PEN" },
+      { stakeAmount: 1.234, stakeMinorUnits: 123, currency: "USD" },
+      { stakeAmount: 1, stakeMinorUnits: 100, currency: "XXX" },
+      { stakeAmount: 1000000001, stakeMinorUnits: 100000000100, currency: "EUR" },
+      { stakeAmount: 1, stakeMinorUnits: 100, currency: "EUR", extra: "no permitido" }
+    ];
+    for (const data of invalidData) {
+      const pickRef = doc(collection(context.db, "picks"));
+      const privateRef = doc(pickRef, "private", "bankroll");
+      await expectDenied(() => runTransaction(context.db, async transaction => {
+        transaction.set(pickRef, validPick(owner.uid));
+        transaction.set(privateRef, {
+          ...data, created_at: serverTimestamp(), updated_at: serverTimestamp()
+        });
+      }), "Alta inválida de bankroll revierte el pick");
+      for (const path of [`picks/${pickRef.id}`, `picks/${pickRef.id}/private/bankroll`]) {
+        const response = await fetch(`${FIRESTORE_REST_ROOT}/${path}`, {
+          headers: { authorization: "Bearer owner" }
+        });
+        if (response.status !== 404) throw new Error("La transacción dejó documentos parciales.");
+      }
+    }
+    const orphanRef = doc(context.db, "picks", "missing-parent", "private", "bankroll");
+    await expectDenied(() => setDoc(orphanRef, {
+      stakeAmount: 1, stakeMinorUnits: 100, currency: "EUR",
+      created_at: serverTimestamp(), updated_at: serverTimestamp()
+    }), "Crear bankroll sin padre");
+    await expectDenied(() => setDoc(doc(collection(context.db, "picks")), validPick(owner.uid, {
+      stakeAmount: 10, currency: "PEN"
+    })), "Guardar importe financiero en pick público");
+  });
+
+  await runCase("Bankroll: rollback si falla el pick público y compatibilidad sin importe", async context => {
+    const owner = await createTestUser(context, "bankroll-public-invalid");
+    const pickRef = doc(collection(context.db, "picks"));
+    const privateRef = doc(pickRef, "private", "bankroll");
+    await expectDenied(() => runTransaction(context.db, async transaction => {
+      transaction.set(pickRef, validPick(owner.uid, { cuota: 0 }));
+      transaction.set(privateRef, {
+        stakeAmount: 10, stakeMinorUnits: 1000, currency: "EUR",
+        created_at: serverTimestamp(), updated_at: serverTimestamp()
+      });
+    }), "Pick inválido revierte el bankroll");
+    await setDoc(pickRef, validPick(owner.uid));
+    if ((await getDoc(privateRef)).exists()) throw new Error("Bankroll parcial después de rollback.");
+    await setDoc(privateRef, {
+      stakeAmount: 10, stakeMinorUnits: 1000, currency: "EUR",
+      created_at: serverTimestamp(), updated_at: serverTimestamp()
+    });
+    await deleteDoc(privateRef);
+    await updateDoc(pickRef, { estado: "ganada" });
+    await deleteDoc(pickRef);
+  });
+
+  await runCase("Cash out: estado público y retorno privado coherentes y atómicos", async context => {
+    const owner = await createTestUser(context, "cashout-owner");
+    const pickRef = doc(collection(context.db, "picks"));
+    const financialRef = doc(pickRef, "private", "bankroll");
+    const stake = { stakeAmount: 100, stakeMinorUnits: 10000, currency: "PEN", created_at: serverTimestamp(), updated_at: serverTimestamp() };
+    await runTransaction(context.db, async transaction => {
+      transaction.set(pickRef, validPick(owner.uid));
+      transaction.set(financialRef, stake);
+    });
+    await expectDenied(() => updateDoc(pickRef, { estado: "cash_out" }), "Cierre sin retorno privado");
+    await expectDenied(() => updateDoc(financialRef, {
+      returnAmount: 105, returnMinorUnits: 10500, updated_at: serverTimestamp()
+    }), "Retorno sin cierre público");
+    for (const returned of [-100, 10500.5, 100000000001]) {
+      await expectDenied(() => runTransaction(context.db, async transaction => {
+        transaction.update(pickRef, { estado: "cash_out" });
+        transaction.update(financialRef, { returnAmount: returned / 100, returnMinorUnits: returned, updated_at: serverTimestamp() });
+      }), "Retorno inválido revierte el estado");
+      if ((await getDoc(pickRef)).data().estado !== "pendiente") throw new Error("Estado parcial tras rollback.");
+    }
+    for (const returned of [10500, 8000, 0]) {
+      await runTransaction(context.db, async transaction => {
+        transaction.update(pickRef, { estado: "cash_out" });
+        transaction.update(financialRef, { returnAmount: returned / 100, returnMinorUnits: returned, updated_at: serverTimestamp() });
+      });
+      if ((await getDoc(financialRef)).data().returnMinorUnits !== returned) throw new Error("Retorno incorrecto.");
+    }
+    await expectDenied(() => deleteDoc(financialRef), "Eliminar retorno dejando cierre público");
+    await expectDenied(() => updateDoc(pickRef, { estado: "ganada" }), "Cambiar resultado dejando retorno de cash out");
+    await signOut(context.auth);
+    const publicPick = await getDoc(pickRef);
+    if (publicPick.data().estado !== "cash_out" || "returnAmount" in publicPick.data()) throw new Error("Cierre público incorrecto.");
+    await expectDenied(() => getDoc(financialRef), "Leer retorno de cash out sin sesión");
+    await signInTestUser(context, owner);
+    await runTransaction(context.db, async transaction => {
+      const financial = await transaction.get(financialRef);
+      const { returnAmount, returnMinorUnits, ...original } = financial.data();
+      transaction.update(pickRef, { estado: "anulada" });
+      transaction.set(financialRef, { ...original, updated_at: serverTimestamp() });
+    });
+    if ("returnAmount" in (await getDoc(financialRef)).data()) throw new Error("Retorno no eliminado al cambiar estado.");
+  });
+
   await runCase("7a. URL social http:// denegada por la regla HTTPS", async context => {
     const user = await createTestUser(context, "url-user");
     await signInTestUser(context, user);

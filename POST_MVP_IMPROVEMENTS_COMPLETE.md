@@ -232,10 +232,12 @@ Modified:
 ## 📋 Notas Técnicas
 
 ### Tailwind Build Process
+- Se usa Tailwind CSS 3 para conservar la apariencia de las demos DAY_X y las directivas existentes; no mezclar este pipeline con `@tailwindcss/postcss` de v4.
 - `tailwind.config.js` configura content scanning
 - `styles.css` contiene @tailwind directives
 - `build-css.js` ejecuta PostCSS + Tailwind
-- Output minificado y optimizado
+- Ejecutar `npm ci` y `npm run build:css` para regenerar `dist/styles.min.css` antes de publicar; el CSS incluye Preflight y las utilidades responsive.
+- El nombre del archivo incluye `.min`, pero el pipeline actual no aplica minificación.
 
 ### Service Worker Caching
 - Install: pre-cache critical files
@@ -252,4 +254,3 @@ Modified:
 ---
 
 **¡Listo para producción!** 🚀
-

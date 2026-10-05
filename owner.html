@@ -716,30 +716,8 @@
       $("denied").classList.remove("hidden");
       $("deniedMessage").textContent = "Completa la configuración de Firebase antes de entrar al panel.";
     } else {
-      // Re-initialize Firebase locally to ensure correct project configuration
-      const localConfig = {
-        apiKey: "demo-api-key",
-        authDomain: "demo-fijas-vivo.firebaseapp.com",
-        projectId: "demo-fijas-vivo",
-        messagingSenderId: "999999999999",
-        appId: "1:999999999999:web:demo"
-      };
-      const { initializeApp: localInitializeApp } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js");
-      const { connectFirestoreEmulator: localConnectFirestoreEmulator, getFirestore: localGetFirestore } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
-      const { connectAuthEmulator: localConnectAuthEmulator } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
-      const localApp = localInitializeApp(localConfig, "owner-" + Date.now());
-      auth = getAuth(localApp);
-      db = localGetFirestore(localApp);
-      
-      if (location.hostname === "localhost") {
-        try {
-          localConnectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
-          localConnectFirestoreEmulator(db, "127.0.0.1", 8080);
-        } catch (error) {
-          // Emulators may already be connected
-        }
-      }
-      
+      auth = getAuth(firebaseApp);
+      db = firebaseDb;
       onAuthStateChanged(auth, async user => {
         $("loading").classList.remove("hidden");
         $("creatorLogin").classList.add("hidden");
@@ -769,13 +747,6 @@
             $("deniedMessage").textContent = "La cuenta conectada no tiene permisos de creador. Cambia de cuenta e inicia con la cuenta administrativa separada.";
             return;
           }
-        }, onError);
-      });
-    });
-  </script>
-  <script src="toasts.js"></script>
-</body>
-</html>
           await loadOwnerDashboard();
         } catch (error) {
           console.error("No se pudo validar el acceso de creador:", error);
@@ -787,20 +758,6 @@
       });
     }
   </script>
-  <!-- Service Worker Registration - PWA Support -->
-  <script>
-    // TODO: Re-enable Service Worker after MVP is stable and cached properly
-    // if ('serviceWorker' in navigator) {
-    //   window.addEventListener('load', () => {
-    //     navigator.serviceWorker.register('/service-worker.js')
-    //       .then((registration) => {
-    //         console.log('✅ Service Worker registered:', registration);
-    //       })
-    //       .catch((error) => {
-    //         console.warn('⚠️ Service Worker registration failed:', error);
-    //       });
-    //   });
-    // }
-  </script>
+  <script src="toasts.js"></script>
 </body>
 </html>

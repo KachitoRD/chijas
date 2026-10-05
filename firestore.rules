@@ -299,7 +299,7 @@ service cloud.firestore {
         && (data.nota == null || (data.nota is string && data.nota.size() <= 500))
         && data.destacada is bool
         && data.show_on_stream is bool
-        && data.estado in ["pendiente", "ganada", "perdida", "anulada"]
+        && data.estado in ["pendiente", "ganada", "perdida", "anulada", "cash_out"]
         && data.created_at is timestamp;
     }
 
@@ -587,6 +587,14 @@ service cloud.firestore {
     // Published picks are readable only when the owning tipster is approved.
     // Writes require the authenticated owner to have current approval.
     match /picks/{pickId} {
+      function consistentCashOut() {
+        let privatePath = /databases/$(database)/documents/picks/$(pickId)/private/bankroll;
+        return request.resource.data.estado == "cash_out"
+          ? existsAfter(privatePath)
+            && getAfter(privatePath).data.keys().hasAll(["returnAmount", "returnMinorUnits"])
+          : !existsAfter(privatePath)
+            || !getAfter(privatePath).data.keys().hasAny(["returnAmount", "returnMinorUnits"]);
+      }
       allow read: if resource.data.user_id is string
         && profileIsApproved(resource.data.user_id);
       allow create: if verifiedUser()
@@ -602,6 +610,7 @@ service cloud.firestore {
         && request.resource.data.user_id == request.auth.uid
         && validPick(request.resource.data, request.auth.uid)
         && request.resource.data.created_at == resource.data.created_at
+        && consistentCashOut()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           "deporte", "evento", "seleccion", "prediccion", "cuota",
           "casa_de_apuestas", "casa_apuestas", "fecha_evento",
@@ -610,7 +619,58 @@ service cloud.firestore {
       allow delete: if verifiedUser()
         && acceptedCurrentTerms(request.auth.uid)
         && profileIsApproved(request.auth.uid)
-        && resource.data.user_id == request.auth.uid;
+        && resource.data.user_id == request.auth.uid
+        && !existsAfter(/databases/$(database)/documents/picks/$(pickId)/private/bankroll);
+
+      match /private/{privateId} {
+        function ownsPick() {
+          return request.auth != null
+            && get(/databases/$(database)/documents/picks/$(pickId)).data.user_id == request.auth.uid;
+        }
+        function canSaveBankroll() {
+          return verifiedUser()
+            && acceptedCurrentTerms(request.auth.uid)
+            && profileIsApproved(request.auth.uid)
+            && getAfter(/databases/$(database)/documents/picks/$(pickId)).data.user_id == request.auth.uid;
+        }
+        function validBankroll() {
+          let data = request.resource.data;
+          return data.keys().hasAll(["stakeAmount", "stakeMinorUnits", "currency", "created_at", "updated_at"])
+            && data.keys().hasOnly(["stakeAmount", "stakeMinorUnits", "currency", "created_at", "updated_at", "returnAmount", "returnMinorUnits"])
+            && data.currency in ["PEN", "USD", "EUR"]
+            && data.stakeMinorUnits is int
+            && data.stakeMinorUnits > 0
+            && data.stakeMinorUnits <= 100000000000
+            && data.stakeAmount is number
+            && data.stakeAmount == data.stakeMinorUnits / 100.0
+            && (getAfter(/databases/$(database)/documents/picks/$(pickId)).data.estado == "cash_out"
+              ? data.keys().hasAll(["returnAmount", "returnMinorUnits"])
+                && data.returnMinorUnits is int
+                && data.returnMinorUnits >= 0
+                && data.returnMinorUnits <= 100000000000
+                && data.returnAmount is number
+                && data.returnAmount == data.returnMinorUnits / 100.0
+              : !data.keys().hasAny(["returnAmount", "returnMinorUnits"]))
+            && data.updated_at == request.time;
+        }
+        allow read: if privateId == "bankroll" && ownsPick();
+        allow create: if privateId == "bankroll"
+          && canSaveBankroll()
+          && validBankroll()
+          && request.resource.data.created_at == request.time;
+        allow update: if privateId == "bankroll"
+          && ownsPick()
+          && canSaveBankroll()
+          && validBankroll()
+          && request.resource.data.created_at == resource.data.created_at;
+        allow delete: if privateId == "bankroll"
+          && ownsPick()
+          && verifiedUser()
+          && acceptedCurrentTerms(request.auth.uid)
+          && profileIsApproved(request.auth.uid)
+          && (!existsAfter(/databases/$(database)/documents/picks/$(pickId))
+            || getAfter(/databases/$(database)/documents/picks/$(pickId)).data.estado != "cash_out");
+      }
     }
   }
 }

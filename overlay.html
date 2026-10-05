@@ -161,8 +161,9 @@
           pickElements.set(pick.id, entry);
         }
         entry.sport.textContent = pick.deporte || "";
-        entry.status.textContent = String(pick.estado || "pendiente").slice(0, 1).toUpperCase()
-          + String(pick.estado || "pendiente").slice(1);
+        entry.status.textContent = pick.estado === "cash_out" ? "Cierre anticipado"
+          : String(pick.estado || "pendiente").slice(0, 1).toUpperCase()
+            + String(pick.estado || "pendiente").slice(1);
         entry.event.textContent = pick.evento || "";
         entry.selection.textContent = pick.seleccion || pick.prediccion || "";
         entry.odds.textContent = `Cuota ${Number(pick.cuota || 0).toFixed(2)}`;

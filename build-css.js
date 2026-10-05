@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import postcss from 'postcss';
-import tailwindcss from '@tailwindcss/postcss';
+import tailwindcss from 'tailwindcss';
 import autoprefixer from 'autoprefixer';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -14,7 +14,7 @@ async function buildCSS() {
   
   try {
     const result = await postcss([
-      tailwindcss('./tailwind.config.js'),
+      tailwindcss(path.join(__dirname, 'tailwind.config.js')),
       autoprefixer(),
     ]).process(input, {
       from: path.join(__dirname, 'styles.css'),

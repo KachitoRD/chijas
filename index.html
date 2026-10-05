@@ -348,12 +348,13 @@
       ["kick_url", "Kick"], ["twitch_url", "Twitch"], ["youtube_url", "YouTube"],
       ["telegram_url", "Telegram"], ["twitter_url", "X"], ["instagram_url", "Instagram"]
     ];
-    const FILTERS = [["todas", "Todas"], ["pendiente", "Pendientes"], ["ganada", "Ganadas"], ["perdida", "Perdidas"], ["anulada", "Anuladas"]];
+    const FILTERS = [["todas", "Todas"], ["pendiente", "Pendientes"], ["ganada", "Ganadas"], ["perdida", "Perdidas"], ["anulada", "Anuladas"], ["cash_out", "Cierre anticipado"]];
     const BADGES = {
       pendiente: ["Pendiente", "border-amber-300/20 bg-amber-300/[.08] text-amber-200"],
       ganada: ["Ganada", "border-emerald-300/20 bg-emerald-300/[.08] text-emerald-200"],
       perdida: ["Perdida", "border-rose-300/20 bg-rose-300/[.08] text-rose-200"],
-      anulada: ["Anulada", "border-zinc-300/10 bg-white/[.04] text-zinc-300"]
+      anulada: ["Anulada", "border-zinc-300/10 bg-white/[.04] text-zinc-300"],
+      cash_out: ["Cierre anticipado", "border-zinc-300/10 bg-white/[.04] text-zinc-300"]
     };
     let db, profiles = [], selectedProfile = null, profilePicks = [], selectedFilter = "todas", stopPicks = null, routeUsername = null, profileRenderKey = "", onlineRenderKey = "", directoryRenderKey = "";
     const presenceUnsubs = new Map();

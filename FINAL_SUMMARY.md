@@ -1,220 +1,25 @@
-# 🎉 FIJAS EN VIVO - POST-MVP IMPROVEMENTS ✅ COMPLETADO
+# Fijas en vivo - Resumen técnico actual
 
-## 📊 RESUMEN FINAL DE IMPLEMENTACIÓN
+## 1. Stack tecnológico
+- HTML5, JavaScript vanilla con módulos ES y CSS; Tailwind CSS 3 compilado con Node.js, PostCSS y Autoprefixer.
+- Firebase Authentication, Cloud Firestore y Firebase Hosting (proyecto `chijas`); emuladores locales de Auth y Firestore.
+- Playwright para pruebas E2E y ESLint para análisis estático. Sin framework frontend, Cloud Functions ni Firebase Storage.
 
-Toda la suite de 4 mejoras post-MVP ha sido implementada, testeada y desplegada a producción:
+## 2. Base de datos y modelos definidos
+Cloud Firestore, base NoSQL con colecciones (no tablas SQL):
+- `perfiles`: identidad pública y estado de acceso del tipster; `perfiles_social`: avatar, banner y redes.
+- `picks`: pronósticos, evento, cuota, confianza, resultado y selección para mostrar en stream.
+- `picks/{pickId}/private/bankroll`: importe y moneda privados, accesibles solo al dueño desde el SDK cliente; creación/edición/borrado integrados en transacciones.
+- `presencia`: conexión y última actividad; `usernames`: asociación de usuario público con UID.
+- `tipsterApplications`: solicitudes de acceso; `perfilSolicitudes`: cambios de perfil para revisión; `perfilSolicitudesPendientes`: reserva de una solicitud activa por usuario.
+- `platformAdmins`: permisos del creador; `platformSettings`: límites orientativos.
+- `legalAcceptances/{uid}/versions/{version}`: aceptación versionada de términos, privacidad y confirmación de edad.
+Firebase Authentication gestiona cuentas, contraseñas y verificación de correo; Firestore tiene reglas de acceso e índices definidos.
 
-### ✅ 1. Tailwind Production Build
-- **Status:** COMPLETADO Y EN PRODUCCIÓN
-- **Cambio:** CDN (100+ KB) → Build local (15.53 KB)
-- **Reducción:** 85% más pequeño
-- **Verificación:** Cargando desde `https://chijas.web.app/dist/styles.min.css`
-
-### ✅ 2. Service Worker PWA
-- **Status:** COMPLETADO Y EN PRODUCCIÓN
-- **Funcionalidad:** Offline support + caching inteligente
-- **State:** ACTIVATED
-- **Scope:** https://chijas.web.app/
-- **Verificación:** Funciona offline (tested)
-
-### ✅ 3. Core Web Vitals Monitoring
-- **Status:** COMPLETADO Y EN PRODUCCIÓN
-- **Herramienta:** Plausible Analytics
-- **Ventajas:** Privacy-first, lightweight (1.3 KB), GDPR compliant
-- **Métricas:** LCP, FCP, CLS, TTFB
-- **Verificación:** window.plausible cargado ✅
-
-### ✅ 4. Image Optimization Guide
-- **Status:** COMPLETADO
-- **Archivo:** IMAGE_OPTIMIZATION_GUIDE.html
-- **Contenido:** Ejemplos de srcset, WebP, lazy loading
-- **Próximo Paso:** Implementar en imágenes dinámicas
-
----
-
-## 🚀 DEPLOYMENTS
-
-### Deploy #1: Commit feat: Post-MVP improvements
-```
-Commit: bf9362b
-Cambios: 48 files, 11,272 insertions
-Status: ✅ Completado
-```
-
-### Deploy #2: Manual Firebase Hosting
-```
-Fecha: 2026-10-05 01:43 UTC-5
-Archivos: 69 deployados
-Cargados: 55/63 nuevos
-Status: ✅ Completado
-```
-
-### Deploy #3: Commit CI/CD Setup
-```
-Commit: 81e9d31
-Cambios: Workflow GitHub Actions + Documentación
-Status: ✅ Completado
-```
-
----
-
-## 📍 DÓNDE VER LOS CAMBIOS
-
-### En Producción
-🌐 **https://chijas.web.app/**
-- ✅ Todos los cambios están VIVOS
-- ✅ Service Worker ACTIVATED
-- ✅ Plausible Analytics CARGADO
-- ✅ CSS Production Build ACTIVO
-
-### En Local
-💻 **http://localhost:5500/**
-- ✅ Todos los cambios visibles
-- ✅ Misma funcionalidad que producción
-- ✅ Service Worker ACTIVATED
-- ✅ Offline mode FUNCIONAL
-
----
-
-## 📈 RESULTADOS MEDIBLES
-
-| Métrica | Antes | Después | Mejora |
-|---------|-------|---------|--------|
-| **CSS Size** | 100 KB | 15.53 KB | **85% ↓** |
-| **Load Time** | 1.4s | ~0.8s | **43% ↓** |
-| **Lighthouse** | 85/100 | 92/100 | **+7 pts** |
-| **Offline** | ❌ | ✅ | **New** |
-| **Analytics** | ❌ | ✅ | **New** |
-| **PWA Ready** | ❌ | ✅ | **New** |
-
----
-
-## 🔄 PRÓXIMOS DEPLOYMENTS (AUTOMÁTICO)
-
-Ahora que el workflow de GitHub Actions está configurado:
-
-```bash
-# Cada vez que hagas:
-git push origin main
-
-# Se ejecutará automáticamente:
-1. npm ci (install dependencies)
-2. npm run build:css (compile Tailwind)
-3. firebase deploy (deploy to Firebase Hosting)
-
-# ⏱️ Tiempo: ~2-3 minutos
-# 🌐 Resultado: Cambios en https://chijas.web.app/
-# 📊 Progreso: https://github.com/KachitoRD/chijas/actions
-```
-
-**PERO REQUIERE:** Configurar el secret `FIREBASE_SERVICE_ACCOUNT` en GitHub
-Ver: `GITHUB_ACTIONS_SETUP.md` para instrucciones
-
----
-
-## 📁 ARCHIVOS GENERADOS EN ESTE SPRINT
-
-```
-Tailwind Build:
-  ├── tailwind.config.js
-  ├── postcss.config.js
-  ├── styles.css
-  ├── build-css.js
-  └── dist/styles.min.css ✅ (15.53 KB)
-
-Service Worker:
-  └── service-worker.js ✅
-
-Documentación:
-  ├── DEPLOYMENT_COMPLETE.md
-  ├── GITHUB_ACTIONS_SETUP.md
-  ├── DEPLOYMENT_CHECKLIST.md
-  ├── VERIFICATION_REPORT.md
-  ├── IMAGE_OPTIMIZATION_GUIDE.html
-  └── POST_MVP_IMPROVEMENTS_COMPLETE.md
-
-GitHub Actions:
-  └── .github/workflows/deploy.yml ✅
-
-HTML Updates:
-  ├── index.html (Tailwind link + Plausible + SW)
-  ├── admin.html (Tailwind link + Plausible + SW)
-  └── owner.html (Tailwind link + Plausible + SW)
-
-Package Updates:
-  └── package.json (added "build:css" script)
-```
-
----
-
-## ✨ VERIFICACIÓN CHECKLIST
-
-- [x] Tailwind production build compilado
-- [x] Tailwind CSS inyectado en todas las páginas
-- [x] Service Worker creado con install/activate/fetch events
-- [x] Service Worker inyectado en todas las páginas
-- [x] Plausible Analytics inyectado en todas las páginas
-- [x] Playwright suite de tests ejecutada (45/45 passed)
-- [x] Tests offline completados exitosamente
-- [x] Todos los archivos committeados
-- [x] Deploy manual a Firebase Hosting completado
-- [x] Verificación en https://chijas.web.app/ exitosa
-- [x] GitHub Actions workflow creado
-- [x] Documentación completa generada
-
----
-
-## 🎯 ESTADO FINAL
-
-```
-┌────────────────────────────────────────────────┐
-│         🎉 SUPER MVP READY PARA PRO 🎉        │
-├────────────────────────────────────────────────┤
-│                                                │
-│  Visual Polish:     8.5/10 → 9.2/10  (+0.7)   │
-│  Performance:       85/100 → 92/100  (+7pts)  │
-│  Offline Support:   ❌ → ✅         (New)    │
-│  Analytics:         ❌ → ✅         (New)    │
-│  Auto-Deploy:       ❌ → ✅         (New)    │
-│                                                │
-│  ✅ Todos los cambios en PRODUCCIÓN            │
-│  ✅ Service Worker ACTIVATED                  │
-│  ✅ Plausible Analytics ACTIVO                │
-│  ✅ CSS Production Build OPTIMIZADO           │
-│                                                │
-│  🌐 URL: https://chijas.web.app/              │
-│                                                │
-└────────────────────────────────────────────────┘
-```
-
----
-
-## 📞 SOPORTE & PRÓXIMOS PASOS
-
-### Si algo no funciona:
-1. Verifica `DEPLOYMENT_CHECKLIST.md` para troubleshooting
-2. Revisa logs en: https://github.com/KachitoRD/chijas/actions
-3. Prueba: `npm run build:css` localmente
-4. Verifica: DevTools → Application → Service Workers
-
-### Próximas mejoras (Opcional - Phase 3):
-1. Image Optimization (WebP, srcset, lazy loading)
-2. Core Web Vitals monitoring en tiempo real
-3. Performance optimization basada en datos
-4. PWA install prompt personalizado
-
-### Para nuevos features:
-1. Haz cambios en local
-2. Test en http://localhost:5500/
-3. Commit a main
-4. Deploy automático en ~2-3 minutos
-5. Verifica en https://chijas.web.app/
-
----
-
-**Timestamp:** 2026-10-05 01:45 UTC-5  
-**Status:** ✅ COMPLETADO Y EN PRODUCCIÓN  
-**Autor:** Copilot (Fase 2: Launch Visual)  
-**Performance Score:** 92/100 (↑ desde 85)  
-**MVP Polish:** 9.2/10 (↑ desde 8.5)
-
+## 3. Funcionalidades y estado
+- **Implementadas:** registro/login, verificación de correo, recuperación de contraseña y aceptación legal; directorio con búsqueda, perfiles públicos, presencia, pronósticos y resultados.
+- **Implementadas:** panel tipster para publicar/editar/eliminar pronósticos, marcar resultados y solicitar cambios de perfil; panel creador para aprobar/rechazar solicitudes, gestionar permisos y límites.
+- **Implementado:** dashboard financiero privado por moneda (PEN, USD y EUR) con riesgo, retorno, profit neto y Yield; filtros por fecha del evento (mes en curso o rango), estado, deporte y casa. Historial completo paginado y exportación local CSV para Excel y PDF ejecutivo con efectividad global y métricas por moneda. Cierre anticipado total con retorno real privado y estado público, excluido de aciertos. No gestiona saldo de cuenta, comisiones ni retiros parciales.
+- **Implementado:** widget público para OBS/Streamlabs con picks seleccionados, tres formatos y vista previa. Sin pagos ni suscripciones activas; los límites mensuales son orientativos.
+- **Verificado localmente:** restauración visual con Tailwind 3, acceso del creador y tipster, restricciones de cuenta pendiente, búsqueda y perfiles; cinco escenarios aprobados en Chromium y Firefox, con comprobaciones de escritorio/móvil.
+- **En proceso:** prueba completa de publicación/resultados/widget y resolver el bloqueo de acceso al emulador en WebKit. Restauración CSS y correcciones recientes aún sin commit ni deploy; Service Worker desactivado.
