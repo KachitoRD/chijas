@@ -86,6 +86,9 @@
 .h-\[76px\] {
   height: 76px;
 }
+.h-auto {
+  height: auto;
+}
 .h-full {
   height: 100%;
 }
