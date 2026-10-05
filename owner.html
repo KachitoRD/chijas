@@ -176,7 +176,7 @@
   </main>
 
   <script type="module">
-    import { firebaseApp, firebaseConfigured, firebaseDb } from "./firebase-config.js";
+    import { firebaseApp, firebaseConfigured, firebaseDb } from "./firebase-config.js?v=2";
     import { getAuth, onAuthStateChanged, sendPasswordResetEmail, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
     import { collection, doc, getDoc, getDocs, limit, orderBy, query, runTransaction, serverTimestamp, setDoc, where } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 

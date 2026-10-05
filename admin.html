@@ -283,7 +283,7 @@
   </div>
 
   <script type="module">
-    import { firebaseApp, firebaseConfigured, firebaseConfigError, firebaseDb } from "./firebase-config.js";
+    import { firebaseApp, firebaseConfigured, firebaseConfigError, firebaseDb } from "./firebase-config.js?v=2";
     import { connectAuthEmulator, createUserWithEmailAndPassword, getAuth, onAuthStateChanged, sendEmailVerification, signInWithEmailAndPassword, signOut, updateProfile } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
     import { collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, orderBy, query, runTransaction, serverTimestamp, setDoc, updateDoc, where, limit } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
