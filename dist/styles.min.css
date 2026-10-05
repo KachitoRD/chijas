@@ -110,6 +110,9 @@
 .min-h-\[180px\] {
   min-height: 180px;
 }
+.min-h-full {
+  min-height: 100%;
+}
 .min-h-screen {
   min-height: 100vh;
 }
@@ -241,6 +244,9 @@
 .overflow-hidden {
   overflow: hidden;
 }
+.overflow-y-auto {
+  overflow-y: auto;
+}
 .rounded-\[12px\] {
   border-radius: 12px;
 }
@@ -303,6 +309,9 @@
 .bg-gradient-to-br {
   --tw-gradient-position: to bottom right in oklab;
   background-image: linear-gradient(var(--tw-gradient-stops));
+}
+.bg-contain {
+  background-size: contain;
 }
 .bg-cover {
   background-size: cover;
