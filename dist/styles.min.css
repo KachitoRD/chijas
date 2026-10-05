@@ -41,12 +41,6 @@
 .z-50 {
   z-index: 50;
 }
-.col-span-1 {
-  grid-column: span 1 / span 1;
-}
-.col-span-2 {
-  grid-column: span 2 / span 2;
-}
 .col-span-full {
   grid-column: 1 / -1;
 }
@@ -116,9 +110,6 @@
 .min-h-\[180px\] {
   min-height: 180px;
 }
-.min-h-full {
-  min-height: 100%;
-}
 .min-h-screen {
   min-height: 100vh;
 }
@@ -169,12 +160,6 @@
   --tw-translate-y: calc(calc(1 / 2 * 100%) * -1);
   translate: var(--tw-translate-x) var(--tw-translate-y);
 }
-.scale-98 {
-  --tw-scale-x: 98%;
-  --tw-scale-y: 98%;
-  --tw-scale-z: 98%;
-  scale: var(--tw-scale-x) var(--tw-scale-y);
-}
 .transform {
   transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,) var(--tw-skew-y,);
 }
@@ -204,9 +189,6 @@
 }
 .grid-cols-3 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-.grid-cols-4 {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 .grid-cols-5 {
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -258,9 +240,6 @@
 }
 .overflow-hidden {
   overflow: hidden;
-}
-.overflow-y-auto {
-  overflow-y: auto;
 }
 .rounded-\[12px\] {
   border-radius: 12px;
@@ -440,12 +419,6 @@
   border-width: 0px;
 }
 @media (hover: hover) {
-  .hover\:scale-100:hover {
-    --tw-scale-x: 100%;
-    --tw-scale-y: 100%;
-    --tw-scale-z: 100%;
-    scale: var(--tw-scale-x) var(--tw-scale-y);
-  }
   .hover\:scale-105:hover {
     --tw-scale-x: 105%;
     --tw-scale-y: 105%;
@@ -461,28 +434,11 @@
   --tw-outline-style: none;
   outline-style: none;
 }
-.focus-visible\:outline:focus-visible {
-  outline-style: var(--tw-outline-style);
-  outline-width: 1px;
-}
-.focus-visible\:outline-2:focus-visible {
-  outline-style: var(--tw-outline-style);
-  outline-width: 2px;
-}
 .active\:scale-95:active {
   --tw-scale-x: 95%;
   --tw-scale-y: 95%;
   --tw-scale-z: 95%;
   scale: var(--tw-scale-x) var(--tw-scale-y);
-}
-.active\:scale-98:active {
-  --tw-scale-x: 98%;
-  --tw-scale-y: 98%;
-  --tw-scale-z: 98%;
-  scale: var(--tw-scale-x) var(--tw-scale-y);
-}
-.active\:transform:active {
-  transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,) var(--tw-skew-y,);
 }
 .disabled\:cursor-wait:disabled {
   cursor: wait;
@@ -729,21 +685,6 @@
   inherits: false;
   initial-value: 0;
 }
-@property --tw-scale-x {
-  syntax: "*";
-  inherits: false;
-  initial-value: 1;
-}
-@property --tw-scale-y {
-  syntax: "*";
-  inherits: false;
-  initial-value: 1;
-}
-@property --tw-scale-z {
-  syntax: "*";
-  inherits: false;
-  initial-value: 1;
-}
 @property --tw-rotate-x {
   syntax: "*";
   inherits: false;
@@ -965,15 +906,27 @@
   syntax: "*";
   inherits: false;
 }
+@property --tw-scale-x {
+  syntax: "*";
+  inherits: false;
+  initial-value: 1;
+}
+@property --tw-scale-y {
+  syntax: "*";
+  inherits: false;
+  initial-value: 1;
+}
+@property --tw-scale-z {
+  syntax: "*";
+  inherits: false;
+  initial-value: 1;
+}
 @layer properties {
   @supports ((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
     *, ::before, ::after, ::backdrop {
       --tw-translate-x: 0;
       --tw-translate-y: 0;
       --tw-translate-z: 0;
-      --tw-scale-x: 1;
-      --tw-scale-y: 1;
-      --tw-scale-z: 1;
       --tw-rotate-x: initial;
       --tw-rotate-y: initial;
       --tw-rotate-z: initial;
@@ -1026,6 +979,9 @@
       --tw-backdrop-saturate: initial;
       --tw-backdrop-sepia: initial;
       --tw-duration: initial;
+      --tw-scale-x: 1;
+      --tw-scale-y: 1;
+      --tw-scale-z: 1;
     }
   }
 }
