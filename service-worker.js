@@ -1,6 +1,6 @@
 /* Service Worker - Offline Support & Caching Strategy */
 
-const CACHE_VERSION = 'fijas-v1';
+const CACHE_VERSION = 'fijas-v2';
 const CACHE_URLS = [
   '/',
   '/index.html',
