@@ -16,6 +16,32 @@
   <link rel="stylesheet" href="dist/styles.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
   <link rel="stylesheet" href="button-styles.css">
+  <!-- Clean up old Service Workers and caches BEFORE page loads -->
+  <script>
+    (async () => {
+      try {
+        // Unregister all Service Workers
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (const reg of registrations) {
+          await reg.unregister();
+          console.log('❌ Unregistered old Service Worker:', reg.scope);
+        }
+        
+        // Delete all old caches
+        const cacheNames = await caches.keys();
+        for (const name of cacheNames) {
+          if (name.includes('fijas-v1') || name.includes('fijas-v')) {
+            await caches.delete(name);
+            console.log('🗑️ Deleted cache:', name);
+          }
+        }
+        
+        console.log('✅ Old Service Workers and caches cleaned successfully');
+      } catch (error) {
+        console.warn('⚠️ Cleanup script error (expected in some environments):', error);
+      }
+    })();
+  </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js" defer></script>
   <style>
     :root { color-scheme: dark; --ease-out: cubic-bezier(.23, 1, .32, 1); }

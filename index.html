@@ -19,6 +19,32 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="dist/styles.min.css">
+  <!-- Clean up old Service Workers and caches BEFORE page loads -->
+  <script>
+    (async () => {
+      try {
+        // Unregister all Service Workers
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (const reg of registrations) {
+          await reg.unregister();
+          console.log('❌ Unregistered old Service Worker:', reg.scope);
+        }
+        
+        // Delete all old caches
+        const cacheNames = await caches.keys();
+        for (const name of cacheNames) {
+          if (name.includes('fijas-v1') || name.includes('fijas-v')) {
+            await caches.delete(name);
+            console.log('🗑️ Deleted cache:', name);
+          }
+        }
+        
+        console.log('✅ Old Service Workers and caches cleaned successfully');
+      } catch (error) {
+        console.warn('⚠️ Cleanup script error (expected in some environments):', error);
+      }
+    })();
+  </script>
   <style>
     :root {
       color-scheme: dark;
