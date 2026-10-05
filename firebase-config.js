@@ -4,11 +4,11 @@ import { connectAuthEmulator, getAuth } from "https://www.gstatic.com/firebasejs
 
 // Public web configuration from Firebase Console > Project settings.
 export const firebaseConfig = {
-  apiKey: "demo-api-key",
-  authDomain: "demo-fijas-vivo.firebaseapp.com",
-  projectId: "demo-fijas-vivo",
-  messagingSenderId: "999999999999",
-  appId: "1:999999999999:web:demo"
+  apiKey: "AIzaSyCe9_IEp4pZ1KWwAC7Io5AmieGwMONC2fY",
+  authDomain: "chijas.firebaseapp.com",
+  projectId: "chijas",
+  messagingSenderId: "772345093720",
+  appId: "1:772345093720:web:f252360b6c094e98e4342d"
 };
 
 const requiredKeys = ["apiKey", "authDomain", "projectId", "messagingSenderId", "appId"];
