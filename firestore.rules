@@ -169,6 +169,89 @@ service cloud.firestore {
           || validOptionalHttpsUrl(request.resource.data.instagram_url));
     }
 
+    function validSocialProfileApply() {
+      return validSocialProfileFields();
+    }
+
+    function validProfileChanges(changes) {
+      return changes is map
+        && changes.keys().hasOnly([
+          "username", "nombre_publico", "bio", "color_primario",
+          "avatar_url", "banner_url", "kick_url", "twitch_url",
+          "youtube_url", "telegram_url", "twitter_url", "instagram_url"
+        ])
+        && changes.keys().hasAny([
+          "username", "nombre_publico", "bio", "color_primario",
+          "avatar_url", "banner_url", "kick_url", "twitch_url",
+          "youtube_url", "telegram_url", "twitter_url", "instagram_url"
+        ])
+        && (!changes.keys().hasAny(["username"]) || validUsername(changes.username))
+        && (!changes.keys().hasAny(["nombre_publico"])
+          || (changes.nombre_publico is string
+            && changes.nombre_publico.size() > 0
+            && changes.nombre_publico.size() <= 60))
+        && (!changes.keys().hasAny(["bio"])
+          || changes.bio == null
+          || (changes.bio is string && changes.bio.size() <= 280))
+        && (!changes.keys().hasAny(["color_primario"])
+          || (changes.color_primario is string
+            && changes.color_primario.matches('^#[0-9a-fA-F]{6}$')))
+        && (!changes.keys().hasAny(["avatar_url"])
+          || changes.avatar_url == null || validImage(changes.avatar_url))
+        && (!changes.keys().hasAny(["banner_url"])
+          || changes.banner_url == null || validImage(changes.banner_url))
+        && (!changes.keys().hasAny(["kick_url"])
+          || changes.kick_url == null || validHttpsUrl(changes.kick_url))
+        && (!changes.keys().hasAny(["twitch_url"])
+          || changes.twitch_url == null || validHttpsUrl(changes.twitch_url))
+        && (!changes.keys().hasAny(["youtube_url"])
+          || changes.youtube_url == null || validHttpsUrl(changes.youtube_url))
+        && (!changes.keys().hasAny(["telegram_url"])
+          || changes.telegram_url == null || validHttpsUrl(changes.telegram_url))
+        && (!changes.keys().hasAny(["twitter_url"])
+          || changes.twitter_url == null || validHttpsUrl(changes.twitter_url))
+        && (!changes.keys().hasAny(["instagram_url"])
+          || changes.instagram_url == null || validHttpsUrl(changes.instagram_url));
+    }
+
+    function validProfileRequest(userId, requestId, data) {
+      return data.keys().hasOnly([
+          "uid", "cambios", "estado", "motivoRechazo",
+          "created_at", "revisado_at", "revisado_por"
+        ])
+        && data.keys().hasAll([
+          "uid", "cambios", "estado", "motivoRechazo",
+          "created_at", "revisado_at", "revisado_por"
+        ])
+        && data.uid == userId
+        && validProfileChanges(data.cambios)
+        && data.estado == "pendiente"
+        && data.motivoRechazo == null
+        && data.created_at == request.time
+        && data.revisado_at == null
+        && data.revisado_por == null
+        && requestId is string;
+    }
+
+    function applyingApprovedProfileRequest(userId) {
+      let reservation = get(/databases/$(database)/documents/perfilSolicitudesPendientes/$(userId)).data;
+      let profileRequest = getAfter(/databases/$(database)/documents/perfilSolicitudes/$(reservation.solicitud_id)).data;
+      return reservation.uid == userId
+        && reservation.solicitud_id is string
+        && profileRequest.uid == userId
+        && profileRequest.estado == "aprobada"
+        && profileRequest.revisado_por == request.auth.uid;
+    }
+
+    function validPresence(userId) {
+      return request.resource.data.keys().hasOnly(["uid", "is_online", "last_active_at"])
+        && request.resource.data.keys().hasAll(["uid", "is_online", "last_active_at"])
+        && request.resource.data.uid == userId
+        && request.resource.data.is_online is bool
+        && (request.resource.data.last_active_at == request.time
+          || request.resource.data.last_active_at is timestamp);
+    }
+
     // Pronóstico schema is strict; legacy duplicate keys must be present and identical.
     function validPick(data, userId) {
       return data.keys().hasOnly([
@@ -320,8 +403,7 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // Profiles are public only while approved. TRANSITORIO: Sub-fase A.
-    // En Sub-fase B, solo admin escribe.
+    // Profiles are public only while approved and are writable only by admins.
     match /perfiles/{profileId} {
       allow read: if resource.data.tipster_status == "approved"
         || signedInAs(profileId)
@@ -331,40 +413,36 @@ service cloud.firestore {
         && request.resource.data.tipster_status == "approved"
         && request.resource.data.created_at == request.time
         && approvedApplicationClaimsUsername(profileId, request.resource.data.username);
-      allow update: if (
-          signedInAs(profileId)
-          && acceptedCurrentTerms(profileId)
-          && resource.data.tipster_status == "approved"
-          && request.resource.data.tipster_status == resource.data.tipster_status
-          && validProfileUpdate(profileId)
-          && request.resource.data.created_at == resource.data.created_at
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            "username", "nombre_publico", "bio", "color_primario",
-            "is_online", "last_active_at"
-          ])
-          && ownsUsername(request.resource.data.username)
-        )
-        || (
-          isPlatformAdmin()
-          && (
-            (
-              resource.data.tipster_status in ["approved", "revoked"]
-              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["tipster_status"])
-              && request.resource.data.tipster_status in ["approved", "revoked"]
-            )
-            || (
-              validProfile(profileId)
-              && request.resource.data.tipster_status == "approved"
-              && request.resource.data.created_at == resource.data.created_at
-              && approvedApplicationClaimsUsername(profileId, request.resource.data.username)
-            )
+      allow update: if isPlatformAdmin()
+        && (
+          (
+            resource.data.tipster_status in ["approved", "revoked"]
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["tipster_status"])
+            && request.resource.data.tipster_status in ["approved", "revoked"]
+          )
+          || (
+            resource.data.tipster_status == "pending"
+            && validProfile(profileId)
+            && request.resource.data.tipster_status == "approved"
+            && request.resource.data.created_at == resource.data.created_at
+            && approvedApplicationClaimsUsername(profileId, request.resource.data.username)
+          )
+          || (
+            resource.data.tipster_status == "approved"
+            && request.resource.data.tipster_status == resource.data.tipster_status
+            && validProfile(profileId)
+            && request.resource.data.created_at == resource.data.created_at
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              "username", "nombre_publico", "bio", "color_primario",
+              "is_online", "last_active_at"
+            ])
+            && applyingApprovedProfileRequest(profileId)
           )
         );
       allow delete: if false;
     }
 
-    // TRANSITORIO: Sub-fase A. En Sub-fase B, solo admin escribe.
-    // Public reads follow the approval state in perfiles/{uid}.
+    // Social profile data is public only while its basic profile is approved.
     match /perfiles_social/{profileId} {
       allow read: if profileIsApproved(profileId)
         || signedInAs(profileId)
@@ -373,13 +451,95 @@ service cloud.firestore {
         && validSocialProfile()
         && existsAfter(/databases/$(database)/documents/perfiles/$(profileId))
         && getAfter(/databases/$(database)/documents/perfiles/$(profileId)).data.tipster_status == "approved";
-      allow update: if (
-          signedInAs(profileId)
-          && acceptedCurrentTerms(profileId)
-          && profileIsApproved(profileId)
-          && validSocialProfileUpdate()
-        )
-        || (isPlatformAdmin() && validSocialProfile());
+      allow update: if isPlatformAdmin()
+        && (
+          (
+            profileIsApproved(profileId)
+            && validSocialProfileApply()
+            && applyingApprovedProfileRequest(profileId)
+          )
+          || (
+            exists(/databases/$(database)/documents/perfiles/$(profileId))
+            && get(/databases/$(database)/documents/perfiles/$(profileId)).data.tipster_status == "pending"
+            && validSocialProfile()
+            && approvedApplicationClaimsUsername(
+              profileId,
+              getAfter(/databases/$(database)/documents/tipsterApplications/$(profileId)).data.requested_username
+            )
+          )
+        );
+      allow delete: if false;
+    }
+
+    // Tipsters submit validated profile changes; admins make the final decision.
+    match /perfilSolicitudes/{requestId} {
+      allow read: if signedInAs(resource.data.uid) || isPlatformAdmin();
+      allow create: if signedInAs(request.resource.data.uid)
+        && acceptedCurrentTerms(request.resource.data.uid)
+        && profileIsApproved(request.resource.data.uid)
+        && validProfileRequest(request.resource.data.uid, requestId, request.resource.data)
+        && existsAfter(/databases/$(database)/documents/perfilSolicitudesPendientes/$(request.resource.data.uid))
+        && getAfter(/databases/$(database)/documents/perfilSolicitudesPendientes/$(request.resource.data.uid)).data.solicitud_id == requestId;
+      allow update: if isPlatformAdmin()
+        && resource.data.estado == "pendiente"
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "estado", "motivoRechazo", "revisado_at", "revisado_por"
+        ])
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.cambios == resource.data.cambios
+        && request.resource.data.created_at == resource.data.created_at
+        && request.resource.data.estado in ["aprobada", "rechazada"]
+        && request.resource.data.revisado_at == request.time
+        && request.resource.data.revisado_por == request.auth.uid
+        && ((request.resource.data.estado == "aprobada" && request.resource.data.motivoRechazo == null)
+          || (request.resource.data.estado == "rechazada"
+            && request.resource.data.motivoRechazo is string
+            && request.resource.data.motivoRechazo.size() > 0
+            && request.resource.data.motivoRechazo.size() <= 500))
+        && exists(/databases/$(database)/documents/perfilSolicitudesPendientes/$(resource.data.uid))
+        && get(/databases/$(database)/documents/perfilSolicitudesPendientes/$(resource.data.uid)).data.solicitud_id == requestId;
+      allow delete: if false;
+    }
+
+    // A per-tipster reservation makes a second pending request impossible.
+    match /perfilSolicitudesPendientes/{userId} {
+      allow read: if signedInAs(userId) || isPlatformAdmin();
+      allow create: if signedInAs(userId)
+        && acceptedCurrentTerms(userId)
+        && profileIsApproved(userId)
+        && request.resource.data.keys().hasOnly(["uid", "solicitud_id", "created_at"])
+        && request.resource.data.keys().hasAll(["uid", "solicitud_id", "created_at"])
+        && request.resource.data.uid == userId
+        && request.resource.data.solicitud_id is string
+        && request.resource.data.created_at == request.time
+        && existsAfter(/databases/$(database)/documents/perfilSolicitudes/$(request.resource.data.solicitud_id))
+        && validProfileRequest(
+          userId,
+          request.resource.data.solicitud_id,
+          getAfter(/databases/$(database)/documents/perfilSolicitudes/$(request.resource.data.solicitud_id)).data
+        );
+      allow update: if false;
+      allow delete: if isPlatformAdmin()
+        && getAfter(/databases/$(database)/documents/perfilSolicitudes/$(resource.data.solicitud_id)).data.uid == resource.data.uid
+        && getAfter(/databases/$(database)/documents/perfilSolicitudes/$(resource.data.solicitud_id)).data.estado in ["aprobada", "rechazada"]
+        && getAfter(/databases/$(database)/documents/perfilSolicitudes/$(resource.data.solicitud_id)).data.revisado_por == request.auth.uid;
+    }
+
+    // Presence is separate from the admin-managed public profile.
+    match /presencia/{userId} {
+      allow read: if profileIsApproved(userId) || signedInAs(userId) || isPlatformAdmin();
+      allow create: if (isPlatformAdmin()
+          && validPresence(userId)
+          && existsAfter(/databases/$(database)/documents/perfiles/$(userId))
+          && getAfter(/databases/$(database)/documents/perfiles/$(userId)).data.tipster_status == "approved")
+        || (signedInAs(userId)
+          && acceptedCurrentTerms(userId)
+          && profileIsApproved(userId)
+          && validPresence(userId));
+      allow update: if signedInAs(userId)
+        && acceptedCurrentTerms(userId)
+        && profileIsApproved(userId)
+        && validPresence(userId);
       allow delete: if false;
     }
 
@@ -398,16 +558,30 @@ service cloud.firestore {
           && request.resource.data.keys().hasOnly(["uid"])
           && validUsername(username)
           && approvedApplicationClaimsUsername(request.resource.data.uid, username)
-        );
+        )
+        || (isPlatformAdmin()
+          && request.resource.data.keys().hasOnly(["uid"])
+          && request.resource.data.uid is string
+          && profileOwnsUsername(request.resource.data.uid, username)
+          && applyingApprovedProfileRequest(request.resource.data.uid));
       allow update: if signedInAs(resource.data.uid)
         && acceptedCurrentTerms(request.auth.uid)
         && request.resource.data.keys().hasOnly(["uid"])
         && request.resource.data.uid == resource.data.uid
-        && profileOwnsUsername(resource.data.uid, username);
+        && profileOwnsUsername(resource.data.uid, username)
+        || isPlatformAdmin()
+          && request.resource.data.keys().hasOnly(["uid"])
+          && request.resource.data.uid == resource.data.uid
+          && profileOwnsUsername(resource.data.uid, username)
+          && applyingApprovedProfileRequest(resource.data.uid);
       allow delete: if signedInAs(resource.data.uid)
         && acceptedCurrentTerms(request.auth.uid)
         && existsAfter(/databases/$(database)/documents/perfiles/$(request.auth.uid))
-        && getAfter(/databases/$(database)/documents/perfiles/$(request.auth.uid)).data.username != username;
+        && getAfter(/databases/$(database)/documents/perfiles/$(request.auth.uid)).data.username != username
+        || isPlatformAdmin()
+          && existsAfter(/databases/$(database)/documents/perfiles/$(resource.data.uid))
+          && getAfter(/databases/$(database)/documents/perfiles/$(resource.data.uid)).data.username != username
+          && applyingApprovedProfileRequest(resource.data.uid);
     }
 
     // Published picks are readable only when the owning tipster is approved.

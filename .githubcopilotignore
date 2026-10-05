@@ -1,0 +1,80 @@
+# 🚀 GitHub Copilot Token Optimization
+# DevOps-grade filtering for context efficiency
+
+# === BUILD & DIST ===
+dist/
+build/
+.cache/
+out/
+coverage/
+
+# === NODE & PACKAGE MANAGEMENT ===
+node_modules/
+*.lock
+package-lock.json
+
+# === FIREBASE & EMULATOR ===
+.firebase/
+.firebaserc
+firebase-debug.log
+firestore-debug.log
+firestore.indexes.json
+.emulator/
+
+# === TESTING ARTIFACTS ===
+playwright-report/
+test-results/
+.nyc_output/
+*.lcov
+
+# === DOCUMENTATION (HEAVY) ===
+*.md
+!README.md
+*.txt
+docs/
+
+# === LOGS & TEMP ===
+*.log
+*.tmp
+.env.local
+.env.*.local
+
+# === SKILLS & AGENT ARTIFACTS (COPILOT-SPECIFIC) ===
+.agents/
+skills-lock.json
+
+# === GIT ===
+.git/
+.gitignore
+
+# === IDE CACHE ===
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# === DEMO & VISUAL FILES (NON-CRITICAL) ===
+DAY_*.html
+PHASE_*.html
+PHASE_*.md
+SESSION_*.md
+TESTING_*.md
+IMPROVEMENTS_*.md
+IMPROVEMENTS_*.html
+EXECUTIVE_SUMMARY.md
+IMPROVEMENT_PLAN.md
+
+# === SCREENSHOTS & MEDIA ===
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+
+# === COMPILED & RUNTIME ===
+*.pyc
+*.pyo
+__pycache__/
+*.class
+*.o

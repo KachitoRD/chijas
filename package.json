@@ -3,13 +3,20 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "lint": "eslint . --ext .js,.html"
+    "lint": "eslint . --ext .js,.html",
+    "dev": "powershell -ExecutionPolicy Bypass -File scripts/dev.ps1",
+    "seed": "node tests/seed.js",
+    "build:css": "node build-css.js"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.63.0",
+    "@tailwindcss/postcss": "^4.3.3",
+    "autoprefixer": "^10.6.1",
     "eslint": "^10.12.0",
     "eslint-plugin-html": "^8.2.1",
-    "globals": "^17.13.0"
+    "globals": "^17.13.0",
+    "postcss": "^8.5.28",
+    "tailwindcss": "^4.3.3"
   }
 }

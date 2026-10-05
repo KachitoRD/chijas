@@ -81,8 +81,8 @@
   <p id="widgetMessage" role="status" hidden></p>
 
   <script type="module">
-    import { firebaseApp, firebaseConfigured } from "./firebase-config.js";
-    import { getFirestore, collection, doc, getDoc, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+    import { firebaseApp, firebaseConfigured, firebaseDb } from "./firebase-config.js";
+    import { collection, doc, getDoc, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
     const widget = document.getElementById("widget");
     const widgetName = document.getElementById("widgetName");
@@ -196,7 +196,7 @@
       const requestedFormat = new URLSearchParams(window.location.search).get("formato") || "cascada";
       widget.dataset.format = widgetFormats.has(requestedFormat) ? requestedFormat : "cascada";
 
-      const db = getFirestore(firebaseApp);
+      const db = firebaseDb;
       try {
         const usernameSnapshot = await getDoc(doc(db, "usernames", username));
         if (!usernameSnapshot.exists() || typeof usernameSnapshot.data().uid !== "string") {

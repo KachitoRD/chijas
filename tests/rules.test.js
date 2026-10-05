@@ -48,6 +48,7 @@ function valueToRest(value) {
   if (typeof value === "number") return { doubleValue: value };
   if (value instanceof Date) return { timestampValue: value.toISOString() };
   if (Array.isArray(value)) return { arrayValue: { values: value.map(valueToRest) } };
+  if (typeof value === "object" && value !== null) return { mapValue: { fields: documentFields(value) } };
   throw new TypeError(`Unsupported Firestore fixture value: ${String(value)}`);
 }
 
@@ -204,6 +205,31 @@ async function seedPick(userId, status = "pendiente", overrides = {}) {
   };
   await seedDocument(`picks/${id}`, data);
   return { id, data };
+}
+
+async function submitProfileRequest(context, user, changes, requestId = `profile-request-${randomUUID()}`) {
+  const requestRef = doc(context.db, "perfilSolicitudes", requestId);
+  const reservationRef = doc(context.db, "perfilSolicitudesPendientes", user.uid);
+  await runTransaction(context.db, async transaction => {
+    const reservation = await transaction.get(reservationRef);
+    if (reservation.exists()) throw new Error("El usuario de prueba ya tiene una solicitud pendiente.");
+    const createdAt = serverTimestamp();
+    transaction.set(requestRef, {
+      uid: user.uid,
+      cambios: changes,
+      estado: "pendiente",
+      motivoRechazo: null,
+      created_at: createdAt,
+      revisado_at: null,
+      revisado_por: null
+    });
+    transaction.set(reservationRef, {
+      uid: user.uid,
+      solicitud_id: requestId,
+      created_at: createdAt
+    });
+  });
+  return { id: requestId, requestRef, reservationRef };
 }
 
 async function createContext() {
@@ -370,21 +396,21 @@ async function main() {
 
   await runCase("7a. URL social http:// denegada por la regla HTTPS", async context => {
     const user = await createTestUser(context, "url-user");
-    const profileRef = doc(context.db, "perfiles_social", user.uid);
-    await updateDoc(profileRef, { kick_url: "https://example.com/channel" });
+    await signInTestUser(context, user);
     await expectDenied(
-      () => updateDoc(profileRef, { kick_url: "http://example.com/channel" }),
-      "Guardar URL social http"
+      () => submitProfileRequest(context, user, { kick_url: "http://example.com/channel" }),
+      "Enviar solicitud con URL social http",
+      true
     );
   });
 
   await runCase("7b. URL social javascript: denegada por la regla HTTPS", async context => {
     const user = await createTestUser(context, "javascript-url-user");
-    const profileRef = doc(context.db, "perfiles_social", user.uid);
-    await updateDoc(profileRef, { kick_url: "https://example.com/channel" });
+    await signInTestUser(context, user);
     await expectDenied(
-      () => updateDoc(profileRef, { kick_url: "javascript:alert(1)" }),
-      "Guardar URL social javascript"
+      () => submitProfileRequest(context, user, { kick_url: "javascript:alert(1)" }),
+      "Enviar solicitud con URL social javascript",
+      true
     );
   });
 
@@ -401,7 +427,6 @@ async function main() {
 
   await runCase("9. Usuario no puede cambiar su tipster_status", async context => {
     const user = await createTestUser(context, "status-user");
-    await updateDoc(doc(context.db, "perfiles", user.uid), { nombre_publico: "Nombre actualizado" });
     await expectDenied(
       () => updateDoc(doc(context.db, "perfiles", user.uid), { tipster_status: "revoked" }),
       "Cambiar tipster_status desde el perfil propio",
@@ -409,16 +434,14 @@ async function main() {
     );
   });
 
-  await runCase("10. Tipster actualiza sus propios campos sociales", async context => {
+  await runCase("10. Tipster no puede editar directamente perfiles_social", async context => {
     const user = await createTestUser(context, "social-owner");
-    await updateDoc(doc(context.db, "perfiles_social", user.uid), {
-      kick_url: "https://kick.com/social-owner",
-      avatar_url: "data:image/jpeg;base64,AA=="
-    });
-    const saved = await getDoc(doc(context.db, "perfiles_social", user.uid));
-    if (saved.data().kick_url !== "https://kick.com/social-owner") {
-      throw new Error("El cambio social del dueño no quedó guardado.");
-    }
+    await expectDenied(
+      () => updateDoc(doc(context.db, "perfiles_social", user.uid), {
+        kick_url: "https://kick.com/social-owner"
+      }),
+      "Editar perfil social directamente"
+    );
   });
 
   await runCase("11. Tipster no puede escribir perfiles_social de otro", async context => {
@@ -433,7 +456,153 @@ async function main() {
     );
   });
 
-  await runCase("12. Admin aprueba y crea perfil básico y social coordinadamente", async context => {
+  await runCase("12. Tipster crea una solicitud válida con reserva pendiente", async context => {
+    const user = await createTestUser(context, "profile-request-create");
+    await signInTestUser(context, user);
+    const request = await submitProfileRequest(context, user, { bio: "Nuevo resumen público" });
+    const savedRequest = await getDoc(request.requestRef);
+    const reservation = await getDoc(request.reservationRef);
+    if (!savedRequest.exists() || savedRequest.data().estado !== "pendiente"
+      || savedRequest.data().cambios.bio !== "Nuevo resumen público"
+      || reservation.data().solicitud_id !== request.id) {
+      throw new Error("La solicitud o su reserva pendiente no se guardaron correctamente.");
+    }
+  });
+
+  await runCase("13. Tipster no puede crear una segunda solicitud pendiente", async context => {
+    const user = await createTestUser(context, "profile-request-duplicate");
+    await signInTestUser(context, user);
+    await submitProfileRequest(context, user, { bio: "Primera propuesta" });
+    const duplicateId = `profile-request-duplicate-${randomUUID()}`;
+    const duplicateRef = doc(context.db, "perfilSolicitudes", duplicateId);
+    const reservationRef = doc(context.db, "perfilSolicitudesPendientes", user.uid);
+    await expectDenied(
+      () => runTransaction(context.db, async transaction => {
+        const createdAt = serverTimestamp();
+        transaction.set(duplicateRef, {
+          uid: user.uid,
+          cambios: { nombre_publico: "Segunda propuesta" },
+          estado: "pendiente",
+          motivoRechazo: null,
+          created_at: createdAt,
+          revisado_at: null,
+          revisado_por: null
+        });
+        transaction.set(reservationRef, {
+          uid: user.uid,
+          solicitud_id: duplicateId,
+          created_at: createdAt
+        });
+      }),
+      "Crear segunda solicitud pendiente"
+    );
+  });
+
+  await runCase("14. Admin aprueba cambios y libera la reserva", async context => {
+    const admin = await createTestUser(context, "profile-request-admin", "approved", { admin: true });
+    const user = await createTestUser(context, "profile-request-approved");
+    await signInTestUser(context, user);
+    const request = await submitProfileRequest(context, user, { bio: "Descripción aprobada" });
+    await signInTestUser(context, admin);
+    const profileRef = doc(context.db, "perfiles", user.uid);
+    await runTransaction(context.db, async transaction => {
+      const [requestSnapshot, reservationSnapshot, profileSnapshot] = await Promise.all([
+        transaction.get(request.requestRef),
+        transaction.get(request.reservationRef),
+        transaction.get(profileRef)
+      ]);
+      if (!requestSnapshot.exists() || !reservationSnapshot.exists() || !profileSnapshot.exists()) {
+        throw new Error("Faltan documentos de la solicitud para aprobar.");
+      }
+      transaction.update(profileRef, { bio: "Descripción aprobada" });
+      transaction.update(request.requestRef, {
+        estado: "aprobada",
+        motivoRechazo: null,
+        revisado_at: serverTimestamp(),
+        revisado_por: admin.uid
+      });
+      transaction.delete(request.reservationRef);
+    });
+    const [savedRequest, savedProfile, reservation] = await Promise.all([
+      getDoc(request.requestRef),
+      getDoc(profileRef),
+      getDoc(request.reservationRef)
+    ]);
+    if (savedRequest.data().estado !== "aprobada" || savedProfile.data().bio !== "Descripción aprobada" || reservation.exists()) {
+      throw new Error("La aprobación no aplicó el cambio o no liberó la reserva.");
+    }
+  });
+
+  await runCase("15. Admin rechaza con motivo y libera la reserva", async context => {
+    const admin = await createTestUser(context, "profile-request-reject-admin", "approved", { admin: true });
+    const user = await createTestUser(context, "profile-request-reject");
+    await signInTestUser(context, user);
+    const request = await submitProfileRequest(context, user, { bio: "Texto por corregir" });
+    await signInTestUser(context, admin);
+    await runTransaction(context.db, async transaction => {
+      const [requestSnapshot, reservationSnapshot] = await Promise.all([
+        transaction.get(request.requestRef),
+        transaction.get(request.reservationRef)
+      ]);
+      if (!requestSnapshot.exists() || !reservationSnapshot.exists()) {
+        throw new Error("Faltan documentos de la solicitud para rechazar.");
+      }
+      transaction.update(request.requestRef, {
+        estado: "rechazada",
+        motivoRechazo: "Aclara la descripción.",
+        revisado_at: serverTimestamp(),
+        revisado_por: admin.uid
+      });
+      transaction.delete(request.reservationRef);
+    });
+    const [savedRequest, reservation] = await Promise.all([
+      getDoc(request.requestRef),
+      getDoc(request.reservationRef)
+    ]);
+    if (savedRequest.data().estado !== "rechazada"
+      || savedRequest.data().motivoRechazo !== "Aclara la descripción."
+      || reservation.exists()) {
+      throw new Error("El rechazo no guardó el motivo o no liberó la reserva.");
+    }
+  });
+
+  await runCase("16. Tipster no puede leer solicitudes de otro", async context => {
+    const userA = await createTestUser(context, "profile-request-reader-a");
+    const userB = await createTestUser(context, "profile-request-reader-b");
+    const requestId = `private-profile-request-${randomUUID()}`;
+    const cambios = {};
+    cambios["bio"] = "Privado";
+    await seedDocument(`perfilSolicitudes/${requestId}`, {
+      uid: userB.uid,
+      cambios: cambios,
+      estado: "pendiente",
+      motivoRechazo: null,
+      created_at: new Date("2026-10-04T12:00:00.000Z"),
+      revisado_at: null,
+      revisado_por: null
+    });
+    await signInTestUser(context, userA);
+    await expectDenied(
+      () => getDoc(doc(context.db, "perfilSolicitudes", requestId)),
+      "Leer la solicitud de B desde A"
+    );
+  });
+
+  await runCase("17. Tipster no puede actualizar ni borrar su solicitud", async context => {
+    const user = await createTestUser(context, "profile-request-owner");
+    await signInTestUser(context, user);
+    const request = await submitProfileRequest(context, user, { bio: "Propuesta propia" });
+    await expectDenied(
+      () => updateDoc(request.requestRef, { estado: "aprobada" }),
+      "Actualizar la solicitud propia"
+    );
+    await expectDenied(
+      () => deleteDoc(request.requestRef),
+      "Borrar la solicitud propia"
+    );
+  });
+
+  await runCase("18. Admin aprueba y crea perfil básico y social coordinadamente", async context => {
     const admin = await createTestUser(context, "approval-admin", "approved", { admin: true });
     const applicant = await createTestUser(context, "approval-applicant", "pending");
     const applicationRef = doc(context.db, "tipsterApplications", applicant.uid);

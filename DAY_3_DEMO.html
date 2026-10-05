@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Día 3 Demo: Premium Buttons | Fijas</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config={theme:{extend:{fontFamily:{sans:['"Plus Jakarta Sans"','system-ui','sans-serif']}}}}</script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="button-styles.css">
+  <style>
+    :root {
+      color-scheme: dark;
+      --ease-out: cubic-bezier(.23, 1, .32, 1);
+    }
+    html { scroll-behavior: smooth; }
+    body { background: linear-gradient(135deg, #09090b 0%, #0f0f12 100%); }
+    ::selection { color: #052e23; background: #6ee7b7; }
+  </style>
+</head>
+<body class="font-sans text-zinc-100">
+  <div class="min-h-screen">
+    <!-- Header -->
+    <header class="border-b border-white/10 backdrop-blur-md">
+      <div class="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <h1 class="text-2xl font-bold">🎨 DÍA 3: Premium Buttons</h1>
+            <p class="text-sm text-zinc-400 mt-1">Styles mejorados para toda la plataforma</p>
+          </div>
+          <a href="/" class="inline-flex px-4 py-2 rounded-lg border border-emerald-300/40 text-emerald-300 hover:bg-emerald-300/10">← Volver a index</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+      <!-- Primary Buttons -->
+      <section class="mb-16">
+        <h2 class="text-2xl font-bold mb-6">Primary Buttons (Gradient)</h2>
+        <div class="bg-white/5 border border-white/10 rounded-xl p-8 space-y-4">
+          <div class="flex flex-wrap gap-3">
+            <button class="btn-primary control min-h-11 px-6 text-sm font-bold rounded-xl">
+              Enviar cambios
+            </button>
+            <button class="btn-primary control min-h-11 px-6 text-sm font-bold rounded-xl">
+              Publicar pronóstico
+            </button>
+            <button class="btn-primary control min-h-11 px-6 text-sm font-bold rounded-xl">
+              Aceptar y continuar
+            </button>
+            <button class="btn-primary control min-h-11 px-6 text-sm font-bold rounded-xl disabled:opacity-60 disabled:cursor-wait" disabled>
+              Deshabilitado
+            </button>
+          </div>
+          <div class="text-xs text-zinc-400 mt-6 pt-6 border-t border-white/10">
+            <p><strong>Características:</strong> Gradiente esmeralda, sombra con glow, elevación al hover, efecto shine overlay</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Secondary Buttons -->
+      <section class="mb-16">
+        <h2 class="text-2xl font-bold mb-6">Secondary Buttons (Glassmorphism)</h2>
+        <div class="bg-white/5 border border-white/10 rounded-xl p-8 space-y-4">
+          <div class="flex flex-wrap gap-3">
+            <button class="btn-secondary control min-h-11 px-6 text-sm font-semibold rounded-xl">
+              Cancelar
+            </button>
+            <button class="btn-secondary control min-h-11 px-6 text-sm font-semibold rounded-xl">
+              Cerrar sesión
+            </button>
+            <a href="#" class="btn-secondary control min-h-11 px-6 text-sm font-semibold rounded-xl inline-flex items-center justify-center no-underline">
+              Abrir widget
+            </a>
+            <button class="btn-secondary control min-h-11 px-6 text-sm font-semibold rounded-xl">
+              Copiar enlace
+            </button>
+          </div>
+          <div class="text-xs text-zinc-400 mt-6 pt-6 border-t border-white/10">
+            <p><strong>Características:</strong> Glassmorphism con backdrop blur, borde esmeralda sutil, elevación al hover, glow suave</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Destructive Buttons -->
+      <section class="mb-16">
+        <h2 class="text-2xl font-bold mb-6">Destructive Buttons (Red)</h2>
+        <div class="bg-white/5 border border-white/10 rounded-xl p-8 space-y-4">
+          <div class="flex flex-wrap gap-3">
+            <button class="btn-destructive control min-h-11 px-6 text-sm font-semibold rounded-xl">
+              Eliminar
+            </button>
+            <button class="btn-destructive control min-h-11 px-6 text-sm font-semibold rounded-xl">
+              Rechazar solicitud
+            </button>
+          </div>
+          <div class="text-xs text-zinc-400 mt-6 pt-6 border-t border-white/10">
+            <p><strong>Características:</strong> Fondo rojo translúcido, borde rojo, texto rojo suave</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Text Buttons -->
+      <section class="mb-16">
+        <h2 class="text-2xl font-bold mb-6">Text Buttons (Links)</h2>
+        <div class="bg-white/5 border border-white/10 rounded-xl p-8 space-y-4">
+          <div class="flex flex-wrap gap-6">
+            <button class="btn-text">¿Crear cuenta?</button>
+            <button class="btn-text">Ver mi perfil público</button>
+            <button class="btn-text">Términos y condiciones</button>
+          </div>
+          <div class="text-xs text-zinc-400 mt-6 pt-6 border-t border-white/10">
+            <p><strong>Características:</strong> Sin fondo, texto esmeralda, subrayado sutil, hover intensifica</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Size Variations -->
+      <section class="mb-16">
+        <h2 class="text-2xl font-bold mb-6">Size Variations</h2>
+        <div class="bg-white/5 border border-white/10 rounded-xl p-8 space-y-6">
+          <div>
+            <p class="text-xs text-zinc-500 mb-2">Small (min-h-10)</p>
+            <button class="btn-primary control min-h-10 px-4 text-xs font-bold rounded-lg">
+              Pequeño
+            </button>
+          </div>
+          <div>
+            <p class="text-xs text-zinc-500 mb-2">Medium (min-h-11) - Default</p>
+            <button class="btn-primary control min-h-11 px-6 text-sm font-bold rounded-xl">
+              Medio (default)
+            </button>
+          </div>
+          <div>
+            <p class="text-xs text-zinc-500 mb-2">Large (min-h-12)</p>
+            <button class="btn-primary control min-h-12 px-8 text-base font-bold rounded-xl">
+              Grande
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Usage Guide -->
+      <section class="bg-white/5 border border-white/10 rounded-xl p-8 mb-16">
+        <h2 class="text-2xl font-bold mb-6 text-emerald-200">✓ DÍA 3 COMPLETADO</h2>
+        <div class="space-y-4 text-sm text-zinc-300">
+          <div>
+            <h3 class="font-bold text-lg mb-2">📋 Clases Disponibles</h3>
+            <ul class="list-disc list-inside space-y-1 text-xs text-zinc-400 font-mono">
+              <li><code>.btn-primary</code> - Botones principales con gradiente</li>
+              <li><code>.btn-secondary</code> - Botones secundarios con glassmorphism</li>
+              <li><code>.btn-destructive</code> - Botones destructivos (rojo)</li>
+              <li><code>.btn-text</code> - Botones de texto (links estilizados)</li>
+              <li><code>.btn-icon</code> - Botones de icono</li>
+            </ul>
+          </div>
+          <div>
+            <h3 class="font-bold text-lg mb-2">🎯 Aplicadas en</h3>
+            <p class="text-xs text-zinc-400">admin.html, owner.html - reemplazando clases antiguas</p>
+          </div>
+          <div>
+            <h3 class="font-bold text-lg mb-2">✨ Mejoras Visuales</h3>
+            <ul class="list-disc list-inside space-y-1 text-xs text-zinc-400">
+              <li>Gradient backgrounds con profundidad</li>
+              <li>Efectos de sombra (glow + depth)</li>
+              <li>Hover animations suaves</li>
+              <li>Glassmorphism en secundarios</li>
+              <li>Responsive sizing</li>
+            </ul>
+          </div>
+        </div>
+        <div class="mt-6 pt-6 border-t border-white/10">
+          <p class="font-bold text-lg mb-3">📅 PRÓXIMO: DÍA 4</p>
+          <p class="text-sm text-zinc-400 mb-4">Admin dashboard cards + Stat cards + Request approval list</p>
+          <a href="/" class="inline-block px-6 py-2 rounded-lg bg-emerald-300 text-zinc-950 font-bold hover:bg-emerald-200">Continuar a Día 4</a>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

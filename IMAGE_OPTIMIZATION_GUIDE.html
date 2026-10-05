@@ -1,0 +1,82 @@
+<!--
+ * IMAGE OPTIMIZATION GUIDE FOR RESPONSIVE IMAGES
+ * 
+ * Implement responsive images with srcset and WebP format
+ * This improves performance on mobile devices
+ -->
+
+<!-- EXAMPLE 1: Profile Images (Tipster avatars) -->
+<picture>
+  <source srcset="assets/avatar-200.webp 1x, assets/avatar-400.webp 2x" type="image/webp">
+  <source srcset="assets/avatar-200.jpg 1x, assets/avatar-400.jpg 2x" type="image/jpeg">
+  <img 
+    src="assets/avatar-200.jpg" 
+    alt="Tipster avatar"
+    loading="lazy"
+    class="w-12 h-12 rounded-full object-cover"
+    decoding="async"
+  >
+</picture>
+
+<!-- EXAMPLE 2: Hero Image (with different sizes for mobile/desktop) -->
+<picture>
+  <source media="(max-width: 768px)" srcset="assets/hero-mobile-400.webp" type="image/webp">
+  <source media="(max-width: 768px)" srcset="assets/hero-mobile-400.jpg" type="image/jpeg">
+  <source media="(min-width: 769px)" srcset="assets/hero-desktop-1200.webp" type="image/webp">
+  <source media="(min-width: 769px)" srcset="assets/hero-desktop-1200.jpg" type="image/jpeg">
+  <img 
+    src="assets/hero-desktop-1200.jpg"
+    alt="Hero section"
+    loading="eager"
+    class="w-full h-auto"
+    decoding="async"
+  >
+</picture>
+
+<!-- EXAMPLE 3: Results/Stats Images -->
+<img
+  srcset="
+    assets/results-300.webp 300w,
+    assets/results-600.webp 600w,
+    assets/results-900.webp 900w"
+  sizes="(max-width: 640px) 300px, (max-width: 1024px) 600px, 900px"
+  src="assets/results-600.jpg"
+  alt="Betting results"
+  loading="lazy"
+  class="w-full h-auto"
+  decoding="async"
+/>
+
+<!--
+ * IMPLEMENTATION INSTRUCTIONS:
+ * 
+ * 1. GENERATE WEBP VERSIONS
+ *    - Use: https://cwebp-online.com/ or ImageMagick
+ *    - Command: cwebp -q 80 input.jpg -o output.webp
+ *    - Save with .webp extension
+ *
+ * 2. CREATE RESPONSIVE SIZES
+ *    - Mobile: 300px, 400px
+ *    - Tablet: 600px, 768px
+ *    - Desktop: 900px, 1200px
+ *
+ * 3. LAZY LOADING
+ *    - Use loading="lazy" for below-fold images
+ *    - Use loading="eager" for above-fold (hero, etc)
+ *    - Adds native browser performance
+ *
+ * 4. DECODING
+ *    - decoding="async" improves rendering performance
+ *    - Doesn't block page rendering on image decode
+ *
+ * 5. ALT TEXT
+ *    - Always include descriptive alt text
+ *    - Improves accessibility and SEO
+ *
+ * BENEFITS:
+ * ✅ WebP images 25-35% smaller than JPEG
+ * ✅ Responsive images reduce mobile data usage
+ * ✅ Lazy loading defers image loading
+ * ✅ Better Core Web Vitals (LCP, CLS)
+ * ✅ Improved mobile performance
+ -->

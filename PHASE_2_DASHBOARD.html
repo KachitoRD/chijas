@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fase 2: Launch Visual - Fijas en Vivo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config={theme:{extend:{fontFamily:{sans:['"Plus Jakarta Sans"','system-ui','sans-serif']}}}}</script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: dark;
+      --ease-out: cubic-bezier(.23, 1, .32, 1);
+    }
+    html { scroll-behavior: smooth; }
+    body { background: linear-gradient(135deg, #09090b 0%, #0f0f12 100%); }
+    ::selection { color: #052e23; background: #6ee7b7; }
+    .card-base {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(110, 231, 183, 0.2);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      transition: all 300ms var(--ease-out);
+    }
+    .card-base:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(110, 231, 183, 0.4);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 40px rgba(110, 231, 183, 0.15);
+    }
+    @keyframes gradient-shift {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+    .hero-gradient {
+      background: linear-gradient(135deg, #a7f3d0, #86efac, #67e8f9);
+      background-size: 300% 300%;
+      animation: gradient-shift 4s ease infinite;
+      background-clip: text;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .glassmorphism {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+  </style>
+</head>
+<body class="font-sans text-zinc-100">
+  <div class="min-h-screen">
+    <!-- Header -->
+    <header class="border-b border-white/10 sticky top-0 z-50 backdrop-blur-md">
+      <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <h1 class="text-2xl font-bold">🎨 FASE 2: Launch Visual</h1>
+            <p class="text-sm text-zinc-400 mt-1">Plan detallado de transformación visual (1-2 semanas)</p>
+          </div>
+          <div class="text-right">
+            <p class="text-sm font-semibold text-emerald-200">4-5 horas totales</p>
+            <p class="text-xs text-zinc-400">Premium + Funcional</p>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="mx-auto max-w-7xl px-4 py-12 sm:px-6">
+      <!-- Intro Section -->
+      <section class="mb-12 p-8 rounded-2xl card-base">
+        <h2 class="text-3xl font-bold hero-gradient mb-4">Transforma tu MVP funcional en una interfaz premium</h2>
+        <p class="text-zinc-300 mb-6 leading-7">Sin cambiar funcionalidad. Mismo código, mejor visual. En 4-5 horas tendrás una plataforma que se vea lista para producción.</p>
+        <div class="grid grid-cols-2 gap-4 sm:grid-cols-4 pt-4 border-t border-white/10">
+          <div>
+            <p class="text-xs text-zinc-500 mb-1">Visual Score</p>
+            <p class="text-2xl font-bold text-emerald-200">6→9/10</p>
+          </div>
+          <div>
+            <p class="text-xs text-zinc-500 mb-1">Professional Feel</p>
+            <p class="text-2xl font-bold text-emerald-200">↑ 50%</p>
+          </div>
+          <div>
+            <p class="text-xs text-zinc-500 mb-1">Time to Build</p>
+            <p class="text-2xl font-bold text-emerald-200">4-5h</p>
+          </div>
+          <div>
+            <p class="text-xs text-zinc-500 mb-1">Risk Level</p>
+            <p class="text-2xl font-bold text-emerald-200">Bajo</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 7 Changes Overview -->
+      <section class="mb-12">
+        <h2 class="text-2xl font-bold mb-6">Los 7 Cambios Clave</h2>
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <!-- Change 1 -->
+          <div class="card-base p-6 rounded-xl">
+            <div class="text-3xl mb-3">🎯</div>
+            <h3 class="font-bold text-lg mb-2">1. Hero Gradient</h3>
+            <p class="text-sm text-zinc-400">Título con gradiente animado que rota cada 4s</p>
+            <p class="text-xs text-emerald-300 mt-3">⏱ 10 min</p>
+          </div>
+
+          <!-- Change 2 -->
+          <div class="card-base p-6 rounded-xl">
+            <div class="text-3xl mb-3">🪟</div>
+            <h3 class="font-bold text-lg mb-2">2. Glassmorphism</h3>
+            <p class="text-sm text-zinc-400">Profile cards con blur + glow + hover</p>
+            <p class="text-xs text-emerald-300 mt-3">⏱ 45 min</p>
+          </div>
+
+          <!-- Change 3 -->
+          <div class="card-base p-6 rounded-xl">
+            <div class="text-3xl mb-3">🔍</div>
+            <h3 class="font-bold text-lg mb-2">3. Search Upgrade</h3>
+            <p class="text-sm text-zinc-400">Input mejorada con backdrop-filter</p>
+            <p class="text-xs text-emerald-300 mt-3">⏱ 15 min</p>
+          </div>
+
+          <!-- Change 4 -->
+          <div class="card-base p-6 rounded-xl">
+            <div class="text-3xl mb-3">📊</div>
+            <h3 class="font-bold text-lg mb-2">4. Dashboard Cards</h3>
+            <p class="text-sm text-zinc-400">Grid de stats mejorada en admin</p>
+            <p class="text-xs text-emerald-300 mt-3">⏱ 30 min</p>
+          </div>
+
+          <!-- Change 5 -->
+          <div class="card-base p-6 rounded-xl">
+            <div class="text-3xl mb-3">🔘</div>
+            <h3 class="font-bold text-lg mb-2">5. Buttons Premium</h3>
+            <p class="text-sm text-zinc-400">Gradient, shadow y transiciones</p>
+            <p class="text-xs text-emerald-300 mt-3">⏱ 20 min</p>
+          </div>
+
+          <!-- Change 6 -->
+          <div class="card-base p-6 rounded-xl">
+            <div class="text-3xl mb-3">🔔</div>
+            <h3 class="font-bold text-lg mb-2">6. Toast Notifications</h3>
+            <p class="text-sm text-zinc-400">Feedback visual elegante con Sonner</p>
+            <p class="text-xs text-emerald-300 mt-3">⏱ 30 min</p>
+          </div>
+
+          <!-- Change 7 -->
+          <div class="card-base p-6 rounded-xl">
+            <div class="text-3xl mb-3">🎨</div>
+            <h3 class="font-bold text-lg mb-2">7. CSS Variables</h3>
+            <p class="text-sm text-zinc-400">Soporte dark mode + mantenibilidad</p>
+            <p class="text-xs text-emerald-300 mt-3">⏱ 30 min</p>
+          </div>
+
+          <!-- Responsive -->
+          <div class="card-base p-6 rounded-xl">
+            <div class="text-3xl mb-3">📱</div>
+            <h3 class="font-bold text-lg mb-2">Mobile Polish</h3>
+            <p class="text-sm text-zinc-400">Touch targets 44px, spacing ajustado</p>
+            <p class="text-xs text-emerald-300 mt-3">⏱ Incluido</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Timeline -->
+      <section class="mb-12">
+        <h2 class="text-2xl font-bold mb-6">Timeline de 5 Días</h2>
+        <div class="space-y-3">
+          <div class="card-base p-6 rounded-xl flex items-start gap-4">
+            <div class="min-w-fit pt-1">
+              <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-emerald-300 text-zinc-950 text-sm font-bold">1</span>
+            </div>
+            <div class="flex-1">
+              <h3 class="font-bold mb-1">Día 1: Hero + Search (2h)</h3>
+              <p class="text-sm text-zinc-400">Implementar gradiente animado en hero y mejorar search box con glassmorphism</p>
+            </div>
+            <span class="text-xs font-semibold text-emerald-300 min-w-fit">index.html</span>
+          </div>
+
+          <div class="card-base p-6 rounded-xl flex items-start gap-4">
+            <div class="min-w-fit pt-1">
+              <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-emerald-300 text-zinc-950 text-sm font-bold">2</span>
+            </div>
+            <div class="flex-1">
+              <h3 class="font-bold mb-1">Día 2: Profile Cards (1.5h)</h3>
+              <p class="text-sm text-zinc-400">Glassmorphism, glow effect, avatar rings, badges de estado. Aplicar en index.html y admin.html</p>
+            </div>
+            <span class="text-xs font-semibold text-emerald-300 min-w-fit">Todas</span>
+          </div>
+
+          <div class="card-base p-6 rounded-xl flex items-start gap-4">
+            <div class="min-w-fit pt-1">
+              <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-emerald-300 text-zinc-950 text-sm font-bold">3</span>
+            </div>
+            <div class="flex-1">
+              <h3 class="font-bold mb-1">Día 3: Botones Mejorados (1h)</h3>
+              <p class="text-sm text-zinc-400">Gradient background, shadow elegante, transiciones smooth. Primary + Secondary buttons</p>
+            </div>
+            <span class="text-xs font-semibold text-emerald-300 min-w-fit">admin.html</span>
+          </div>
+
+          <div class="card-base p-6 rounded-xl flex items-start gap-4">
+            <div class="min-w-fit pt-1">
+              <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-emerald-300 text-zinc-950 text-sm font-bold">4</span>
+            </div>
+            <div class="flex-1">
+              <h3 class="font-bold mb-1">Día 4: Admin Dashboard (1h)</h3>
+              <p class="text-sm text-zinc-400">Stat cards mejoradas con colores y íconos. Request list con approval buttons</p>
+            </div>
+            <span class="text-xs font-semibold text-emerald-300 min-w-fit">owner.html</span>
+          </div>
+
+          <div class="card-base p-6 rounded-xl flex items-start gap-4">
+            <div class="min-w-fit pt-1">
+              <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-emerald-300 text-zinc-950 text-sm font-bold">5</span>
+            </div>
+            <div class="flex-1">
+              <h3 class="font-bold mb-1">Día 5: Toasts + CSS Vars (1h)</h3>
+              <p class="text-sm text-zinc-400">Setup Sonner, crear CSS variables, testing y polish final</p>
+              <div class="mt-2 flex gap-2">
+                <span class="inline-block px-2 py-1 rounded text-xs bg-emerald-300/20 text-emerald-200 border border-emerald-300/40">Testing</span>
+                <span class="inline-block px-2 py-1 rounded text-xs bg-blue-300/20 text-blue-200 border border-blue-300/40">QA</span>
+              </div>
+            </div>
+            <span class="text-xs font-semibold text-emerald-300 min-w-fit">Todas</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Before/After -->
+      <section class="mb-12">
+        <h2 class="text-2xl font-bold mb-6">Antes vs Después</h2>
+        <div class="grid gap-6 lg:grid-cols-2">
+          <!-- ANTES -->
+          <div class="border-2 border-red-300/30 rounded-xl p-6 bg-red-300/[.05]">
+            <h3 class="font-bold text-lg text-red-200 mb-4">❌ ANTES (MVP Funcional)</h3>
+            <ul class="space-y-2 text-sm text-zinc-300">
+              <li class="flex gap-2">
+                <span class="text-red-300">•</span>
+                <span>Colores planos sin efectos</span>
+              </li>
+              <li class="flex gap-2">
+                <span class="text-red-300">•</span>
+                <span>Hover states básicos</span>
+              </li>
+              <li class="flex gap-2">
+                <span class="text-red-300">•</span>
+                <span>Ningún gradiente animado</span>
+              </li>
+              <li class="flex gap-2">
+                <span class="text-red-300">•</span>
+                <span>Cards sin profundidad</span>
+              </li>
+              <li class="flex gap-2">
+                <span class="text-red-300">•</span>
+                <span>Feedback visual limitado</span>
+              </li>
+              <li class="flex gap-2">
+                <span class="text-red-300">•</span>
+                <span>Se ve "todavía en desarrollo"</span>
+              </li>
+            </ul>
+          </div>
+
+          <!-- DESPUÉS -->
+          <div class="border-2 border-emerald-300/30 rounded-xl p-6 bg-emerald-300/[.05]">
+            <h3 class="font-bold text-lg text-emerald-200 mb-4">✨ DESPUÉS (Premium Visual)</h3>
+            <ul class="space-y-2 text-sm text-zinc-300">
+              <li class="flex gap-2">
+                <span class="text-emerald-300">•</span>
+                <span>Gradiente animado en héroe</span>
+              </li>
+              <li class="flex gap-2">
+                <span class="text-emerald-300">•</span>
+                <span>Glassmorphism elegante</span>
+              </li>
+              <li class="flex gap-2">
+                <span class="text-emerald-300">•</span>
+                <span>Hover states con profundidad</span>
+              </li>
+              <li class="flex gap-2">
+                <span class="text-emerald-300">•</span>
+                <span>Glow effects y shadows</span>
+              </li>
+              <li class="flex gap-2">
+                <span class="text-emerald-300">•</span>
+                <span>Toast notifications elegantes</span>
+              </li>
+              <li class="flex gap-2">
+                <span class="text-emerald-300">•</span>
+                <span>Listo para producción</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Testing Checklist -->
+      <section class="mb-12">
+        <h2 class="text-2xl font-bold mb-6">Testing Checklist</h2>
+        <div class="card-base p-6 rounded-xl">
+          <div class="space-y-4">
+            <div>
+              <h3 class="font-bold mb-3 text-emerald-200">✓ Funcionalidad (No se rompa)</h3>
+              <ul class="space-y-2 text-sm text-zinc-300 ml-4">
+                <li>☐ Login en admin.html</li>
+                <li>☐ Ver tipsters en index.html</li>
+                <li>☐ Admin panel en owner.html</li>
+                <li>☐ Crear/editar perfil</li>
+                <li>☐ Aprobar tipsters</li>
+              </ul>
+            </div>
+
+            <div class="pt-4 border-t border-white/10">
+              <h3 class="font-bold mb-3 text-emerald-200">✓ Visual (Mejora confirmada)</h3>
+              <ul class="space-y-2 text-sm text-zinc-300 ml-4">
+                <li>☐ Gradiente en héroe visible y animado</li>
+                <li>☐ Cards con glassmorphism</li>
+                <li>☐ Hover effects suave</li>
+                <li>☐ Botones con shadow y gradient</li>
+                <li>☐ Toast notifications aparecen</li>
+              </ul>
+            </div>
+
+            <div class="pt-4 border-t border-white/10">
+              <h3 class="font-bold mb-3 text-emerald-200">✓ Responsive (Mobile OK)</h3>
+              <ul class="space-y-2 text-sm text-zinc-300 ml-4">
+                <li>☐ Layout en mobile (375px)</li>
+                <li>☐ Tipografía legible</li>
+                <li>☐ Touch targets 44px+</li>
+                <li>☐ Sin horizontal scroll</li>
+                <li>☐ Testeado en device real</li>
+              </ul>
+            </div>
+
+            <div class="pt-4 border-t border-white/10">
+              <h3 class="font-bold mb-3 text-emerald-200">✓ Performance</h3>
+              <ul class="space-y-2 text-sm text-zinc-300 ml-4">
+                <li>☐ Sin console errors</li>
+                <li>☐ Animations smooth (60fps)</li>
+                <li>☐ Lighthouse &gt; 80</li>
+                <li>☐ Load time &lt; 3s</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Next Steps -->
+      <section class="mb-12 p-8 rounded-2xl card-base border-emerald-300/40">
+        <h2 class="text-2xl font-bold mb-6 text-emerald-200">Próximos Pasos</h2>
+        <div class="grid gap-6 md:grid-cols-2">
+          <div>
+            <h3 class="font-bold mb-2">📍 Fase 2 (Ahora - 1-2 semanas)</h3>
+            <p class="text-sm text-zinc-300 mb-3">Ejecutar los 7 cambios de visual. Resultados: Premium visual sin cambiar funcionalidad.</p>
+            <div class="inline-block px-3 py-1 rounded-full bg-emerald-300/20 text-emerald-200 text-xs font-semibold">En progreso</div>
+          </div>
+
+          <div>
+            <h3 class="font-bold mb-2">🧪 Fase 3 (1 semana después)</h3>
+            <p class="text-sm text-zinc-300 mb-3">Testing intensivo: 3 navegadores, mobile real, Lighthouse, bugs P0. Resultado: MVP completamente testeado.</p>
+            <div class="inline-block px-3 py-1 rounded-full bg-blue-300/20 text-blue-200 text-xs font-semibold">Próximo</div>
+          </div>
+
+          <div>
+            <h3 class="font-bold mb-2">🚀 Launch (Semana siguiente)</h3>
+            <p class="text-sm text-zinc-300 mb-3">Desplegar a producción. Promoción en redes. Monitoreo de usuarios reales.</p>
+            <div class="inline-block px-3 py-1 rounded-full bg-purple-300/20 text-purple-200 text-xs font-semibold">1-2 semanas</div>
+          </div>
+
+          <div>
+            <h3 class="font-bold mb-2">⭐ Fase 4 (2-4 semanas después)</h3>
+            <p class="text-sm text-zinc-300 mb-3">Features avanzados: onboarding, search, dashboard, social. Basados en feedback real de usuarios.</p>
+            <div class="inline-block px-3 py-1 rounded-full bg-amber-300/20 text-amber-200 text-xs font-semibold">Futuro</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Ready to Start -->
+      <section class="text-center py-12 border-t border-white/10">
+        <h2 class="text-3xl font-bold hero-gradient mb-4">¿Listo para empezar?</h2>
+        <p class="text-zinc-300 mb-8 max-w-xl mx-auto">Confirma el plan y comenzamos Día 1 con Hero + Search. En 5 días tendrás una plataforma premium lista para lanzar.</p>
+        <div class="flex gap-4 justify-center">
+          <button onclick="alert('Plan APROBADO ✨\n\nComenzamos ahora con Día 1.\nHero section + Search improvements.')" class="px-6 py-3 rounded-xl bg-emerald-300 text-zinc-950 font-bold hover:bg-emerald-200 transition-all">
+            ✓ Aprobar Plan Fase 2
+          </button>
+          <button onclick="alert('Opción: Revisar detalles específicos antes de comenzar.')" class="px-6 py-3 rounded-xl border border-emerald-300/40 text-emerald-300 font-bold hover:bg-emerald-300/10 transition-all">
+            Revisar Detalles
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-white/10 mt-16 py-8 text-center text-sm text-zinc-500">
+      <p>Fijas en Vivo | Fase 2: Launch Visual | 1-2 semanas</p>
+    </footer>
+  </div>
+</body>
+</html>

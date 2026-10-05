@@ -5,12 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#09090b">
   <meta name="robots" content="noindex, nofollow">
+  <meta property="og:title" content="Panel de Administración - Fijas">
+  <meta property="og:description" content="Panel de administración para gestionar tipsters y aprobar solicitudes.">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
   <title>Administración | Fijas en vivo</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>tailwind.config={theme:{extend:{fontFamily:{sans:['"Plus Jakarta Sans"','system-ui','sans-serif']}}}}</script>
+  <link rel="stylesheet" href="dist/styles.min.css">
+  <link rel="stylesheet" href="button-styles.css">
+  <link rel="stylesheet" href="dashboard-styles.css">
   <style>
     :root { color-scheme: dark; --ease-out: cubic-bezier(.23, 1, .32, 1); }
     body { background: #09090b; }
@@ -24,6 +29,8 @@
     .label { display: block; margin-bottom: 7px; font-size: 12px; font-weight: 600; color: #d4d4d8; }
     @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
   </style>
+  <!-- Plausible Analytics - Core Web Vitals Monitoring -->
+  <script defer data-domain="fijas.app" src="https://plausible.io/js/script.js"></script>
 </head>
 <body class="min-h-[100dvh] font-sans text-zinc-100 antialiased">
   <header class="border-b border-white/[.07]">
@@ -116,6 +123,17 @@
         </div>
       </section>
 
+      <section aria-labelledby="profileRequestsTitle">
+        <div class="flex flex-wrap items-end justify-between gap-3">
+          <div><h2 id="profileRequestsTitle" class="text-lg font-bold">Solicitudes de cambio de perfil</h2><p class="mt-1.5 text-sm text-zinc-500">Revisa los valores actuales y propuestos antes de aprobar o rechazar.</p></div>
+          <button id="refreshProfileRequests" type="button" class="control min-h-9 rounded-lg border border-white/10 px-3 text-xs font-semibold text-zinc-300 hover:border-white/20 hover:text-white">Actualizar</button>
+        </div>
+        <p id="profileRequestsMessage" class="hidden mt-4 rounded-lg border px-3 py-2.5 text-sm leading-5" role="status"></p>
+        <div id="profileRequests" class="mt-4 divide-y divide-white/[.08]" aria-live="polite" aria-busy="true">
+          <p class="py-5 text-sm text-zinc-500">Cargando solicitudes de cambio...</p>
+        </div>
+      </section>
+
       <section aria-labelledby="tipstersTitle">
         <div class="flex flex-wrap items-end justify-between gap-3">
           <div><h2 id="tipstersTitle" class="text-lg font-bold">Permisos de tipster</h2><p class="mt-1.5 text-sm text-zinc-500">Revoca o restaura el permiso de publicación de tipsters existentes.</p></div>
@@ -158,6 +176,7 @@
     async function loadOwnerDashboard() {
       await loadSettings();
       await loadApplications();
+      await loadProfileChangeRequests();
       await loadTipsters();
       $("loading").classList.add("hidden");
       $("ownerDashboard").classList.remove("hidden");
@@ -225,13 +244,119 @@
         $("applications").replaceChildren(createElement("p", "py-5 text-sm text-rose-200", text));
       }
     }
+    const profileChangeLabels = {
+      username: "Usuario",
+      nombre_publico: "Nombre público",
+      bio: "Descripción",
+      color_primario: "Color de acento",
+      avatar_url: "Foto de perfil",
+      banner_url: "Banner",
+      kick_url: "Kick",
+      twitch_url: "Twitch",
+      youtube_url: "YouTube",
+      telegram_url: "Telegram",
+      twitter_url: "X",
+      instagram_url: "Instagram"
+    };
+    function profileChangeValue(field, value) {
+      if (value === null || value === "") return "Sin configurar";
+      if ((field === "avatar_url" || field === "banner_url") && value.startsWith("data:")) return "Imagen cargada";
+      return String(value);
+    }
+    async function loadProfileChangeRequests() {
+      const container = $("profileRequests");
+      container.setAttribute("aria-busy", "true");
+      container.replaceChildren(createElement("p", "py-5 text-sm text-zinc-500", "Cargando solicitudes de cambio..."));
+      try {
+        const snapshot = await getDocs(query(collection(db, "perfilSolicitudes"), where("estado", "==", "pendiente")));
+        const requests = await Promise.all(snapshot.docs.map(async item => {
+          const request = { id: item.id, ...item.data() };
+          const [profileSnapshot, socialSnapshot] = await Promise.all([
+            getDoc(doc(db, "perfiles", request.uid)),
+            getDoc(doc(db, "perfiles_social", request.uid))
+          ]);
+          return {
+            request,
+            current: {
+              ...(profileSnapshot.exists() ? profileSnapshot.data() : {}),
+              ...(socialSnapshot.exists() ? socialSnapshot.data() : {})
+            }
+          };
+        }));
+        requests.sort((first, second) =>
+          (first.request.created_at?.toMillis?.() || 0) - (second.request.created_at?.toMillis?.() || 0));
+        container.replaceChildren();
+        container.setAttribute("aria-busy", "false");
+        if (!requests.length) {
+          container.append(createElement("p", "py-7 text-sm text-zinc-500", "No hay solicitudes de cambio pendientes."));
+          return;
+        }
+        for (const { request, current } of requests) {
+          const article = createElement("article", "space-y-4 py-5");
+          article.dataset.profileRequestCard = request.id;
+          article.dataset.profileRequestUid = request.uid;
+          const heading = createElement("div");
+          heading.append(
+            createElement("h3", "text-sm font-semibold", current.nombre_publico || current.username || "Tipster"),
+            createElement("p", "mt-1 text-xs text-zinc-500", `@${current.username || "sin usuario"} · UID ${request.uid}`)
+          );
+          const changes = createElement("dl", "grid gap-3 sm:grid-cols-2");
+          for (const [field, proposedValue] of Object.entries(request.cambios || {})) {
+            const row = createElement("div", "min-w-0");
+            const label = createElement("dt", "text-xs font-semibold text-zinc-400", profileChangeLabels[field] || field);
+            const values = createElement("dd", "mt-1 space-y-1 text-xs leading-5");
+            values.append(
+              createElement("p", "break-words text-zinc-500", `Actual: ${profileChangeValue(field, current[field])}`),
+              createElement("p", "break-words text-zinc-200", `Propuesto: ${profileChangeValue(field, proposedValue)}`)
+            );
+            row.append(label, values);
+            changes.append(row);
+          }
+          const actions = createElement("div", "flex flex-col gap-3 sm:flex-row sm:items-end");
+          const rejectGroup = createElement("div", "min-w-0 flex-1");
+          const reasonLabel = createElement("label", "label", "Motivo del rechazo");
+          reasonLabel.htmlFor = `profile-rejection-${request.id}`;
+          const reason = createElement("textarea", "input min-h-20 resize-y");
+          reason.id = `profile-rejection-${request.id}`;
+          reason.maxLength = 500;
+          reason.required = true;
+          reason.placeholder = "Indica qué debe corregir el tipster.";
+          rejectGroup.append(reasonLabel, reason);
+          const buttons = createElement("div", "flex gap-2");
+          const approve = createElement("button", "control min-h-10 rounded-lg bg-emerald-300 px-4 text-sm font-bold text-zinc-950 hover:bg-emerald-200 disabled:cursor-wait disabled:opacity-60", "Aprobar");
+          approve.type = "button";
+          approve.dataset.profileReview = "approve";
+          approve.dataset.requestId = request.id;
+          const reject = createElement("button", "control min-h-10 rounded-lg border border-white/10 px-4 text-sm font-semibold text-zinc-300 hover:border-rose-300/30 hover:text-rose-200 disabled:cursor-wait disabled:opacity-60", "Rechazar");
+          reject.type = "button";
+          reject.dataset.profileReview = "reject";
+          reject.dataset.requestId = request.id;
+          buttons.append(approve, reject);
+          actions.append(rejectGroup, buttons);
+          article.append(heading, changes, actions);
+          container.append(article);
+        }
+      } catch (error) {
+        console.error("No se pudieron cargar las solicitudes de cambio de perfil:", error);
+        container.setAttribute("aria-busy", "false");
+        container.replaceChildren(createElement("p", "py-5 text-sm text-rose-200", "No se pudieron cargar las solicitudes de cambio. Comprueba las reglas de Firestore e inténtalo de nuevo."));
+      }
+    }
     async function loadTipsters() {
       $("tipsters").setAttribute("aria-busy", "true");
       $("tipsters").replaceChildren(createElement("p", "py-5 text-sm text-zinc-500", "Cargando permisos..."));
       try {
         const tipstersQuery = query(collection(db, "perfiles"), where("tipster_status", "in", ["approved", "revoked"]), limit(100));
         const snapshot = await getDocs(tipstersQuery);
-        const tipsters = snapshot.docs.map(item => ({ uid: item.id, ...item.data() }))
+        const tipsters = await Promise.all(snapshot.docs.map(async item => {
+          const presenceSnapshot = await getDoc(doc(db, "presencia", item.id));
+          return {
+            uid: item.id,
+            ...item.data(),
+            ...(presenceSnapshot.exists() ? presenceSnapshot.data() : { is_online: false })
+          };
+        }));
+        tipsters
           .sort((first, second) => String(first.nombre_publico || first.username || "").localeCompare(String(second.nombre_publico || second.username || ""), "es"));
         $("tipsterCount").textContent = String(tipsters.filter(item => item.tipster_status === "approved").length);
         $("tipsters").setAttribute("aria-busy", "false");
@@ -248,6 +373,7 @@
           details.append(
             createElement("h3", "truncate text-sm font-semibold", tipster.nombre_publico || tipster.username || "Tipster"),
             createElement("p", "mt-1 truncate text-xs text-zinc-400", `@${tipster.username || "sin usuario"} · ${approved ? "Inicial · puede publicar" : "Acceso revocado"}`),
+            createElement("p", "mt-1 text-[11px] text-zinc-500", tipster.is_online ? "Conectado" : "Desconectado"),
             createElement("p", "mt-1 text-[11px] text-zinc-500", tipster.recognition_status === "verified" ? "Verificado" : "Sin distintivo de verificación"),
             createElement("p", "mt-1 truncate text-[11px] text-zinc-500", `UID ${tipster.uid}`)
           );
@@ -372,10 +498,12 @@
           if (!/^[a-z0-9_-]{3,30}$/.test(username)) throw new Error("El nombre solicitado ya no es válido.");
           const profileRef = doc(db, "perfiles", uid);
           const socialProfileRef = doc(db, "perfiles_social", uid);
+          const presenceRef = doc(db, "presencia", uid);
           const usernameRef = doc(db, "usernames", username);
-          const [profileSnapshot, socialProfileSnapshot, usernameSnapshot] = await Promise.all([
+          const [profileSnapshot, socialProfileSnapshot, presenceSnapshot, usernameSnapshot] = await Promise.all([
             transaction.get(profileRef),
             transaction.get(socialProfileRef),
+            transaction.get(presenceRef),
             transaction.get(usernameRef)
           ]);
           if (usernameSnapshot.exists() && usernameSnapshot.data().uid !== uid) {
@@ -405,6 +533,13 @@
             twitter_url: socialProfile.twitter_url || null,
             instagram_url: socialProfile.instagram_url || null
           });
+          if (!presenceSnapshot.exists()) {
+            transaction.set(presenceRef, {
+              uid,
+              is_online: false,
+              last_active_at: serverTimestamp()
+            });
+          }
           transaction.update(applicationRef, {
             status: "approved",
             reviewed_at: serverTimestamp(),
@@ -419,7 +554,91 @@
         button.disabled = false;
       }
     });
+    $("profileRequests").addEventListener("click", async event => {
+      const button = event.target.closest("button[data-profile-review]");
+      if (!button) return;
+      const card = button.closest("[data-profile-request-card]");
+      const decision = button.dataset.profileReview;
+      const requestId = button.dataset.requestId;
+      const reason = card.querySelector("textarea").value.trim();
+      if (decision === "reject" && (!reason || reason.length > 500)) {
+        notice("profileRequestsMessage", "Escribe un motivo de rechazo de hasta 500 caracteres.");
+        card.querySelector("textarea").focus();
+        return;
+      }
+      button.disabled = true;
+      clearNotice("profileRequestsMessage");
+      try {
+        const requestRef = doc(db, "perfilSolicitudes", requestId);
+        await runTransaction(db, async transaction => {
+          const requestSnapshot = await transaction.get(requestRef);
+          if (!requestSnapshot.exists() || requestSnapshot.data().estado !== "pendiente") {
+            throw new Error("La solicitud ya fue revisada o no existe.");
+          }
+          const profileRequest = requestSnapshot.data();
+          const resolvedReservationRef = doc(db, "perfilSolicitudesPendientes", card.dataset.profileRequestUid);
+          const reservationSnapshot = await transaction.get(resolvedReservationRef);
+          if (!reservationSnapshot.exists() || reservationSnapshot.data().solicitud_id !== requestId) {
+            throw new Error("La reserva de esta solicitud ya no está disponible.");
+          }
+          if (decision === "approve") {
+            const profileRef = doc(db, "perfiles", profileRequest.uid);
+            const socialRef = doc(db, "perfiles_social", profileRequest.uid);
+            const [profileSnapshot, socialSnapshot] = await Promise.all([
+              transaction.get(profileRef),
+              transaction.get(socialRef)
+            ]);
+            if (!profileSnapshot.exists() || !socialSnapshot.exists()
+              || profileSnapshot.data().tipster_status !== "approved") {
+              throw new Error("El perfil ya no está disponible para aprobar cambios.");
+            }
+            const currentProfile = profileSnapshot.data();
+            const currentSocial = socialSnapshot.data();
+            const changes = profileRequest.cambios;
+            const basicFields = ["username", "nombre_publico", "bio", "color_primario"];
+            const socialFields = ["avatar_url", "banner_url", "kick_url", "twitch_url", "youtube_url", "telegram_url", "twitter_url", "instagram_url"];
+            const basicChanges = Object.fromEntries(Object.entries(changes).filter(([field]) => basicFields.includes(field)));
+            const socialChanges = Object.fromEntries(Object.entries(changes).filter(([field]) => socialFields.includes(field)));
+            let usernameReservation = null;
+            if (basicChanges.username && basicChanges.username !== currentProfile.username) {
+              const newUsernameRef = doc(db, "usernames", basicChanges.username);
+              const oldUsernameRef = doc(db, "usernames", currentProfile.username);
+              const [newUsernameSnapshot, oldUsernameSnapshot] = await Promise.all([
+                transaction.get(newUsernameRef),
+                transaction.get(oldUsernameRef)
+              ]);
+              if (newUsernameSnapshot.exists() && newUsernameSnapshot.data().uid !== profileRequest.uid) {
+                throw new Error("El nombre solicitado ya fue reservado por otra cuenta.");
+              }
+              usernameReservation = { newUsernameRef, oldUsernameRef, oldUsernameSnapshot };
+            }
+            if (Object.keys(basicChanges).length) transaction.set(profileRef, { ...currentProfile, ...basicChanges });
+            if (Object.keys(socialChanges).length) transaction.set(socialRef, { ...currentSocial, ...socialChanges });
+            if (usernameReservation) {
+              transaction.set(usernameReservation.newUsernameRef, { uid: profileRequest.uid });
+              if (usernameReservation.oldUsernameSnapshot.exists()) {
+                transaction.delete(usernameReservation.oldUsernameRef);
+              }
+            }
+          }
+          transaction.update(requestRef, {
+            estado: decision === "approve" ? "aprobada" : "rechazada",
+            motivoRechazo: decision === "approve" ? null : reason,
+            revisado_at: serverTimestamp(),
+            revisado_por: auth.currentUser.uid
+          });
+          transaction.delete(resolvedReservationRef);
+        });
+        notice("profileRequestsMessage", decision === "approve" ? "Cambios de perfil aprobados y publicados." : "Solicitud rechazada; el tipster podrá corregirla y volver a enviarla.", true);
+        await loadProfileChangeRequests();
+      } catch (error) {
+        console.error("No se pudo revisar la solicitud de cambio:", error);
+        notice("profileRequestsMessage", error.message || "No se pudo revisar la solicitud. Comprueba las reglas de Firestore.");
+        button.disabled = false;
+      }
+    });
     $("refreshApplications").addEventListener("click", loadApplications);
+    $("refreshProfileRequests").addEventListener("click", loadProfileChangeRequests);
     $("refreshTipsters").addEventListener("click", loadTipsters);
     $("tipsters").addEventListener("click", async event => {
       const button = event.target.closest("button[data-permission]");
@@ -471,8 +690,30 @@
       $("denied").classList.remove("hidden");
       $("deniedMessage").textContent = "Completa la configuración de Firebase antes de entrar al panel.";
     } else {
-      auth = getAuth(firebaseApp);
-      db = firebaseDb;
+      // Re-initialize Firebase locally to ensure correct project configuration
+      const localConfig = {
+        apiKey: "demo-api-key",
+        authDomain: "demo-fijas-vivo.firebaseapp.com",
+        projectId: "demo-fijas-vivo",
+        messagingSenderId: "999999999999",
+        appId: "1:999999999999:web:demo"
+      };
+      const { initializeApp: localInitializeApp } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js");
+      const { connectFirestoreEmulator: localConnectFirestoreEmulator, getFirestore: localGetFirestore } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
+      const { connectAuthEmulator: localConnectAuthEmulator } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
+      const localApp = localInitializeApp(localConfig, "owner-" + Date.now());
+      auth = getAuth(localApp);
+      db = localGetFirestore(localApp);
+      
+      if (location.hostname === "localhost") {
+        try {
+          localConnectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
+          localConnectFirestoreEmulator(db, "127.0.0.1", 8080);
+        } catch (error) {
+          // Emulators may already be connected
+        }
+      }
+      
       onAuthStateChanged(auth, async user => {
         $("loading").classList.remove("hidden");
         $("creatorLogin").classList.add("hidden");
@@ -502,6 +743,13 @@
             $("deniedMessage").textContent = "La cuenta conectada no tiene permisos de creador. Cambia de cuenta e inicia con la cuenta administrativa separada.";
             return;
           }
+        }, onError);
+      });
+    });
+  </script>
+  <script src="toasts.js"></script>
+</body>
+</html>
           await loadOwnerDashboard();
         } catch (error) {
           console.error("No se pudo validar el acceso de creador:", error);
@@ -510,6 +758,20 @@
           $("switchCreatorAccount").classList.remove("hidden");
           $("deniedMessage").textContent = error.message || "No se pudo comprobar el acceso. Verifica las reglas de Firestore.";
         }
+      });
+    }
+  </script>
+  <!-- Service Worker Registration - PWA Support -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+          .then((registration) => {
+            console.log('✅ Service Worker registered:', registration);
+          })
+          .catch((error) => {
+            console.warn('⚠️ Service Worker registration failed:', error);
+          });
       });
     }
   </script>

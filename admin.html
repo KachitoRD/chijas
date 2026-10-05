@@ -5,13 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#09090b">
   <meta name="robots" content="noindex, nofollow">
+  <meta property="og:title" content="Mi Panel en Fijas - Administra tus pronósticos">
+  <meta property="og:description" content="Panel privado para gestionar tu perfil y publicar pronósticos en Fijas.">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
   <title>Panel tipster | Fijas en vivo</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>tailwind.config={theme:{extend:{fontFamily:{sans:['"Plus Jakarta Sans"','system-ui','sans-serif']}}}}</script>
+  <link rel="stylesheet" href="dist/styles.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
+  <link rel="stylesheet" href="button-styles.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js" defer></script>
   <style>
     :root { color-scheme: dark; --ease-out: cubic-bezier(.23, 1, .32, 1); }
@@ -31,6 +35,8 @@
       *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
     }
   </style>
+  <!-- Plausible Analytics - Core Web Vitals Monitoring -->
+  <script defer data-domain="fijas.app" src="https://plausible.io/js/script.js"></script>
 </head>
 <body class="min-h-[100dvh] font-sans text-zinc-100 antialiased">
   <div id="firebaseSetup" class="hidden border-b border-amber-300/20 bg-amber-300/[.07] px-4 py-3 text-sm text-amber-100" role="alert">
@@ -200,7 +206,17 @@
 
       <section id="profileView" class="hidden" aria-labelledby="profileTab">
         <form id="profileForm" class="mx-auto max-w-3xl space-y-6 rounded-2xl border border-white/[.08] bg-[#111114] p-5 sm:p-7">
-          <div><h2 class="text-lg font-bold">Tu perfil público</h2><p class="mt-1.5 text-sm leading-6 text-zinc-400">Este es el perfil que verán quienes te encuentren en la portada.</p></div>
+          <div><h2 class="text-lg font-bold">Tu perfil público</h2><p class="mt-1.5 text-sm leading-6 text-zinc-400">Propón cambios para que el creador los revise antes de publicarlos.</p></div>
+          <section class="rounded-xl border border-white/[.08] p-4" aria-labelledby="currentProfileTitle">
+            <h3 id="currentProfileTitle" class="text-sm font-semibold">Perfil publicado</h3>
+            <dl id="currentProfileSummary" class="mt-3 grid gap-2 text-sm text-zinc-400 sm:grid-cols-2"></dl>
+          </section>
+          <section class="rounded-xl border border-white/[.08] p-4" aria-labelledby="profileRequestTitle">
+            <h3 id="profileRequestTitle" class="text-sm font-semibold">Estado de cambios</h3>
+            <p id="profileRequestStatus" class="mt-2 text-sm text-zinc-400" role="status">No tienes cambios pendientes.</p>
+            <dl id="profileRequestDetails" class="mt-3 grid gap-2 text-sm text-zinc-400 sm:grid-cols-2"></dl>
+            <button id="resubmitProfileButton" type="button" class="control mt-4 min-h-10 rounded-lg border border-white/10 bg-white/[.04] px-4 text-sm font-medium text-zinc-300 hover:bg-white/[.08] hidden">Enviar nueva solicitud</button>
+          </section>
           <div class="grid gap-4 sm:grid-cols-2">
             <div><label for="username" class="label">Usuario</label><input id="username" class="input" autocomplete="username" minlength="3" maxlength="30" pattern="[a-zA-Z0-9_\-]{3,30}" title="Usa de 3 a 30 letras, números, guiones o guiones bajos." required><p class="mt-1.5 text-xs text-zinc-500">Tu enlace público usa este nombre.</p></div>
             <div><label for="displayName" class="label">Nombre público</label><input id="displayName" class="input" maxlength="60" required></div>
@@ -224,7 +240,7 @@
             </div>
           </div>
           <p id="profileMessage" class="hidden rounded-lg border px-3 py-2.5 text-sm leading-5" role="status"></p>
-          <div class="flex flex-wrap items-center justify-between gap-3"><a id="publicProfileLink" href="./" class="text-sm font-medium text-emerald-200 underline decoration-emerald-200/30 underline-offset-4 hover:decoration-emerald-200">Ver mi perfil público</a><button id="saveProfileButton" class="control min-h-11 min-w-36 rounded-xl bg-emerald-300 px-5 text-sm font-bold text-zinc-950 hover:bg-emerald-200 disabled:cursor-wait disabled:opacity-60">Guardar perfil</button></div>
+          <div class="flex flex-wrap items-center justify-between gap-3"><a id="publicProfileLink" href="./" class="text-sm font-medium text-emerald-200 underline decoration-emerald-200/30 underline-offset-4 hover:decoration-emerald-200">Ver mi perfil público</a><button id="saveProfileButton" class="control min-h-11 min-w-36 rounded-xl bg-emerald-300 px-5 text-sm font-bold text-zinc-950 hover:bg-emerald-200 disabled:cursor-wait disabled:opacity-60">Enviar cambios</button></div>
         </form>
       </section>
     </div>
@@ -242,7 +258,7 @@
 
   <script type="module">
     import { firebaseApp, firebaseConfigured, firebaseConfigError, firebaseDb } from "./firebase-config.js";
-    import { createUserWithEmailAndPassword, getAuth, onAuthStateChanged, sendEmailVerification, signInWithEmailAndPassword, signOut, updateProfile } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+    import { connectAuthEmulator, createUserWithEmailAndPassword, getAuth, onAuthStateChanged, sendEmailVerification, signInWithEmailAndPassword, signOut, updateProfile } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
     import { collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, orderBy, query, runTransaction, serverTimestamp, setDoc, updateDoc, where, limit } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
     const $ = id => document.getElementById(id);
@@ -252,6 +268,20 @@
       ["kickUrl", "kick_url"], ["twitchUrl", "twitch_url"], ["youtubeUrl", "youtube_url"],
       ["telegramUrl", "telegram_url"], ["twitterUrl", "twitter_url"], ["instagramUrl", "instagram_url"]
     ];
+    const profileFieldLabels = {
+      username: "Usuario",
+      nombre_publico: "Nombre público",
+      bio: "Descripción",
+      color_primario: "Color de acento",
+      avatar_url: "Foto de perfil",
+      banner_url: "Banner",
+      kick_url: "Kick",
+      twitch_url: "Twitch",
+      youtube_url: "YouTube",
+      telegram_url: "Telegram",
+      twitter_url: "X",
+      instagram_url: "Instagram"
+    };
     const pickColors = { pendiente: "text-amber-200 bg-amber-300/[.08] border-amber-300/15", ganada: "text-emerald-200 bg-emerald-300/[.08] border-emerald-300/15", perdida: "text-rose-200 bg-rose-300/[.08] border-rose-300/15", anulada: "text-zinc-300 bg-white/[.04] border-white/[.08]" };
     const IMAGE_DATA_LIMITS = { avatar: 200 * 1024, banner: 200 * 1024 };
     const IMAGE_DATA_PATTERN = /^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/;
@@ -343,13 +373,73 @@
       $("avatarPreview").classList.toggle("hidden", !avatarSource);
       $("bannerPreview").classList.toggle("hidden", !bannerSource);
     }
-    async function setPresence(isOnline) {
+    let presenceIntervalId = null;
+
+    async function initializePresence() {
+      // Llamada única al abrir panel (si tipster está aprobado)
       if (!currentUser || !db) return;
-      await updateDoc(doc(db, "perfiles", currentUser.uid), {
-        is_online: isOnline,
-        last_active_at: serverTimestamp()
-      });
+      try {
+        await setDoc(doc(db, "presencia", currentUser.uid), {
+          uid: currentUser.uid,
+          is_online: true,
+          last_active_at: serverTimestamp()
+        }, { merge: true });
+        startPresenceInterval();
+      } catch (error) {
+        console.error("Error al inicializar presencia:", error);
+      }
     }
+
+    function startPresenceInterval() {
+      // Actualizar last_active_at cada 60s si la pestaña es visible
+      presenceIntervalId = setInterval(async () => {
+        if (!currentUser || !db || document.visibilityState !== "visible") return;
+        try {
+          await setDoc(doc(db, "presencia", currentUser.uid), {
+            last_active_at: serverTimestamp()
+          }, { merge: true });
+        } catch (error) {
+          console.error("Error al actualizar presencia:", error);
+        }
+      }, 60000);
+    }
+
+    function handleVisibilityChange() {
+      // visible: is_online=true + last_active_at
+      // hidden: no escribir (umbral 5 min cubre cambios de pestaña)
+      if (!currentUser || !db) return;
+      
+      if (document.visibilityState === "visible") {
+        setDoc(doc(db, "presencia", currentUser.uid), {
+          is_online: true,
+          last_active_at: serverTimestamp()
+        }, { merge: true }).catch(error => console.error("Error al restaurar presencia:", error));
+      }
+      // Si hidden: no hacer nada (último last_active_at sigue siendo válido)
+    }
+
+    async function setPresenceOffline() {
+      // Llamada al cerrar sesión
+      if (!currentUser || !db) return;
+      try {
+        await setDoc(doc(db, "presencia", currentUser.uid), {
+          is_online: false
+        }, { merge: true });
+        if (presenceIntervalId) clearInterval(presenceIntervalId);
+      } catch (error) {
+        console.error("Error al desconectar presencia:", error);
+      }
+    }
+
+    window.addEventListener("beforeunload", () => {
+      // Best-effort: intenta escribir is_online=false
+      if (currentUser && db) {
+        setDoc(doc(db, "presencia", currentUser.uid), {
+          is_online: false
+        }, { merge: true }).catch(() => {});
+      }
+    });
+
     async function getAccountState(user) {
       const [profileSnapshot, applicationSnapshot, adminSnapshot, settingsSnapshot] = await Promise.all([
         getDoc(doc(db, "perfiles", user.uid)),
@@ -358,12 +448,13 @@
         getDoc(doc(db, "platformSettings", "limits"))
       ]);
       const settings = settingsSnapshot.exists() ? settingsSnapshot.data() : {};
-      return {
+      const result = {
         isAdmin: adminSnapshot.exists() && adminSnapshot.data().enabled === true,
         tipsterStatus: profileSnapshot.exists() ? profileSnapshot.data().tipster_status || null : null,
         applicationStatus: applicationSnapshot.exists() ? applicationSnapshot.data().status || null : null,
         tipsterMonthlyPickLimit: settings.tipsterMonthlyPickLimit ?? 50
       };
+      return result;
     }
     function showAccountGate(state, user) {
       $("tipsterTabs").classList.add("hidden");
@@ -419,6 +510,23 @@
     function fillProfile(profile, social) {
       profile = { ...profile, ...social };
       currentProfile = profile;
+      const currentSummary = $("currentProfileSummary");
+      currentSummary.replaceChildren();
+      for (const field of Object.keys(profileFieldLabels)) {
+        const value = profile[field];
+        const displayValue = field === "avatar_url" || field === "banner_url"
+          ? value?.startsWith("data:") ? "Imagen cargada" : value || "Sin configurar"
+          : value || "Sin configurar";
+        const row = document.createElement("div");
+        const label = document.createElement("dt");
+        label.className = "text-xs text-zinc-500";
+        label.textContent = profileFieldLabels[field];
+        const content = document.createElement("dd");
+        content.className = "mt-0.5 break-words text-zinc-300";
+        content.textContent = displayValue;
+        row.append(label, content);
+        currentSummary.append(row);
+      }
       $("username").value = profile.username || "";
       $("displayName").value = profile.nombre_publico || "";
       $("bio").value = profile.bio || "";
@@ -431,6 +539,40 @@
       $("publicProfileLink").href = `./?u=${encodeURIComponent(profile.username || "")}`;
       updateWidgetUrl(profile.username);
       updateImagePreviews();
+    }
+    function renderProfileRequest(profileRequest) {
+      const status = $("profileRequestStatus");
+      const details = $("profileRequestDetails");
+      details.replaceChildren();
+      if (!profileRequest) {
+        status.textContent = "No tienes solicitudes de cambio anteriores.";
+        status.className = "mt-2 text-sm text-zinc-400";
+        $("saveProfileButton").disabled = false;
+        return;
+      }
+      const statusLabels = {
+        pendiente: "Tu solicitud está pendiente de revisión.",
+        aprobada: "Tu solicitud fue aprobada y los cambios ya están publicados.",
+        rechazada: "Tu solicitud fue rechazada."
+      };
+      status.textContent = profileRequest.estado === "rechazada" && profileRequest.motivoRechazo
+        ? `${statusLabels[profileRequest.estado]} Motivo: ${profileRequest.motivoRechazo}`
+        : statusLabels[profileRequest.estado] || "Estado de solicitud desconocido.";
+      status.className = `mt-2 text-sm ${profileRequest.estado === "pendiente" ? "text-amber-200" : profileRequest.estado === "rechazada" ? "text-rose-200" : "text-zinc-400"}`;
+      $("saveProfileButton").disabled = profileRequest.estado === "pendiente";
+      for (const [field, value] of Object.entries(profileRequest.cambios || {})) {
+        const row = document.createElement("div");
+        const label = document.createElement("dt");
+        label.className = "text-xs text-zinc-500";
+        label.textContent = profileFieldLabels[field] || field;
+        const content = document.createElement("dd");
+        content.className = "mt-0.5 break-words text-zinc-300";
+        content.textContent = field === "avatar_url" || field === "banner_url"
+          ? value?.startsWith("data:") ? "Imagen cargada" : value || "Sin configurar"
+          : value || "Sin configurar";
+        row.append(label, content);
+        details.append(row);
+      }
     }
     function updateWidgetUrl(username) {
       const urlInput = $("widgetUrl");
@@ -455,13 +597,171 @@
         previewFrame.src = url.href;
       }
     }
+    async function submitProfileRequest(event) {
+      event.preventDefault();
+      const button = $("saveProfileButton");
+      button.disabled = true;
+      button.textContent = "Enviando solicitud...";
+      clearMessage("profileMessage");
+
+      try {
+        // 1. Recopilar cambios propuestos
+        const cambios = {};
+        cambios.username = $("username").value.trim().toLowerCase();
+        cambios.nombre_publico = $("displayName").value.trim();
+        cambios.bio = $("bio").value.trim() || null;
+        cambios.color_primario = $("primaryColor").value.trim().toLowerCase();
+        cambios.avatar_url = croppedAvatar || $("avatarUrl").value.trim() || null;
+        cambios.banner_url = croppedBanner || $("bannerUrl").value.trim() || null;
+        
+        // URLs sociales
+        for (const [elementId, field] of profileFields) {
+          const value = $(elementId).value.trim() || null;
+          cambios[field] = value;
+        }
+
+        // 2. Validar cambios en cliente
+        if (!cambios.username.match(/^[a-z0-9_-]{3,30}$/)) {
+          throw new Error("Usuario: usa de 3 a 30 letras, números, guiones o guiones bajos.");
+        }
+        if (!cambios.nombre_publico || cambios.nombre_publico.length > 60) {
+          throw new Error("Nombre público: requerido, máximo 60 caracteres.");
+        }
+        if (cambios.bio && cambios.bio.length > 280) {
+          throw new Error("Descripción: máximo 280 caracteres.");
+        }
+        if (!cambios.color_primario || !cambios.color_primario.match(/^#[0-9a-f]{6}$/i)) {
+          throw new Error("Color de acento: requerido, formato #RRGGBB.");
+        }
+
+        // Validar imágenes
+        if (cambios.avatar_url && !safeImageUrl(cambios.avatar_url, IMAGE_DATA_LIMITS.avatar)) {
+          throw new Error("Foto de perfil: URL HTTPS inválida o imagen Base64 demasiado grande.");
+        }
+        if (cambios.banner_url && !safeImageUrl(cambios.banner_url, IMAGE_DATA_LIMITS.banner)) {
+          throw new Error("Banner: URL HTTPS inválida o imagen Base64 demasiado grande.");
+        }
+
+        // Validar URLs sociales
+        for (const [, field] of profileFields) {
+          if (cambios[field] && !safeExternalUrl(cambios[field])) {
+            throw new Error(`${profileFieldLabels[field]}: URL HTTPS inválida.`);
+          }
+        }
+
+        // 3. TRANSACCIÓN: Crear solicitud + reserva
+        await runTransaction(db, async (transaction) => {
+          const reservaRef = doc(db, "perfilSolicitudesPendientes", currentUser.uid);
+          const reservaSnap = await transaction.get(reservaRef);
+
+          if (reservaSnap.exists()) {
+            throw new Error("Ya tienes una solicitud pendiente. Espera la revisión del administrador o rechazo para enviar otra.");
+          }
+
+          // Crear solicitud
+          const solicitudRef = doc(collection(db, "perfilSolicitudes"));
+          transaction.set(solicitudRef, {
+            uid: currentUser.uid,
+            cambios: cambios,
+            estado: "pendiente",
+            created_at: serverTimestamp(),
+            revisado_at: null,
+            revisado_por: null,
+            motivoRechazo: null
+          });
+
+          // Crear reserva
+          transaction.set(reservaRef, {
+            uid: currentUser.uid,
+            solicitud_id: solicitudRef.id,
+            created_at: serverTimestamp()
+          });
+        });
+
+        message("profileMessage", "Solicitud enviada ✓. El creador de la plataforma la revisará pronto.", true);
+        button.textContent = "Enviar cambios";
+        await loadProfile(); // Recarga para mostrar estado
+
+      } catch (error) {
+        console.error("Error al enviar solicitud de cambios:", error);
+        message("profileMessage", error.message || "No se pudo enviar la solicitud. Intenta de nuevo.");
+        button.disabled = false;
+        button.textContent = "Enviar cambios";
+      }
+    }
+    async function loadProfileRequest() {
+      if (!currentUser) return;
+      try {
+        // Leer solicitud pendiente (si existe)
+        const reservaSnap = await getDoc(doc(db, "perfilSolicitudesPendientes", currentUser.uid));
+        
+        if (!reservaSnap.exists()) {
+          // No hay solicitud pendiente. Buscar última solicitud (aprobada o rechazada)
+          const requestsSnap = await getDocs(
+            query(collection(db, "perfilSolicitudes"), where("uid", "==", currentUser.uid))
+          );
+          
+          if (!requestsSnap.empty) {
+            // Ordenar en cliente por created_at descendente
+            const requests = requestsSnap.docs
+              .map(doc => ({ id: doc.id, ...doc.data() }))
+              .sort((a, b) => (b.created_at?.toMillis?.() || 0) - (a.created_at?.toMillis?.() || 0));
+            
+            renderProfileRequest(requests[0]); // Más reciente
+            
+            // Mostrar botón "Enviar nueva solicitud" si la última fue rechazada
+            $("resubmitProfileButton").classList.toggle(
+              "hidden",
+              requests[0].estado !== "rechazada"
+            );
+            
+            // Si está rechazada, permitir limpiar y reenviar
+            if (requests[0].estado === "rechazada") {
+              $("resubmitProfileButton").onclick = () => {
+                renderProfileRequest(null);
+                $("resubmitProfileButton").classList.add("hidden");
+              };
+            }
+          } else {
+            // Sin historial de solicitudes
+            renderProfileRequest(null);
+            $("resubmitProfileButton").classList.add("hidden");
+          }
+        } else {
+          // Hay solicitud pendiente. Leer documento completo
+          const solicitudSnap = await getDoc(
+            doc(db, "perfilSolicitudes", reservaSnap.data().solicitud_id)
+          );
+          
+          if (solicitudSnap.exists()) {
+            renderProfileRequest({ id: solicitudSnap.id, ...solicitudSnap.data() });
+          } else {
+            // CASO BORDE: Reserva existe pero solicitud no (huérfana)
+            // Requiere limpieza manual desde admin.html o consola.
+            console.warn("Reserva huérfana detectada para usuario:", currentUser.uid);
+            renderProfileRequest(null);
+          }
+          
+          // No mostrar botón "Enviar nueva" mientras hay solicitud pendiente
+          $("resubmitProfileButton").classList.add("hidden");
+        }
+      } catch (error) {
+        console.error("Error al cargar solicitud de perfil:", error);
+      }
+    }
     async function loadProfile() {
-      const [profileSnapshot, socialSnapshot] = await Promise.all([
+      const [profileSnapshot, socialSnapshot, presenceSnapshot] = await Promise.all([
         getDoc(doc(db, "perfiles", currentUser.uid)),
-        getDoc(doc(db, "perfiles_social", currentUser.uid))
+        getDoc(doc(db, "perfiles_social", currentUser.uid)),
+        getDoc(doc(db, "presencia", currentUser.uid))
       ]);
       if (!profileSnapshot.exists()) throw new Error("No se encontró el perfil de esta cuenta.");
-      fillProfile(profileSnapshot.data(), socialSnapshot.exists() ? socialSnapshot.data() : {});
+      const profile = profileSnapshot.data();
+      fillProfile(
+        { ...profile, ...(presenceSnapshot.exists() ? presenceSnapshot.data() : {}) },
+        socialSnapshot.exists() ? socialSnapshot.data() : {}
+      );
+      await loadProfileRequest();
     }
     function renderPicks() {
       $("myPicks").setAttribute("aria-busy", "false");
@@ -684,77 +984,6 @@
         else button.textContent = "Guardar cambios";
       }
     }
-    async function saveProfile(event) {
-      event.preventDefault();
-      if (!currentUser) return;
-      const button = $("saveProfileButton");
-      button.disabled = true;
-      button.textContent = "Guardando...";
-      clearMessage("profileMessage");
-      const username = $("username").value.trim().toLowerCase();
-      if (!/^[a-z0-9_-]{3,30}$/.test(username)) {
-        message("profileMessage", "El usuario debe tener entre 3 y 30 letras, números, guiones o guiones bajos.");
-        button.disabled = false;
-        button.textContent = "Guardar perfil";
-        return;
-      }
-      try {
-        const avatarInput = $("avatarUrl").value.trim();
-        const bannerInput = $("bannerUrl").value.trim();
-        const avatarValue = safeImageUrl(avatarInput, IMAGE_DATA_LIMITS.avatar);
-        const bannerValue = safeImageUrl(bannerInput, IMAGE_DATA_LIMITS.banner);
-        if ((avatarInput && !avatarValue) || (bannerInput && !bannerValue)) {
-          throw new Error("Las imágenes deben usar una URL HTTPS válida o una imagen JPEG comprimida de hasta 200 KB.");
-        }
-        const avatarUrl = croppedAvatar || avatarValue || null;
-        const bannerUrl = croppedBanner || bannerValue || null;
-        const profile = {
-          id: currentUser.uid, username, nombre_publico: $("displayName").value.trim(),
-          bio: $("bio").value.trim() || null,
-          color_primario: $("primaryColor").value,
-          is_online: true, last_active_at: serverTimestamp(),
-          created_at: currentProfile.created_at,
-          tipster_status: currentProfile.tipster_status
-        };
-        const socialProfile = {
-          avatar_url: avatarUrl,
-          banner_url: bannerUrl
-        };
-        for (const [elementId, field] of profileFields) {
-          const value = $(elementId).value.trim();
-          if (value && !safeExternalUrl(value)) throw new Error("Los enlaces sociales deben ser URLs HTTPS válidas.");
-          socialProfile[field] = value ? safeExternalUrl(value) : null;
-        }
-        const profileRef = doc(db, "perfiles", currentUser.uid);
-        const socialProfileRef = doc(db, "perfiles_social", currentUser.uid);
-        const usernameRef = doc(db, "usernames", username);
-        await runTransaction(db, async transaction => {
-          const [profileSnapshot, usernameSnapshot] = await Promise.all([transaction.get(profileRef), transaction.get(usernameRef)]);
-          if (usernameSnapshot.exists() && usernameSnapshot.data().uid !== currentUser.uid) {
-            throw new Error("Ese usuario ya está en uso. Prueba con otro nombre.");
-          }
-          const previousUsername = profileSnapshot.exists() ? profileSnapshot.data().username : null;
-          if (previousUsername && previousUsername !== username) transaction.delete(doc(db, "usernames", previousUsername));
-          transaction.set(usernameRef, { uid: currentUser.uid });
-          transaction.set(profileRef, profile, { merge: true });
-          transaction.set(socialProfileRef, socialProfile);
-        });
-        $("avatarUrl").value = avatarUrl && !avatarUrl.startsWith("data:") ? avatarUrl : "";
-        $("bannerUrl").value = bannerUrl && !bannerUrl.startsWith("data:") ? bannerUrl : "";
-        croppedAvatar = null;
-        croppedBanner = null;
-        currentProfile = { ...currentProfile, ...profile, ...socialProfile };
-        $("publicProfileLink").href = `./?u=${encodeURIComponent(username)}`;
-        updateWidgetUrl(username);
-        message("profileMessage", "Perfil guardado. Ya aparece en el directorio público.", true);
-      } catch (error) {
-        console.error("No se pudo guardar el perfil:", error);
-        message("profileMessage", error.message?.includes("ya está en uso") ? error.message : error.code === "resource-exhausted" ? "El perfil excede el límite de Firestore. Reduce el tamaño de las imágenes e inténtalo de nuevo." : "No se pudo guardar el perfil. Comprueba las reglas de Firestore y vuelve a intentarlo.");
-      } finally {
-        button.disabled = false;
-        button.textContent = "Guardar perfil";
-      }
-    }
     function openCrop(file, target) {
       if (!file) return;
       if (typeof Cropper !== "function") {
@@ -928,7 +1157,7 @@
       $("logoutButton").disabled = true;
       let presenceError = false;
       try {
-        await setPresence(false);
+        await setPresenceOffline();
       } catch (error) {
         console.error("No se pudo actualizar el estado al cerrar sesión:", error);
         presenceError = true;
@@ -1033,7 +1262,7 @@
         select.disabled = false;
       }
     });
-    $("profileForm").addEventListener("submit", saveProfile);
+    $("profileForm").addEventListener("submit", submitProfileRequest);
     $("tipsterApplicationForm").addEventListener("submit", requestTipsterAccess);
     $("avatarFile").addEventListener("change", event => {
       const file = event.target.files?.[0];
@@ -1103,9 +1332,28 @@
       $("loginMessage").classList.remove("border-rose-300/15", "bg-rose-300/[.06]", "text-rose-100");
       $("loginMessage").classList.add("border-amber-300/15", "bg-amber-300/[.06]", "text-amber-100");
     } else {
-      const app = firebaseApp;
-      auth = getAuth(app);
-      db = firebaseDb;
+      // Re-initialize Firebase locally to ensure correct project configuration
+      const localConfig = {
+        apiKey: "demo-api-key",
+        authDomain: "demo-fijas-vivo.firebaseapp.com",
+        projectId: "demo-fijas-vivo",
+        messagingSenderId: "999999999999",
+        appId: "1:999999999999:web:demo"
+      };
+      const { initializeApp: localInitializeApp } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js");
+      const { connectFirestoreEmulator: localConnectFirestoreEmulator, getFirestore: localGetFirestore } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
+      const localApp = localInitializeApp(localConfig, "admin-" + Date.now());
+      auth = getAuth(localApp);
+      db = localGetFirestore(localApp);
+      
+      if (location.hostname === "localhost") {
+        try {
+          connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
+          localConnectFirestoreEmulator(db, "127.0.0.1", 8080);
+        } catch (error) {
+          // Emulators may already be connected
+        }
+      }
       onAuthStateChanged(auth, async user => {
         if (verificationFlowInProgress && user && !user.emailVerified) return;
         currentUser = user;
@@ -1172,10 +1420,8 @@
           $("profileView").classList.add("hidden");
           $("picksView").classList.remove("hidden");
           $("eventDate").value = localDateValue();
-          await setPresence(true);
-          heartbeat = setInterval(() => {
-            setPresence(true).catch(error => console.error("No se pudo renovar el estado de conexión:", error));
-          }, 30_000);
+          await initializePresence();
+          document.addEventListener("visibilitychange", handleVisibilityChange);
           subscribeToPicks();
         } catch (error) {
           console.error("No se pudo cargar la cuenta de la plataforma:", error);
@@ -1189,6 +1435,21 @@
       }, error => {
         console.error("Falló la autenticación de Firebase:", error);
         message("loginMessage", "No se pudo comprobar tu sesión. Recarga la página e inténtalo de nuevo.");
+      });
+    }
+  </script>
+  <script src="toasts.js"></script>
+  <!-- Service Worker Registration - PWA Support -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+          .then((registration) => {
+            console.log('✅ Service Worker registered:', registration);
+          })
+          .catch((error) => {
+            console.warn('⚠️ Service Worker registration failed:', error);
+          });
       });
     }
   </script>

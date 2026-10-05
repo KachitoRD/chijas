@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Día 5 Demo: Toasts + CSS Variables | Fijas</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config={theme:{extend:{fontFamily:{sans:['"Plus Jakarta Sans"','system-ui','sans-serif']}}}}</script>
+  <style>
+    :root {
+      color-scheme: dark;
+      --color-primary: #10b981;
+      --color-primary-light: #6ee7b7;
+      --color-success: #22c55e;
+      --color-warning: #fb923c;
+      --color-danger: #ef4444;
+      --color-bg: #09090b;
+      --color-bg-light: #111114;
+      --color-text-primary: #f4f4f5;
+      --color-text-secondary: #a1a1aa;
+      --color-text-muted: #71717a;
+      --ease-out: cubic-bezier(.23, 1, .32, 1);
+    }
+    body { background: var(--color-bg); }
+    ::selection { color: var(--color-bg); background: var(--color-primary-light); }
+  </style>
+</head>
+<body class="font-sans text-zinc-100">
+  <div class="min-h-screen">
+    <!-- Header -->
+    <header class="border-b border-white/10 backdrop-blur-md">
+      <div class="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <h1 class="text-2xl font-bold">🎨 DÍA 5: Toasts + CSS Variables</h1>
+            <p class="text-sm text-zinc-400 mt-1">Global notifications + design tokens</p>
+          </div>
+          <a href="/" class="inline-flex px-4 py-2 rounded-lg border border-emerald-300/40 text-emerald-300 hover:bg-emerald-300/10">← Volver</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+      <!-- Toasts Section -->
+      <section class="mb-16">
+        <h2 class="text-2xl font-bold mb-6">Sistema de Notificaciones (Toasts)</h2>
+        <div class="grid gap-4 mb-8 sm:grid-cols-2">
+          <button onclick="window.toast.success('¡Perfil actualizado exitosamente!')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg transition">
+            Success Toast
+          </button>
+          <button onclick="window.toast.error('Oops, algo salió mal.')" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition">
+            Error Toast
+          </button>
+          <button onclick="window.toast.info('Sincronizando con servidor...')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition">
+            Info Toast
+          </button>
+          <button onclick="window.toast.warning('Revisa tu conexión.')" class="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded-lg transition">
+            Warning Toast
+          </button>
+        </div>
+        <p class="text-sm text-zinc-400 bg-zinc-900/50 p-4 rounded-lg">
+          <strong>Uso:</strong> <code>window.toast.success("Tu mensaje aquí")</code><br>
+          Métodos: <code>success(), error(), info(), warning()</code>
+        </p>
+      </section>
+
+      <!-- CSS Variables Section -->
+      <section class="mb-16">
+        <h2 class="text-2xl font-bold mb-6">Variables CSS Globales (:root)</h2>
+        <div class="grid gap-4 mb-8 sm:grid-cols-2 lg:grid-cols-4">
+          <div class="bg-white/5 border border-white/10 rounded-lg p-4">
+            <div class="h-12 rounded bg-emerald-500 mb-3"></div>
+            <p class="text-sm font-mono text-zinc-400">--color-primary</p>
+            <p class="font-semibold">#10b981</p>
+          </div>
+          <div class="bg-white/5 border border-white/10 rounded-lg p-4">
+            <div class="h-12 rounded bg-emerald-200 mb-3"></div>
+            <p class="text-sm font-mono text-zinc-400">--color-primary-light</p>
+            <p class="font-semibold">#6ee7b7</p>
+          </div>
+          <div class="bg-white/5 border border-white/10 rounded-lg p-4">
+            <div class="h-12 rounded bg-green-500 mb-3"></div>
+            <p class="text-sm font-mono text-zinc-400">--color-success</p>
+            <p class="font-semibold">#22c55e</p>
+          </div>
+          <div class="bg-white/5 border border-white/10 rounded-lg p-4">
+            <div class="h-12 rounded bg-orange-500 mb-3"></div>
+            <p class="text-sm font-mono text-zinc-400">--color-warning</p>
+            <p class="font-semibold">#fb923c</p>
+          </div>
+          <div class="bg-white/5 border border-white/10 rounded-lg p-4">
+            <div class="h-12 rounded bg-red-500 mb-3"></div>
+            <p class="text-sm font-mono text-zinc-400">--color-danger</p>
+            <p class="font-semibold">#ef4444</p>
+          </div>
+          <div class="bg-white/5 border border-white/10 rounded-lg p-4">
+            <div class="h-12 rounded bg-zinc-900 mb-3"></div>
+            <p class="text-sm font-mono text-zinc-400">--color-bg</p>
+            <p class="font-semibold">#09090b</p>
+          </div>
+          <div class="bg-white/5 border border-white/10 rounded-lg p-4">
+            <div class="h-12 rounded bg-zinc-800 mb-3"></div>
+            <p class="text-sm font-mono text-zinc-400">--color-bg-light</p>
+            <p class="font-semibold">#111114</p>
+          </div>
+          <div class="bg-white/5 border border-white/10 rounded-lg p-4">
+            <p class="text-sm font-mono text-zinc-400 mb-2">--ease-out</p>
+            <p class="font-semibold text-xs">cubic-bezier(.23, 1, .32, 1)</p>
+          </div>
+        </div>
+        <div class="bg-zinc-900/50 p-4 rounded-lg border border-white/10">
+          <p class="text-sm text-zinc-400 mb-2"><strong>En CSS:</strong></p>
+          <code class="text-xs text-emerald-300">background: var(--color-primary);</code><br>
+          <code class="text-xs text-emerald-300">color: var(--color-text-primary);</code><br>
+          <code class="text-xs text-emerald-300">transition: 300ms var(--ease-out);</code>
+        </div>
+      </section>
+
+      <!-- Summary -->
+      <section class="bg-white/5 border border-white/10 rounded-xl p-8">
+        <h2 class="text-2xl font-bold mb-6 text-emerald-200">✓ DÍA 5 COMPLETADO</h2>
+        <div class="space-y-4 text-sm text-zinc-300">
+          <div>
+            <h3 class="font-bold text-lg mb-2">📢 Sistema de Toasts</h3>
+            <ul class="list-disc list-inside space-y-1 text-xs text-zinc-400">
+              <li>Librería local: <code>toasts.js</code> (sin CDN externo)</li>
+              <li>4 métodos: <code>success(), error(), info(), warning()</code></li>
+              <li>Animaciones suaves: slideIn (300ms) + slideOut (300ms)</li>
+              <li>Duración configurable (default: 3500ms)</li>
+              <li>Posición: bottom-right con z-index 99999</li>
+            </ul>
+          </div>
+          <div>
+            <h3 class="font-bold text-lg mb-2">🎨 CSS Variables</h3>
+            <ul class="list-disc list-inside space-y-1 text-xs text-zinc-400">
+              <li>12 variables semánticas en :root</li>
+              <li>Colores: primary, success, warning, danger, bg, text</li>
+              <li>Easing: --ease-out (cubic-bezier custom)</li>
+              <li>Fácil mantenimiento y tematización futura</li>
+            </ul>
+          </div>
+          <div>
+            <h3 class="font-bold text-lg mb-2">✨ Beneficios</h3>
+            <ul class="list-disc list-inside space-y-1 text-xs text-zinc-400">
+              <li>Feedback inmediato a usuarios</li>
+              <li>Consistencia visual global</li>
+              <li>Reutilización de tokens en todo el proyecto</li>
+              <li>Dark mode ready (colores predefinidos)</li>
+            </ul>
+          </div>
+        </div>
+        <div class="mt-8 pt-8 border-t border-white/10">
+          <h3 class="font-bold text-lg mb-3">📊 Estado del MVP</h3>
+          <div class="space-y-2 text-sm">
+            <p>✅ Día 1-2: Hero gradient + Glassmorphism profiles</p>
+            <p>✅ Día 3: Premium buttons (emerald gradient)</p>
+            <p>✅ Día 4: Admin dashboard cards + badges</p>
+            <p>✅ Día 5: Toast notifications + CSS variables</p>
+            <p class="mt-4 text-emerald-300 font-bold">🚀 LISTO PARA LANZAMIENTO</p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="toasts.js"></script>
+</body>
+</html>

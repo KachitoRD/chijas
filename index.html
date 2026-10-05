@@ -5,15 +5,33 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#09090b">
   <meta name="description" content="Encuentra tipsters activos, consulta sus apuestas y revisa sus resultados.">
+  <meta property="og:title" content="Fijas en Vivo - Tipsters Profesionales">
+  <meta property="og:description" content="Encuentra tipsters activos, consulta sus apuestas y revisa los resultados publicados en tiempo real.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://fijas.app/">
+  <meta property="og:image" content="https://fijas.app/og-image.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Fijas en Vivo - Tipsters Profesionales">
+  <meta name="twitter:description" content="Encuentra tipsters activos, consulta sus apuestas y revisa los resultados.">
+  <meta name="twitter:image" content="https://fijas.app/og-image.png">
   <title>Tipsters en vivo | Fijas</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>tailwind.config={theme:{extend:{fontFamily:{sans:['"Plus Jakarta Sans"','system-ui','sans-serif']}}}}</script>
+  <link rel="stylesheet" href="dist/styles.min.css">
   <style>
     :root {
       color-scheme: dark;
+      --color-primary: #10b981;
+      --color-primary-light: #6ee7b7;
+      --color-success: #22c55e;
+      --color-warning: #fb923c;
+      --color-danger: #ef4444;
+      --color-bg: #09090b;
+      --color-bg-light: #111114;
+      --color-text-primary: #f4f4f5;
+      --color-text-secondary: #a1a1aa;
+      --color-text-muted: #71717a;
       --ease-out: cubic-bezier(.23, 1, .32, 1);
     }
     html { scroll-behavior: smooth; }
@@ -28,16 +46,146 @@
     .profile-card:nth-child(2) { animation-delay: 35ms; }
     .profile-card:nth-child(3) { animation-delay: 70ms; }
     .profile-card:nth-child(4) { animation-delay: 105ms; }
-    .skeleton { background: linear-gradient(100deg, #18181b 30%, #27272a 45%, #18181b 60%); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; }
+    .skeleton { 
+      background: linear-gradient(100deg, #18181b 30%, #27272a 45%, #18181b 60%); 
+      background-size: 200% 100%; 
+      animation: shimmer 1.8s ease-in-out infinite;
+      border-radius: 8px;
+    }
     @keyframes reveal { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
     @keyframes shimmer { to { background-position: -200% 0; } }
+    @keyframes gradient-shift {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+    .hero-gradient {
+      background: linear-gradient(135deg, #a7f3d0, #86efac, #67e8f9);
+      background-size: 300% 300%;
+      animation: gradient-shift 4s ease infinite;
+      background-clip: text;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .search-input {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(8px);
+      transition: all 200ms var(--ease-out);
+    }
+    .search-input:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(110, 231, 183, 0.4);
+    }
+    .search-input:focus {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(110, 231, 183, 0.6);
+      box-shadow: 0 0 0 3px rgba(110, 231, 183, 0.12);
+      animation: pulse-glow 2s ease-in-out infinite;
+    }
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 0 3px rgba(110, 231, 183, 0.12); }
+      50% { box-shadow: 0 0 0 6px rgba(110, 231, 183, 0.08); }
+    }
+    .profile-card {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(110, 231, 183, 0.2);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      transition: all 300ms var(--ease-out);
+    }
+    .skeleton-card {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(110, 231, 183, 0.2);
+      backdrop-filter: blur(10px);
+      border-radius: 1rem;
+      padding: 0.875rem;
+      min-width: 0;
+      overflow: hidden;
+    }
+    .skeleton-card:nth-child(2) { animation-delay: 35ms; }
+    .skeleton-card:nth-child(3) { animation-delay: 70ms; }
+    .skeleton-card:nth-child(4) { animation-delay: 105ms; }
+    .avatar-ring {
+      border: 2px solid rgba(110, 231, 183, 0.3);
+      box-shadow: 0 0 20px rgba(110, 231, 183, 0.2);
+      transition: all 300ms var(--ease-out);
+    }
+    .badge-status {
+      background: rgba(110, 231, 183, 0.2);
+      border: 1px solid rgba(110, 231, 183, 0.4);
+      animation: pulse-glow 2s ease-in-out infinite;
+    }
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
     @media (hover: hover) and (pointer: fine) {
-      .profile-card:hover { transform: translateY(-2px); border-color: rgb(110 231 183 / .36); }
+      .profile-card:hover {
+        background: rgba(255, 255, 255, 0.12);
+        border-color: rgba(110, 231, 183, 0.4);
+        transform: translateY(-4px);
+        box-shadow: 0 12px 48px rgba(110, 231, 183, 0.15);
+      }
+      .avatar-ring:hover {
+        box-shadow: 0 0 30px rgba(110, 231, 183, 0.4);
+        border-color: rgba(110, 231, 183, 0.5);
+      }
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
     }
+    /* DÍA 3: BUTTON PREMIUM STYLES */
+    .btn-primary {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: #09090b;
+      box-shadow: 0 10px 25px rgba(16, 185, 129, 0.2);
+      transition: all 300ms var(--ease-out);
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-primary::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,.1) 0%, transparent 100%);
+      opacity: 0;
+      transition: opacity 300ms var(--ease-out);
+    }
+    @media (hover: hover) and (pointer: fine) {
+      .btn-primary:hover {
+        background: linear-gradient(135deg, #059669 0%, #047857 100%);
+        box-shadow: 0 15px 40px rgba(16, 185, 129, 0.35);
+        transform: translateY(-2px);
+      }
+      .btn-primary:hover::before {
+        opacity: 1;
+      }
+    }
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(110, 231, 183, 0.3);
+      color: #e4e4e7;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+      transition: all 300ms var(--ease-out);
+    }
+    @media (hover: hover) and (pointer: fine) {
+      .btn-secondary:hover {
+        background: rgba(255, 255, 255, 0.12);
+        border-color: rgba(110, 231, 183, 0.5);
+        box-shadow: 0 8px 32px rgba(110, 231, 183, 0.15);
+        transform: translateY(-1px);
+        color: #ecfdf5;
+      }
+    }
+    .btn-secondary:active {
+      transform: translateY(0);
+    }
   </style>
+  <!-- Plausible Analytics - Core Web Vitals Monitoring -->
+  <script defer data-domain="fijas.app" src="https://plausible.io/js/script.js"></script>
 </head>
 <body class="min-h-[100dvh] font-sans text-zinc-100 antialiased">
   <div id="firebaseSetup" class="hidden border-b border-amber-300/20 bg-amber-300/[.07] px-4 py-3 text-sm text-amber-100" role="status">
@@ -57,12 +205,21 @@
   <main class="mx-auto max-w-6xl px-4 pb-20 pt-9 sm:px-6 sm:pt-14">
     <section class="grid items-end gap-6 border-b border-white/[.08] pb-8 md:grid-cols-[minmax(0,1fr)_minmax(250px,360px)] md:gap-10 md:pb-10">
       <div>
-        <h1 class="max-w-3xl text-4xl font-extrabold leading-[1.08] tracking-[-.035em] sm:text-5xl">Encuentra a quien seguir.</h1>
-        <p class="mt-4 max-w-xl text-sm leading-6 text-zinc-400 sm:text-base">Explora perfiles activos, revisa sus pronósticos y consulta los resultados publicados.</p>
+        <div class="mb-4 inline-block">
+          <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-300/10 text-emerald-200 border border-emerald-300/30">
+            <span class="h-1.5 w-1.5 rounded-full bg-emerald-300"></span>
+            Explora Directorio
+          </span>
+        </div>
+        <h1 class="max-w-2xl hero-gradient text-4xl font-extrabold leading-[1.15] tracking-tight sm:text-5xl sm:leading-[1.15]">Encuentra a quien seguir.</h1>
+        <p class="mt-10 max-w-2xl text-base leading-7 text-zinc-300 sm:text-lg sm:leading-8">Explora <span class="font-semibold text-emerald-200">perfiles activos</span>, revisa sus <span class="font-semibold text-emerald-200">pronósticos</span> y consulta los <span class="font-semibold text-emerald-200">resultados</span> publicados.</p>
       </div>
       <div class="w-full">
         <label for="searchTipsters" class="mb-2 block text-sm font-medium text-zinc-300">Buscar en el directorio</label>
-        <input id="searchTipsters" type="search" autocomplete="off" placeholder="Nombre o @usuario" class="control min-h-11 w-full rounded-xl border border-white/10 bg-[#121215] px-3.5 text-sm text-zinc-100 placeholder:text-zinc-400 hover:border-white/20 focus:border-emerald-300/60 focus:outline-none">
+        <div class="search-container relative">
+          <span class="search-icon absolute left-3.5 top-1/2 transform -translate-y-1/2 text-zinc-500 pointer-events-none">🔍</span>
+          <input id="searchTipsters" type="search" autocomplete="off" placeholder="Busca un tipster..." class="search-input control min-h-11 w-full rounded-xl border border-emerald-300/20 px-4 pl-10 text-sm text-zinc-100 placeholder:text-zinc-500 hover:border-emerald-300/40 focus:border-emerald-300/60 focus:outline-none">
+        </div>
         <p class="mt-3 flex items-center gap-2 text-sm text-zinc-400"><span id="onlineIndicator" class="h-2 w-2 shrink-0 rounded-full bg-zinc-600" aria-hidden="true"></span><strong id="onlineCount" class="font-bold tabular-nums text-zinc-100">--</strong> tipsters conectados</p>
       </div>
     </section>
@@ -76,7 +233,31 @@
         <span class="hidden text-xs font-medium text-zinc-500 sm:block">Hasta 20 perfiles</span>
       </div>
       <div id="onlineGrid" class="grid grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-3 sm:gap-x-5 sm:gap-y-6 lg:grid-cols-4 xl:grid-cols-5" aria-live="polite" aria-busy="true">
-        <div class="skeleton h-[190px] rounded-2xl"></div><div class="skeleton h-[190px] rounded-2xl"></div><div class="skeleton h-[190px] rounded-2xl"></div><div class="skeleton h-[190px] rounded-2xl"></div><div class="skeleton hidden h-[190px] rounded-2xl xl:block"></div>
+        <div class="skeleton-card">
+          <div class="skeleton h-24 mb-3"></div>
+          <div class="skeleton h-3 w-3/4 mb-2"></div>
+          <div class="skeleton h-2 w-1/2"></div>
+        </div>
+        <div class="skeleton-card">
+          <div class="skeleton h-24 mb-3"></div>
+          <div class="skeleton h-3 w-3/4 mb-2"></div>
+          <div class="skeleton h-2 w-1/2"></div>
+        </div>
+        <div class="skeleton-card">
+          <div class="skeleton h-24 mb-3"></div>
+          <div class="skeleton h-3 w-3/4 mb-2"></div>
+          <div class="skeleton h-2 w-1/2"></div>
+        </div>
+        <div class="skeleton-card">
+          <div class="skeleton h-24 mb-3"></div>
+          <div class="skeleton h-3 w-3/4 mb-2"></div>
+          <div class="skeleton h-2 w-1/2"></div>
+        </div>
+        <div class="skeleton-card hidden xl:block">
+          <div class="skeleton h-24 mb-3"></div>
+          <div class="skeleton h-3 w-3/4 mb-2"></div>
+          <div class="skeleton h-2 w-1/2"></div>
+        </div>
       </div>
     </section>
 
@@ -149,6 +330,8 @@
       anulada: ["Anulada", "border-zinc-300/10 bg-white/[.04] text-zinc-300"]
     };
     let db, profiles = [], selectedProfile = null, profilePicks = [], selectedFilter = "todas", stopPicks = null, routeUsername = null, profileRenderKey = "", onlineRenderKey = "", directoryRenderKey = "";
+    const presenceUnsubs = new Map();
+    const presenceData = new Map();
 
     function showError(message) {
       $("onlineGrid").setAttribute("aria-busy", "false");
@@ -221,19 +404,22 @@
       const grid = $("onlineGrid");
       grid.replaceChildren();
       if (!online.length) {
-        const empty = createElement("div", "col-span-full rounded-xl border border-dashed border-white/[.12] px-5 py-8 text-center");
+        const empty = createElement("div", "col-span-full rounded-xl border border-dashed border-emerald-300/20 bg-emerald-300/[.05] px-5 py-12 text-center");
+        const icon = createElement("div", "inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-300/10 mb-4");
+        icon.innerHTML = '<svg class="h-7 w-7 text-emerald-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>';
         empty.append(
-          createElement("p", "text-sm font-medium text-zinc-300", "No hay tipsters conectados en este momento."),
-          createElement("p", "mt-1.5 text-sm text-zinc-500", "Busca a alguien en el directorio o vuelve más tarde.")
+          icon,
+          createElement("p", "text-sm font-semibold text-zinc-300", "No hay tipsters conectados"),
+          createElement("p", "mt-1.5 text-xs text-zinc-500", "Vuelve más tarde o explora el directorio completo")
         );
         grid.append(empty);
         return;
       }
       for (const profile of online) {
-        const link = createElement("a", "profile-card control group min-w-0 overflow-hidden rounded-2xl border border-white/[.08] bg-[#111114] p-3.5 sm:p-4");
+        const link = createElement("a", "profile-card control group min-w-0 overflow-hidden rounded-2xl border border-emerald-300/20 bg-white/[.08] backdrop-blur-md p-3.5 sm:p-4");
         link.href = profileHref(profile);
         link.dataset.username = profile.username || "";
-        const imageFrame = createElement("div", "relative mb-3 aspect-[4/3] overflow-hidden rounded-xl bg-zinc-900");
+        const imageFrame = createElement("div", "avatar-ring relative mb-3 aspect-[4/3] overflow-hidden rounded-xl bg-gradient-to-br from-emerald-300/20 to-emerald-300/5");
         imageFrame.append(createElement("div", "absolute inset-0 grid place-items-center text-4xl font-bold text-emerald-100", (profile.nombre_publico || profile.username || "T").trim().charAt(0).toUpperCase()));
         const avatar = safeImageSource(profile.avatar_url, IMAGE_DATA_LIMITS.avatar);
         if (avatar) {
@@ -247,7 +433,7 @@
           image.addEventListener("error", () => image.remove(), { once: true });
           imageFrame.append(image);
         }
-        const onlineBadge = createElement("span", "absolute bottom-2.5 left-2.5 inline-flex items-center gap-1.5 rounded-full border border-black/20 bg-[#09090b]/90 px-2.5 py-1 text-[11px] font-semibold text-emerald-100", "En plataforma");
+        const onlineBadge = createElement("span", "badge-status absolute bottom-2.5 left-2.5 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold text-emerald-200", "En plataforma");
         onlineBadge.prepend(createElement("span", "h-1.5 w-1.5 rounded-full bg-emerald-300"));
         imageFrame.append(onlineBadge);
         link.append(
@@ -450,10 +636,45 @@
     function subscribeToProfiles() {
       onSnapshot(query(collection(db, "perfiles"), where("tipster_status", "==", "approved")), async snapshot => {
         try {
+          const activeIds = new Set(snapshot.docs.map(item => item.id));
+          for (const [uid, unsubscribe] of presenceUnsubs) {
+            if (!activeIds.has(uid)) {
+              unsubscribe();
+              presenceUnsubs.delete(uid);
+              presenceData.delete(uid);
+            }
+          }
           profiles = await Promise.all(snapshot.docs.map(async item => {
             const socialSnapshot = await getDoc(doc(db, "perfiles_social", item.id));
-            return { id: item.id, ...item.data(), ...(socialSnapshot.exists() ? socialSnapshot.data() : {}) };
+            return {
+              id: item.id,
+              ...item.data(),
+              ...(socialSnapshot.exists() ? socialSnapshot.data() : {}),
+              ...(presenceData.get(item.id) || { is_online: false, last_active_at: null })
+            };
           }));
+          for (const item of snapshot.docs) {
+            if (presenceUnsubs.has(item.id)) continue;
+            presenceUnsubs.set(item.id, onSnapshot(doc(db, "presencia", item.id), presenceSnapshot => {
+              const profile = profiles.find(candidate => candidate.id === item.id);
+              if (!profile) return;
+              const currentPresence = presenceSnapshot.exists()
+                ? presenceSnapshot.data()
+                : { is_online: false, last_active_at: null };
+              presenceData.set(item.id, currentPresence);
+              Object.assign(profile, currentPresence);
+              renderOnline();
+              renderDirectory();
+              if (selectedProfile?.id === item.id) {
+                selectedProfile = profile;
+                const online = profileOnline(profile);
+                $("profilePresence").classList.toggle("hidden", !online);
+                $("profilePresence").classList.toggle("inline-flex", online);
+              }
+            }, error => {
+              console.error("No se pudo cargar la presencia del tipster:", error);
+            }));
+          }
           renderOnline();
           renderDirectory();
           if (routeUsername) {
@@ -541,6 +762,21 @@
       db = firebaseDb;
       routeUsername = new URLSearchParams(location.search).get("u");
       subscribeToProfiles();
+    }
+  </script>
+  <script src="toasts.js"></script>
+  <!-- Service Worker Registration - PWA Support -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+          .then((registration) => {
+            console.log('✅ Service Worker registered:', registration);
+          })
+          .catch((error) => {
+            console.warn('⚠️ Service Worker registration failed:', error);
+          });
+      });
     }
   </script>
 </body>
