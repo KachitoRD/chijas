@@ -1,4 +1,4 @@
-﻿import { createConnection } from "node:net";
+import { createConnection } from "node:net";
 import { randomUUID } from "node:crypto";
 import {
   deleteApp,
