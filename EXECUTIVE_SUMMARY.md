@@ -27,7 +27,8 @@ herramientas de desarrollo, no dependencias servidas al usuario.
 - OBS: overlay publico del tipster, actualizado desde Firestore.
 - UI compartida: modales nativos con backdrop seguro, skeletons, estados de carga,
   campos translucidos, foco accesible, responsive y movimiento reducido.
-  Gradiente neon limitado al hero y tres enfasis del frontpage.
+  Gradiente neon animado (esmeralda/lima/cyan, ciclo de 4 s) limitado al hero
+  y tres enfasis del frontpage; estatico con movimiento reducido.
 
 ## Datos y permisos
 

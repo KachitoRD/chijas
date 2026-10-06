@@ -235,15 +235,20 @@
   <style>
     .ui-app.frontpage :is(.hero-gradient, .frontpage-accent) {
       color: #a7f3d0;
-      background: linear-gradient(110deg, #a7f3d0, #86efac 30%, #67e8f9 65%, #e9d5ff);
+      background: linear-gradient(110deg, #a7f3d0 0%, #34d399 20%, #bef264 40%, #67e8f9 60%, #6ee7b7 80%, #a7f3d0 100%);
+      background-size: 220% 100%;
       background-clip: text;
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
-      animation: none;
+      animation: gradient-shift 4s ease-in-out infinite;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .ui-app.frontpage :is(.hero-gradient, .frontpage-accent) { animation: none; }
     }
     @media (forced-colors: active) {
       .ui-app.frontpage :is(.hero-gradient, .frontpage-accent) {
         background: none;
+        animation: none;
         color: CanvasText;
         -webkit-text-fill-color: currentColor;
       }

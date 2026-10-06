@@ -7,9 +7,21 @@ test("gradiente neon solo en el hero y énfasis del frontpage", async ({ page })
   const hero = page.locator(".hero-gradient");
   await expect(hero).toHaveCSS("background-image", /linear-gradient/);
   await expect(hero).toHaveCSS("-webkit-text-fill-color", "rgba(0, 0, 0, 0)");
+  for (const accent of [hero, page.locator(".frontpage-accent").first()]) {
+    await expect(accent).toHaveCSS("animation-name", "gradient-shift");
+    await expect(accent).toHaveCSS("animation-duration", "4s");
+    const position = await accent.evaluate(element => getComputedStyle(element).backgroundPosition);
+    await expect.poll(() => accent.evaluate(element => getComputedStyle(element).backgroundPosition)).not.toBe(position);
+  }
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(hero).toHaveCSS("animation-name", "none");
+  await expect(page.locator(".frontpage-accent").first()).toHaveCSS("animation-name", "none");
+  await expect(hero).toHaveCSS("background-image", /linear-gradient/);
+  await page.emulateMedia({ reducedMotion: "no-preference" });
   await expect(page.locator("#onlineTitle")).toHaveCSS("background-image", "none");
   await page.emulateMedia({ forcedColors: "active" });
   await expect(hero).toHaveCSS("background-image", "none");
+  await expect(hero).toHaveCSS("animation-name", "none");
   const visibleText = await hero.evaluate(element => getComputedStyle(element).webkitTextFillColor);
   expect(visibleText).not.toBe("rgba(0, 0, 0, 0)");
   await page.emulateMedia({ forcedColors: "none" });
