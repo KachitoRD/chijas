@@ -116,6 +116,36 @@ test("owner usa Google alternativo sin conceder permisos administrativos", async
   await expect(page.locator("#ownerDashboard")).toBeHidden();
 });
 
+for (const provider of ["google", "password"]) {
+  test(`inicio redirige al owner autorizado con ${provider} y al restaurar sesión`, async ({ page, request }) => {
+    const provisioned = await request.patch(`${firestoreRoot}/platformAdmins/${account.localId}`, {
+      headers: { Authorization: "Bearer owner" }, data: { fields: { enabled: { booleanValue: true } } }
+    });
+    expect(provisioned.ok()).toBeTruthy();
+    if (provider === "google") {
+      await mockGooglePopup(page, { subject: `google-${account.localId}`, email: account.email, name: "Creador autorizado" });
+    }
+    await page.goto("/");
+    await page.locator("#viewerLogin").click();
+    if (provider === "google") {
+      await page.locator("#viewerAuthGoogle").click();
+    } else {
+      await page.locator("#viewerAuthEmail").fill(account.email);
+      await page.locator("#viewerAuthPassword").fill(password);
+      await page.locator("#viewerAuthSubmit").click();
+    }
+    await expect(page).toHaveURL(/\/owner\.html$/);
+    await expect(page.locator("#ownerDashboard")).toBeVisible();
+    await page.goto("/");
+    await expect(page).toHaveURL(/\/owner\.html$/);
+    await expect(page.locator("#ownerDashboard")).toBeVisible();
+    const viewerProfile = await request.get(`${firestoreRoot}/users/${account.localId}`, {
+      headers: { Authorization: "Bearer owner" }
+    });
+    expect(viewerProfile.status()).toBe(404);
+  });
+}
+
 test("owner con autorización conserva login por contraseña", async ({ page, request }, testInfo) => {
   test.setTimeout(60_000);
   await request.patch(`${firestoreRoot}/platformAdmins/${account.localId}`, {

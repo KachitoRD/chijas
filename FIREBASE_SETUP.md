@@ -44,6 +44,8 @@ Para inspeccionar las interacciones en un navegador visible: `npm run test:visua
 4. Abre [owner.html](http://localhost:4173/owner.html) e inicia sesión con las credenciales de la cuenta creadora. La cuenta administrativa verificada y autorizada está exenta de la aceptación de usuario final; el consentimiento sigue siendo obligatorio para las cuentas de lectores y tipsters. Si hay otra cuenta iniciada, cierra esa sesión desde el panel de creador antes de entrar.
 5. La cuenta creadora tiene su propio acceso al dashboard; al usarla en el acceso tipster/lector, la aplicación la redirige al panel de creador.
 
+La redirección desde el inicio se comprueba antes de crear el perfil viewer, tanto con Google como con correo/contraseña y al restaurar una sesión. La autorización depende del UID autenticado en `platformAdmins/{UID}.enabled == true`, no del correo ni del campo `users.role`. Si Google entra sin permisos de creador, comprueba en **Authentication > Users** que el UID de esa sesión coincide con el documento administrativo; habilitar Google no concede permisos por sí solo.
+
 El panel incluye solicitudes pendientes y una lista de tipsters aprobados o revocados. Desde esa lista puedes revocar o restaurar el permiso de publicación. No enumera todas las cuentas de Firebase: para usuarios que nunca hayan solicitado acceso y para nombrar a otros creadores, usa Firebase Console.
 
 ## Widget de pronósticos para OBS

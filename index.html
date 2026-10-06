@@ -460,6 +460,7 @@
     const presenceData = new Map();
     let profileSnapshotGeneration = 0;
     let viewer = null, authReady = false, viewerReady = false, viewerAcceptedTerms = false, viewerGeneration = 0;
+    let viewerAdminCheck = Promise.resolve(false);
     let stopFollows = null, stopFollowingFeed = null, feedKey = "", feedGeneration = 0, activeFeed = "explore";
     let followedIds = new Set(), followsReady = false, followingPicks = [], consentResolver = null;
     const optimisticFollows = new Map();
@@ -588,7 +589,11 @@
       try {
         const user = viewer || await openViewerAccess();
         if (!user) return;
-        if (!viewerReady) await ensureViewer(user);
+        if (!viewerReady) {
+          if (await viewerAdminCheck) return;
+          if (firebaseAuth.currentUser?.uid !== user.uid) return;
+          await ensureViewer(user);
+        }
         if (firebaseAuth.currentUser?.uid !== user.uid) return;
         if (!followsReady) {
           const follow = await getDoc(doc(db, "follows", `${user.uid}_${tipsterId}`));
@@ -688,6 +693,7 @@
       stopFollows = null;
       viewer = user;
       authReady = true;
+      viewerAdminCheck = Promise.resolve(false);
       viewerReady = false;
       viewerAcceptedTerms = false;
       followsReady = !user;
@@ -709,6 +715,14 @@
         return;
       }
       try {
+        viewerAdminCheck = getDoc(doc(db, "platformAdmins", user.uid))
+          .then(admin => admin.exists() && admin.data().enabled === true);
+        const isAdmin = await viewerAdminCheck;
+        if (generation !== viewerGeneration) return;
+        if (isAdmin) {
+          window.location.replace("owner.html");
+          return;
+        }
         const [, acceptance] = await Promise.all([
           ensureViewer(user),
           getDoc(doc(db, "legalAcceptances", user.uid, "versions", TERMS_VERSION))
