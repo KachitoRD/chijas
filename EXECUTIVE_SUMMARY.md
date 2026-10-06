@@ -1,7 +1,7 @@
 # Fijas en vivo - Resumen ejecutivo tecnico
 
-Actualizado: 2026-10-05. Fase: cierre del MVP y pre-deploy de esta version.
-El resultado del despliegue se verifica en Firebase; este documento no lo da por realizado.
+Actualizado: 2026-10-05. Fase: cierre del MVP, despliegue tecnico y verificacion HTTPS.
+Hosting, reglas e indices publicados en `chijas`; sitio: https://chijas.web.app.
 
 ## Arquitectura
 
@@ -53,6 +53,7 @@ misma operacion atomica y bloquean suplantacion y escalada de roles.
 - Live Preview integrado por HTTP. El servidor alternativo sin cache requiere
   recarga manual. `npm run test:visual:seeded` ejecuta el recorrido grafico.
 - Hosting excluye tests, seeds, logs, informes, demos, documentos y tooling.
+  Las carpetas ocultas y sus descendientes tambien quedan excluidos.
   Se conservan los tests fuente; los artefactos generados son desechables.
 - Release: `firebase deploy --only firestore:rules,firestore:indexes,hosting --project chijas`.
 
