@@ -5,13 +5,13 @@ $freed = @()
 foreach ($port in $ports) {
     $processes = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique
     if ($processes) {
-        foreach ($pid in $processes) {
+        foreach ($procId in $processes) {
             try {
-                Stop-Process -Id $pid -Force
+                Stop-Process -Id $procId -Force
                 $freed += $port
-                Write-Host "✓ Liberado puerto $port (PID: $pid)"
+                Write-Host "✓ Liberado puerto $port (PID: $procId)"
             } catch {
-                Write-Host "⚠ No se pudo liberar puerto $port (PID: $pid): $_"
+                Write-Host "⚠ No se pudo liberar puerto $port (PID: $procId): $_"
             }
         }
     }
