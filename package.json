@@ -6,7 +6,9 @@
     "lint": "eslint . --ext .js,.html",
     "dev": "powershell -ExecutionPolicy Bypass -File scripts/dev.ps1",
     "seed": "node tests/seed.js",
-    "build:css": "node build-css.js"
+    "build:css": "node build-css.js",
+    "test:visual": "playwright test auth-access.spec.js community.spec.js ui-polish.spec.js --project=chromium --headed --workers=1",
+    "test:visual:seeded": "playwright test --config=playwright.visual.config.js --project=visual-seeded"
   },
   "devDependencies": {
     "@napi-rs/canvas": "^0.1.80",

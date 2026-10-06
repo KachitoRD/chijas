@@ -1,0 +1,63 @@
+:is(#viewerAuth, #viewerConsent, #loginForm, #legalAcceptanceForm, #creatorLogin) {
+  border: 1px solid rgb(255 255 255 / .1);
+  background: rgb(14 27 23 / .88);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+#viewerAuth {
+  width: min(440px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  padding: 28px;
+  border-radius: 16px;
+  color: #f4f4f5;
+}
+#viewerAuth::backdrop, .auth-panel-dialog::backdrop {
+  background: rgb(0 0 0 / .58);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.ui-app .auth-panel-dialog {
+  width: min(440px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #f4f4f5;
+  overflow-y: auto;
+}
+.ui-app .auth-panel-dialog #loginForm { max-width: none; }
+.ui-app #loginView.hidden:has(#tipsterAuth[open]),
+.ui-app #ownerAuth[open] #creatorLogin.hidden { display: block; }
+.auth-panel-preview {
+  position: fixed;
+  inset: 0;
+  padding: 100px max(24px, calc((100vw - 1104px) / 2));
+  background: #080e0c;
+  pointer-events: none;
+}
+.auth-panel-preview[hidden] { display: none; }
+.auth-panel-preview h1 { font-size: 28px; font-weight: 700; }
+.auth-preview-tabs { display: flex; gap: 32px; margin: 28px 0; color: #a7f3d0; }
+.auth-preview-panel { padding: 24px; border: 1px solid rgb(255 255 255 / .1); border-radius: 16px; background: #0e1b17; }
+.auth-preview-line { height: 44px; margin-block: 16px; border-radius: 8px; background: #1c3027; }
+.auth-preview-line:nth-child(even) { width: 65%; }
+#viewerAuth label { margin-top: 18px; }
+#viewerAuth fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+#viewerAuth label:has(input[type="checkbox"]) { display: flex; align-items: flex-start; gap: 10px; line-height: 1.6; }
+#viewerAuth input[type="checkbox"] { margin-top: 5px; accent-color: #6ee7b7; flex-shrink: 0; }
+#viewerAuth a { color: #a7f3d0; text-decoration: underline; text-underline-offset: 3px; }
+.auth-actions { display: flex; flex-direction: column; gap: 12px; margin-top: 20px; }
+:is(#viewerAuth, #viewerConsent, #loginForm, #creatorLogin) button {
+  display: inline-flex; align-items: center; justify-content: center; text-align: center;
+  min-height: 44px;
+}
+.auth-button { padding: 10px 16px; border: 1px solid rgb(255 255 255 / .1); border-radius: 12px; font-size: 14px; font-weight: 600; color: #f4f4f5; }
+.auth-button-primary { background: #6ee7b7; color: #052e23; }
+.auth-button:disabled { opacity: .6; cursor: wait; }
+.auth-message { font-size: 14px; line-height: 1.6; color: #fda4af; margin-top: 16px; }
+.auth-message:empty { display: none; }
+.auth-success { color: #a7f3d0; }
+#viewerAuth :focus-visible { outline: 2px solid #6ee7b7; outline-offset: 3px; }
+@media (max-width: 480px) { #viewerAuth { padding: 22px; } }

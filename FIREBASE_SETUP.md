@@ -1,10 +1,29 @@
 # Firebase en el plan gratuito
 
-La aplicación usa Firebase Authentication y Cloud Firestore desde el navegador. No usa Firebase Storage ni Cloud Functions; `firebase.json` solo configura Firestore, así que el despliegue indicado no requiere activar Blaze ni asociar una tarjeta.
+La aplicación usa Firebase Authentication y Cloud Firestore desde el navegador. No usa Firebase Storage ni Cloud Functions; `firebase.json` configura Hosting, Firestore y emuladores locales, sin requerir activar Blaze ni asociar una tarjeta para estos servicios.
 
 ## Configuración inicial
 
+### Validación antes de publicar
+
+Ejecuta `npx playwright test auth-access.spec.js community.spec.js ui-polish.spec.js --workers=1` contra los emuladores activos y revisa `git diff --check` junto con los archivos nuevos de `git status --short`. El Hosting excluye tests, seeds, scripts de desarrollo, configuraciones de tooling, logs, informes y demos; las páginas principales, módulos de aplicación y estilos siguen publicados. No uses el seed anterior que vacía los emuladores para este recorrido.
+
+Tras revisar el diff y completar los datos legales, publica reglas, índices y Hosting juntos mediante `firebase deploy --only firestore:rules,firestore:indexes,hosting --project chijas`. El despliegue requiere aprobación explícita; las pruebas locales no sustituyen la comprobación posterior en HTTPS de login, permisos Owner, follows, publicación y OBS. Las cuentas locales no existen automáticamente en producción.
+
+### Previsualización y revisión visual local
+
+Para el recorrido visual con cuentas persistentes de prueba, ejecuta `npm run test:visual:seeded`. La dependencia `seed-emulators` se ejecuta antes del navegador: crea o actualiza `viewer_test@fijasenvivo.local`, `tipster_test@fijasenvivo.local` y `owner_test@fijasenvivo.local` con contraseña local `Test123456!` y correo verificado. Es exclusiva de Auth 9099 y Firestore 8080 del proyecto `demo-fijas-vivo`; no borra los emuladores. El tipster se aprueba en `perfiles` y el owner se habilita en `platformAdmins`, sin cambiar las reglas de producción. Los roles sembrados en `users` son metadatos de fixture, no la fuente de autorización. Chromium abre con `headless: false` y `slowMo: 1000`; el recorrido valida modales, follows/contador, publicación/feed, OBS sin sesión y métricas owner. Conserva las cuentas y limpia solo su nueva fija y restaura el seguimiento previo. No ejecutes dos recorridos simultáneos con estas mismas cuentas.
+
+Los accesos de viewer, tipster y creador usan diálogos nativos con backdrop difuminado. En los paneles, el fondo es una estructura estática sin datos privados: las consultas protegidas siguen dependiendo de la sesión y los permisos. El clic exterior o Escape solo cierran si todos los campos están vacíos y no hay una operación pendiente; en tipster/creador vuelven al inicio. El cierre tras autenticar usa un desvanecimiento de 180 ms, inmediato con movimiento reducido. El registro de tipsters conserva la verificación y el consentimiento; el acceso owner no permite crear ni conceder permisos administrativos.
+
+Mantén Auth (9099) y Firestore (8080) activos y sirve la raíz del proyecto desde Live Preview o Live Server por HTTP. Los estilos compartidos `ui-polish.css` y `auth-styles.css` se cargan directamente: guardar CSS o JavaScript no requiere compilación. Si cambias utilidades Tailwind, ejecuta `npm run build:css`; el servidor debe servir archivos sin caché para mostrar el CSS generado inmediatamente.
+
+Los campos, etiquetas, bordes, estados hover/disabled y foco esmeralda de las tres vistas se centralizan en `ui-polish.css`; `auth-styles.css` conserva la estructura de los diálogos y los controles de consentimiento. Evita duplicar estos estilos en los HTML. Si usas el servidor alternativo `npx --no-install http-server . -p 5500 -c-1`, recarga el navegador integrado después de guardar: este servidor desactiva la caché, pero no incorpora la recarga automática de la extensión Live Preview.
+
+Para inspeccionar las interacciones en un navegador visible: `npm run test:visual` o `npx playwright test ui-polish.spec.js --project=chromium --headed --workers=1`. Para los tres motores sin ventana, usa `npx playwright test auth-access.spec.js community.spec.js ui-polish.spec.js --workers=1`. Playwright utiliza `http://localhost:5500` y reutiliza el servidor existente; no reinicia emuladores ni elimina datos ajenos a sus fixtures. Las capturas escritorio/móvil y trazas quedan en la carpeta temporal del sistema, dentro de `fijas-en-vivo-playwright` y un identificador del repositorio; el informe de Playwright permite abrir los adjuntos. Guardarlas fuera del proyecto evita que Live Preview/Live Server recargue la página en medio de una prueba al detectar nuevas capturas.
+
 1. En **Authentication > Sign-in method**, habilita **Correo electrónico/contraseña**.
+   Habilita también **Google** y configura el correo de soporte para el acceso de viewers. Las sesiones usan `browserLocalPersistence`; Live Preview, Live Server y Playwright deben servir el sitio por HTTP en `localhost`, `127.0.0.1` o `[::1]`, que conectan automáticamente al proyecto emulado `demo-fijas-vivo`. No abras los HTML mediante `file://`.
 2. En **Authentication > Settings > Authorized domains**, autoriza el dominio de prueba. Para el servidor local, registra `localhost` (sin protocolo ni puerto) y abre `http://localhost:4173/`.
 3. Confirma que existe la base de datos predeterminada en **Firestore Database**.
 4. Revisa y completa los datos legales pendientes en `legal.html` y solicita una revisión profesional en Perú antes de abrir el registro públicamente. La casilla de edad es una declaración del usuario, no una verificación de edad.
@@ -41,6 +60,22 @@ Los formatos de pago son una posible etapa futura, no están activos ni se cobra
 - Publica los cambios de seguridad e índice antes de probarlo: `firebase deploy --only firestore:rules,firestore:indexes --project chijas`. Esto no despliega Functions ni requiere activar Blaze.
 
 ## Modelo de acceso: pruebas y etapa futura
+
+### Viewers y seguimientos
+
+El directorio permite registrarse e iniciar sesión por correo/contraseña, o entrar con Google sin abandonar la página. El registro por correo exige consentimiento y envía un enlace de verificación antes de habilitar los seguimientos. La recuperación de contraseña está disponible explícitamente en el modal de viewers, el panel tipster y el acceso del owner; los tres usan `sendPasswordResetEmail`.
+
+En local, Firebase Auth Emulator presenta su selector de identidad de prueba para Google: no utiliza una cuenta real de Google. En producción, autoriza el dominio HTTPS y habilita el proveedor Google en Firebase Console. Los helpers de Playwright interceptan exclusivamente `google-sign-in.js` y usan una credencial Google de prueba contra Auth Emulator; no hay mocks, flags de test ni bypass de permisos en la aplicación publicada.
+
+Para validar los accesos y la comunidad, ejecuta `npx playwright test 'auth-access.spec.js' 'community.spec.js' --workers=1`. Los tests comprueban registro, correo verificado, recuperación real mediante los códigos OOB del emulador, sesiones persistentes, permisos de owner, follows y feeds. No vacían los emuladores ni requieren un iframe externo de Google.
+
+En el primer acceso se crea `users/{uid}` con `role: "viewer"`; solo su dueño puede leerlo. Este rol no concede permisos de publicación ni administración. Antes del primer seguimiento se registra la aceptación legal vigente y la declaración de edad, igual que en el registro existente.
+
+`follows/{followerId}_{tipsterId}` guarda `followerId`, `tipsterId` y `created_at`. La creación o eliminación y el cambio de `perfiles/{tipsterId}.followerCount` se ejecutan en una sola transacción. `followerCountUpdatedBy` permite que las reglas comprueben la relación exacta que justifica el incremento o decremento; no se permite editar el contador de forma aislada. Los perfiles anteriores sin contador empiezan en cero al recibir su primer seguimiento; no se requiere migración mientras no existan relaciones previas.
+
+La pestaña **Siguiendo** consulta únicamente tipsters aprobados, en grupos de hasta 10 IDs, combina y ordena los resultados y muestra hasta 60 pronósticos recientes. Los listeners se cancelan al cambiar de pestaña, cuenta o lista de creadores. Un tipster revocado deja de aparecer en el feed, conservando su relación para cuando se restaure el permiso.
+
+Publica las reglas actualizadas y el índice existente `picks(user_id, created_at)` antes de probar en producción. El emulador de Firestore recarga las reglas al guardar el archivo; no es necesario reiniciar procesos ni borrar datos locales. Para validar exclusivamente esta funcionalidad: `npx playwright test e2e/community.spec.js --project=chromium --workers=1`. Las pruebas crean y eliminan únicamente sus propios documentos y cuentas, sin reiniciar ni vaciar los emuladores.
 
 Durante el MVP hay un solo nivel activo: **Inicial gratuito**. La aprobación permite que un tipster administre su perfil y sus pronósticos; no concede acceso de creador ni limita la cantidad mensual. El panel muestra los conceptos futuros como referencia, pero todavía no asigna planes ni distintivos.
 
@@ -91,6 +126,8 @@ Si ya hay perfiles en Firestore de antes de las reglas de aprobación, revisa ca
 - `picks/{id}`: pronósticos públicos; las reglas exigen un tipster aprobado y limitan las escrituras a su propietario. `show_on_stream` es un booleano opcional que el tipster puede activar para incluir ese pronóstico en su widget.
 
 La presencia significa que el tipster mantiene abierta su sesión del panel; no indica que esté transmitiendo en Twitch, Kick u otra plataforma.
+
+El inicio muestra hasta 20 tipsters conectados directamente en una parrilla, sin desplegable: avatar circular (inicial si no hay imagen), punto esmeralda y nickname. Los placeholders conservan la estructura y altura de las tarjetas; permanecen hasta recibir la presencia inicial de los perfiles. Para previsualizar un conectado, mantén abierto su panel tipster en otra pestaña: la presencia caduca cuando deja de actualizarse. La tarjeta de límites owner conserva el grid de una columna/dos desde `md`, etiquetas alineadas e inputs translúcidos compartidos.
 
 ## Revisar JavaScript con ESLint
 

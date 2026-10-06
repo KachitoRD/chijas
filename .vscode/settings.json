@@ -1,0 +1,10 @@
+{
+  "livePreview.portNumber": 5500,
+  "livePreview.autoRefreshPreview": "On Changes to Saved Files",
+  "livePreview.defaultPreviewPath": "/admin.html",
+  "livePreview.serverKeepAliveAfterEmbeddedPreviewClose": 20,
+  "livePreview.httpHeaders": {
+    "Accept-Ranges": "bytes",
+    "Cache-Control": "no-store"
+  }
+}

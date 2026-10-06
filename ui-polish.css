@@ -1,0 +1,215 @@
+.ui-app {
+  --ui-text-muted: #a1ada7;
+  --ui-glass: rgb(14 27 23 / .82);
+  --ui-glass-secondary: rgb(14 27 23 / .64);
+  --ui-border: rgb(255 255 255 / .1);
+  --ui-shadow: 0 8px 24px -12px rgb(0 0 0 / .48);
+  --ui-field-background: rgb(255 255 255 / .05);
+  --ui-field-radius: 10px;
+  --ui-label-color: #c8dbd2;
+  --ui-focus-color: #6ee7b7;
+  line-height: 1.6;
+  scrollbar-color: #39554a #080e0c;
+}
+.ui-app :is(h1, h2, h3, h4) { text-wrap: balance; }
+.ui-app :is(p, label) { overflow-wrap: anywhere; }
+.ui-app :is(.text-zinc-500, .text-zinc-400, .text-zinc-600) { color: var(--ui-text-muted); }
+.ui-app :is(input, textarea)::placeholder { color: var(--ui-text-muted); opacity: 1; }
+.ui-app :is(input:not([type="checkbox"]):not([type="radio"]), textarea, select) { font-size: 16px; caret-color: var(--ui-focus-color); }
+.ui-app :is(.label, #viewerAuth label) {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.6;
+  color: var(--ui-label-color);
+}
+.ui-app :is(.input, #viewerAuth input:not([type="checkbox"]), .search-input) {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-field-radius);
+  background: var(--ui-field-background);
+  color: #f4f4f5;
+  transition: border-color 180ms var(--ease-out), background-color 180ms var(--ease-out);
+}
+.ui-app :is(.input, #viewerAuth input:not([type="checkbox"]), .search-input):disabled {
+  opacity: .6;
+  cursor: not-allowed;
+}
+.ui-app #viewerAuth label:has(input[type="checkbox"]) { display: flex; font-weight: 400; }
+.ui-app .search-input { padding-left: 40px; }
+.ui-app :is(.input, #viewerAuth input:not([type="checkbox"]), .search-input):focus {
+  border-color: rgb(110 231 183 / .7);
+  outline: 2px solid rgb(110 231 183 / .35);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+.ui-app select.input { color-scheme: dark; }
+.ui-app select.input option { background: #0e1b17; color: #f4f4f5; }
+.ui-app .form-field-grid { gap: 24px; }
+.ui-app .form-field-grid > div { display: flex; flex-direction: column; min-width: 0; }
+.ui-app .form-field-grid > div > label {
+  line-height: 1.6;
+  margin-bottom: 8px;
+  overflow-wrap: normal;
+}
+.ui-app .form-field-grid > div > .input { margin-top: auto; }
+@media (hover: hover) and (pointer: fine) {
+  .ui-app :is(.input, #viewerAuth input:not([type="checkbox"]), .search-input):not(:disabled):hover {
+    border-color: rgb(110 231 183 / .3);
+  }
+}
+.ui-app :is(button, a.control, a.community-control):not(.hidden):not([hidden]) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  text-align: center;
+  line-height: 1.4;
+  vertical-align: middle;
+  touch-action: manipulation;
+}
+.ui-app button { position: relative; }
+.ui-app button:not(.hidden):not([hidden]) { min-width: 44px; }
+.ui-app button:disabled { cursor: not-allowed; }
+.ui-app button[aria-busy="true"] { cursor: progress; padding-inline: 34px; }
+.ui-app button[aria-busy="true"]::after {
+  content: "";
+  position: absolute;
+  right: 10px;
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: ui-spin 800ms linear infinite;
+}
+.ui-app :focus-visible { outline: 2px solid var(--ui-focus-color); outline-offset: 3px; }
+.ui-app :is(
+  #loginForm, #legalAcceptanceForm, #creatorLogin, #viewerAuth, #viewerConsent,
+  #accountGate, #pickForm, #profileForm, #widgetView > div, #profilePanel,
+  #ownerDashboard > section, #denied, #cropModal > section,
+  section[aria-labelledby="myPicksTitle"], section[aria-labelledby="bankrollDashboardTitle"]
+) {
+  background: var(--ui-glass);
+  border: 1px solid var(--ui-border);
+  box-shadow: var(--ui-shadow);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transform: none;
+}
+.ui-app :is(.profile-card, #picksGrid > article, #featured > article, #followingPicks > article, .skeleton-card) {
+  background: var(--ui-glass-secondary);
+  border: 1px solid var(--ui-border);
+  box-shadow: var(--ui-shadow);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 14px;
+}
+.ui-app :is(
+  #loginForm, #legalAcceptanceForm, #creatorLogin, #accountGate, #pickForm, #profileForm,
+  #widgetView > div, #profilePanel, #ownerDashboard > section, #denied, #cropModal > section,
+  #featured > article, .profile-card,
+  section[aria-labelledby="myPicksTitle"], section[aria-labelledby="bankrollDashboardTitle"]
+)::after { content: none; }
+.ui-app :is(.search-input, .avatar-ring, .badge-status, .profile-card) { animation: none; }
+.ui-app .hero-gradient {
+  background: none; color: #a7f3d0; -webkit-text-fill-color: currentColor;
+  animation: none; line-height: 1.18; letter-spacing: -.035em;
+}
+.ui-app .search-input { transition: border-color 180ms var(--ease-out), background-color 180ms var(--ease-out); }
+.ui-app .avatar-ring { box-shadow: none; border-color: rgb(110 231 183 / .2); }
+.ui-app .profile-card { transition: border-color 180ms var(--ease-out), background-color 180ms var(--ease-out); }
+.ui-app #ownerDashboard { gap: 24px; }
+.ui-app #ownerDashboard > * + * { margin-top: 24px; }
+.ui-app #directorySection { margin-top: 32px; }
+.ui-app #onlineGrid { gap: 16px; }
+.ui-app #onlineGrid { min-height: 172px; }
+.ui-app #onlineGrid :is(.online-card, .online-skeleton) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 172px;
+  padding: 16px 12px;
+  gap: 8px;
+  border: 1px solid var(--ui-border);
+  border-radius: 14px;
+  background: var(--ui-glass-secondary);
+  text-align: center;
+}
+.ui-app .online-avatar {
+  position: relative;
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgb(110 231 183 / .1);
+}
+.ui-app .online-avatar-fallback, .ui-app .online-avatar-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.ui-app .online-avatar-fallback { display: grid; place-items: center; font-size: 24px; font-weight: 700; color: #a7f3d0; }
+.ui-app .online-status { position: absolute; right: 1px; bottom: 1px; width: 14px; height: 14px; border: 3px solid #0e1b17; border-radius: 50%; background: #6ee7b7; }
+.ui-app #onlineGrid :is(.online-name, .online-nickname) { width: 100%; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ui-app #onlineGrid .online-skeleton .online-name { width: 80%; height: 20px; border-radius: 4px; }
+.ui-app #onlineGrid .online-skeleton .online-nickname { width: 60%; height: 18px; border-radius: 4px; }
+.ui-app #onlineGrid .online-skeleton .online-avatar { background: #273b32; }
+.ui-app #followingPicks { gap: 16px; }
+.ui-app #followingPicks > article { display: flex; flex-direction: column; min-height: 220px; }
+.ui-app #followingPicks > article > button { align-self: flex-start; margin-top: 16px; }
+.ui-app :is(#followingPicks, #picksGrid) { min-height: 220px; }
+.ui-app :is(#applications, #profileRequests, #tipsters, #myPicks) { min-height: 168px; }
+.ui-app #bankrollSummary { min-height: 96px; }
+.ui-app :is(#profileSocials, #filters, #feedTabs, #tipsterTabs) { gap: 8px; }
+.ui-app #tipsterTabs { flex-wrap: wrap; }
+.ui-app .community-control { white-space: nowrap; }
+.ui-app .viewer-nav { max-width: none; }
+.ui-app #viewerNav[aria-busy="true"] #viewerLogin { visibility: hidden; }
+.ui-app .auth-actions { gap: 10px; }
+.ui-app .auth-button { padding-block: 12px; }
+.ui-app :is(#viewerAuth, #viewerConsent) { max-height: calc(100dvh - 32px); overflow-y: auto; }
+.ui-app .ui-skeleton-group { display: grid; gap: 12px; width: 100%; }
+.ui-app .ui-skeleton-cards { grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 16px; grid-column: 1 / -1; }
+.ui-app .ui-skeleton-metrics { grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); }
+.ui-app .ui-skeleton-item { padding: 16px; border: 1px solid var(--ui-border); border-radius: 12px; background: rgb(255 255 255 / .025); }
+.ui-app .ui-skeleton-cards .ui-skeleton-item { min-height: 220px; }
+.ui-app .ui-skeleton-line { display: block; height: 12px; margin-bottom: 12px; border-radius: 4px; background: #273b32; animation: ui-loading 1600ms linear infinite; }
+.ui-app .ui-skeleton-full { width: 100%; }
+.ui-app .ui-skeleton-medium { width: 75%; }
+.ui-app .ui-skeleton-short { width: 45%; margin-bottom: 0; }
+.ui-app .ui-skeleton-cards .ui-skeleton-full { height: 80px; margin-bottom: 20px; }
+.ui-app .skeleton { background: #273b32; animation: ui-loading 1600ms linear infinite; }
+.ui-app .ui-skeleton-item:nth-child(2) .ui-skeleton-line { animation-delay: 100ms; }
+.ui-app .ui-skeleton-item:nth-child(3) .ui-skeleton-line { animation-delay: 200ms; }
+@keyframes ui-loading { 0%, 100% { opacity: .55; } 50% { opacity: .9; } }
+@keyframes ui-spin { to { transform: rotate(360deg); } }
+@media (hover: hover) and (pointer: fine) {
+  .ui-app :is(#profilePanel, #pickForm, #profileForm, #creatorLogin, #loginForm, #legalAcceptanceForm, #ownerDashboard > section, #widgetView > div, #accountGate, #featured > article, #picksGrid > article, section[aria-labelledby="myPicksTitle"], section[aria-labelledby="bankrollDashboardTitle"]):hover { transform: none; }
+  .ui-app .profile-card:hover { transform: none; background: rgb(23 45 35 / .82); border-color: rgb(110 231 183 / .3); }
+}
+@media (max-width: 639px) {
+  .ui-app #viewerNav { gap: 6px; }
+  .ui-app #viewerNav .community-control { padding-inline: 10px; font-size: 12px; }
+  .ui-app #viewerName { max-width: 90px; }
+  .ui-app :is(#bankrollFilterPanel, #profileForm > section) { min-width: 0; }
+  .ui-app #onlineGrid { gap: 12px; }
+  .ui-app #onlineGrid .profile-card { padding: 12px; }
+  .ui-app .auth-actions { gap: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ui-app :is(.skeleton, .ui-skeleton-line), .ui-app button[aria-busy="true"]::after { animation: none !important; }
+  .ui-app :is(button, a, .profile-card) { transform: none !important; }
+}
+@supports not (backdrop-filter: blur(1px)) {
+  .ui-app { --ui-glass: #0e1b17; --ui-glass-secondary: #102219; }
+}

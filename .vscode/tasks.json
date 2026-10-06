@@ -1,0 +1,11 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Live Preview server",
+      "type": "Live Preview",
+      "workspacePath": "${workspaceFolder}",
+      "problemMatcher": []
+    }
+  ]
+}

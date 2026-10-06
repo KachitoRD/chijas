@@ -30,6 +30,8 @@ Tipsters manage profiles and predictions in a browser dashboard. A streamer can 
 - The current application uses static HTML, Firebase Authentication, and Cloud Firestore.
 - Tipster access is manually approved. Verified accounts own their profiles and predictions.
 - Profiles and predictions are public in the current MVP.
+- Viewers can register and sign in with email/password or Google, keep a local persistent session, and follow approved tipsters. Password recovery is available in viewer, tipster and owner access forms. Email registration requires legal consent and email verification. The Following feed combines real-time prediction queries in groups of at most 10 tipsters.
+- Private viewer documents live in `users`; `follows` stores unique follower/tipster relationships. Each relationship change atomically updates the tipster's follower count, enforced by Firestore rules.
 - New accounts must accept the current terms and privacy notice and self-confirm the applicable minimum age; acceptance is versioned and enforced for account actions through Firestore rules.
 - Legal documents are an initial Peru-focused draft for review, not a guarantee of liability protection or global legal compliance. Complete operator/contact details and obtain legal review before public launch.
 - The project is intended to remain on Firebase Spark for current testing. It does not use Firebase Storage or Cloud Functions.

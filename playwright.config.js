@@ -1,7 +1,12 @@
 import { defineConfig, devices } from '@playwright/test';
+import { createHash } from 'node:crypto';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 export default defineConfig({
   testDir: './e2e',
+  testIgnore: /visual-seeded\.spec\.js/,
+  outputDir: join(tmpdir(), 'fijas-en-vivo-playwright', createHash('sha256').update(process.cwd()).digest('hex').slice(0, 16)),
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,

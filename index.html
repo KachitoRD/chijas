@@ -91,6 +91,8 @@
       background-clip: text;
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
+      padding-bottom: .2em;
+      margin-bottom: -.2em;
     }
     .search-input {
       background: rgba(255, 255, 255, 0.05);
@@ -210,10 +212,46 @@
       transform: translateY(0);
     }
   </style>
+  <link rel="stylesheet" href="auth-styles.css">
+  <link rel="stylesheet" href="emerald-surface.css">
+  <style>
+    .viewer-nav { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; min-height: 44px; }
+    .viewer-nav[aria-busy="true"] #viewerLogin { visibility: hidden; }
+    .community-control { min-height: 44px; border: 1px solid #3f3f46; border-radius: 12px; padding: 8px 14px; color: #d4d4d8; font-size: 13px; font-weight: 600; }
+    .community-control[aria-pressed="true"], .community-control[aria-selected="true"] { border-color: #6ee7b7; color: #a7f3d0; background: #10271f; }
+    .community-control:disabled { cursor: wait; opacity: .7; }
+    .community-control:focus-visible { outline: 2px solid #6ee7b7; outline-offset: 3px; }
+    #viewerName { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #viewerConsent { max-width: min(440px, calc(100vw - 32px)); padding: 24px; border: 1px solid #3f3f46; border-radius: 16px; background: #111114; color: #f4f4f5; }
+    #viewerConsent::backdrop { background: rgb(0 0 0 / .7); }
+    #viewerConsent label { display: flex; gap: 12px; align-items: flex-start; margin-top: 20px; font-size: 14px; line-height: 1.6; }
+    #viewerConsent input { margin-top: 5px; accent-color: #6ee7b7; }
+    #viewerConsent a { color: #a7f3d0; text-decoration: underline; text-underline-offset: 3px; }
+    @media (hover: hover) { .community-control:hover { border-color: #6ee7b7; color: #a7f3d0; } }
+    @media (max-width: 480px) { #viewerName { max-width: 88px; } .viewer-nav { max-width: 200px; } }
+  </style>
   <!-- Plausible Analytics - Core Web Vitals Monitoring -->
+  <link rel="stylesheet" href="ui-polish.css">
+  <style>
+    .ui-app.frontpage :is(.hero-gradient, .frontpage-accent) {
+      color: #a7f3d0;
+      background: linear-gradient(110deg, #a7f3d0, #86efac 30%, #67e8f9 65%, #e9d5ff);
+      background-clip: text;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: none;
+    }
+    @media (forced-colors: active) {
+      .ui-app.frontpage :is(.hero-gradient, .frontpage-accent) {
+        background: none;
+        color: CanvasText;
+        -webkit-text-fill-color: currentColor;
+      }
+    }
+  </style>
   <script defer data-domain="fijas.app" src="https://plausible.io/js/script.js"></script>
 </head>
-<body class="min-h-[100dvh] font-sans text-zinc-100 antialiased">
+<body class="ui-app frontpage min-h-[100dvh] font-sans text-zinc-100 antialiased">
   <div id="firebaseSetup" class="hidden border-b border-amber-300/20 bg-amber-300/[.07] px-4 py-3 text-sm text-amber-100" role="status">
     <div class="mx-auto max-w-6xl"><strong class="font-semibold">Falta conectar Firebase.</strong> Completa las credenciales web en <code class="rounded bg-black/30 px-1.5 py-0.5">firebase-config.js</code> y sigue <a class="underline underline-offset-4" href="FIREBASE_SETUP.md">la guía de configuración</a>.</div>
   </div>
@@ -224,33 +262,38 @@
         <span class="grid h-9 w-9 place-items-center rounded-xl bg-emerald-300 text-sm font-extrabold tracking-tight text-zinc-950">F.</span>
         <span class="text-sm font-bold tracking-tight sm:text-base">Fijas <span class="font-medium text-zinc-500">en vivo</span></span>
       </a>
-      <a href="admin.html" class="control inline-flex min-h-10 items-center justify-center rounded-xl border border-white/10 px-3.5 text-sm font-semibold text-zinc-200 hover:border-emerald-300/40 hover:text-emerald-200 sm:px-4">Panel tipster</a>
+      <div id="viewerNav" class="viewer-nav" aria-busy="true">
+        <span id="viewerName" class="hidden text-sm text-zinc-300"></span>
+        <button id="viewerLogin" type="button" class="community-control" disabled>Iniciar sesión</button>
+        <button id="viewerLogout" type="button" class="community-control hidden">Salir</button>
+        <a href="admin.html" class="community-control">Panel tipster</a>
+      </div>
     </nav>
   </header>
 
   <main class="mx-auto max-w-6xl px-4 pb-20 pt-9 sm:px-6 sm:pt-14">
     <section class="grid items-end gap-6 border-b border-white/[.08] pb-8 md:grid-cols-[minmax(0,1fr)_minmax(250px,360px)] md:gap-10 md:pb-10">
       <div>
-        <div class="mb-4 inline-block">
-          <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-300/10 text-emerald-200 border border-emerald-300/30">
-            <span class="h-1.5 w-1.5 rounded-full bg-emerald-300"></span>
-            Explora Directorio
-          </span>
-        </div>
         <h1 class="max-w-2xl hero-gradient text-4xl font-extrabold leading-[1.15] tracking-tight sm:text-5xl sm:leading-[1.15]">Encuentra a quien seguir.</h1>
-        <p class="mt-10 max-w-2xl text-base leading-7 text-zinc-300 sm:text-lg sm:leading-8">Explora <span class="font-semibold text-emerald-200">perfiles activos</span>, revisa sus <span class="font-semibold text-emerald-200">pronósticos</span> y consulta los <span class="font-semibold text-emerald-200">resultados</span> publicados.</p>
+        <p class="mt-5 max-w-2xl text-base leading-7 text-zinc-300 sm:text-lg sm:leading-8">Explora <span class="frontpage-accent font-bold">perfiles activos</span>, revisa sus <span class="frontpage-accent font-bold">pronósticos</span> y consulta los <span class="frontpage-accent font-bold">resultados</span> publicados.</p>
       </div>
       <div class="w-full">
         <label for="searchTipsters" class="mb-2 block text-sm font-medium text-zinc-300">Buscar en el directorio</label>
         <div class="search-container relative">
-          <span class="search-icon absolute left-3.5 top-1/2 transform -translate-y-1/2 text-zinc-500 pointer-events-none">🔍</span>
+          <svg class="search-icon absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"></circle><path d="m16 16 4.5 4.5"></path></svg>
           <input id="searchTipsters" type="search" autocomplete="off" placeholder="Busca un tipster..." class="search-input control min-h-11 w-full rounded-xl border border-emerald-300/20 px-4 pl-10 text-sm text-zinc-100 placeholder:text-zinc-500 hover:border-emerald-300/40 focus:border-emerald-300/60 focus:outline-none">
         </div>
         <p class="mt-3 flex items-center gap-2 text-sm text-zinc-400"><span id="onlineIndicator" class="h-2 w-2 shrink-0 rounded-full bg-zinc-600" aria-hidden="true"></span><strong id="onlineCount" class="font-bold tabular-nums text-zinc-100">--</strong> tipsters conectados</p>
       </div>
     </section>
 
-    <section class="pt-8 sm:pt-10" aria-labelledby="onlineTitle">
+    <p id="communityMessage" class="hidden mt-6 rounded-xl border border-rose-300/20 p-4 text-sm text-rose-200" role="alert"></p>
+    <nav id="feedTabs" class="mt-8 flex gap-2" role="tablist" aria-label="Tu feed">
+      <button id="exploreTab" type="button" role="tab" class="community-control" aria-selected="true" aria-controls="exploreFeed" tabindex="0">Explorar</button>
+      <button id="followingTab" type="button" role="tab" class="community-control" aria-selected="false" aria-controls="followingFeed" tabindex="-1">Siguiendo</button>
+    </nav>
+    <div id="exploreFeed" role="tabpanel" aria-labelledby="exploreTab">
+    <section id="onlineSection" class="pt-8 sm:pt-10" aria-labelledby="onlineTitle">
       <div class="mb-5 flex items-end justify-between gap-4">
         <div>
           <h2 id="onlineTitle" class="text-xl font-bold tracking-tight sm:text-2xl">Conectados</h2>
@@ -259,32 +302,39 @@
         <span class="hidden text-xs font-medium text-zinc-500 sm:block">Hasta 20 perfiles</span>
       </div>
       <div id="onlineGrid" class="grid grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-3 sm:gap-x-5 sm:gap-y-6 lg:grid-cols-4 xl:grid-cols-5" aria-live="polite" aria-busy="true">
-        <div class="skeleton-card">
-          <div class="skeleton h-24 mb-3"></div>
-          <div class="skeleton h-3 w-3/4 mb-2"></div>
-          <div class="skeleton h-2 w-1/2"></div>
+        <span class="sr-only">Cargando tipsters conectados...</span>
+        <div class="online-skeleton" aria-hidden="true">
+          <div class="skeleton online-avatar"></div>
+          <div class="skeleton online-name"></div>
+          <div class="skeleton online-nickname"></div>
         </div>
-        <div class="skeleton-card">
-          <div class="skeleton h-24 mb-3"></div>
-          <div class="skeleton h-3 w-3/4 mb-2"></div>
-          <div class="skeleton h-2 w-1/2"></div>
+        <div class="online-skeleton" aria-hidden="true">
+          <div class="skeleton online-avatar"></div>
+          <div class="skeleton online-name"></div>
+          <div class="skeleton online-nickname"></div>
         </div>
-        <div class="skeleton-card">
-          <div class="skeleton h-24 mb-3"></div>
-          <div class="skeleton h-3 w-3/4 mb-2"></div>
-          <div class="skeleton h-2 w-1/2"></div>
+        <div class="online-skeleton" aria-hidden="true">
+          <div class="skeleton online-avatar"></div>
+          <div class="skeleton online-name"></div>
+          <div class="skeleton online-nickname"></div>
         </div>
-        <div class="skeleton-card">
-          <div class="skeleton h-24 mb-3"></div>
-          <div class="skeleton h-3 w-3/4 mb-2"></div>
-          <div class="skeleton h-2 w-1/2"></div>
+        <div class="online-skeleton" aria-hidden="true">
+          <div class="skeleton online-avatar"></div>
+          <div class="skeleton online-name"></div>
+          <div class="skeleton online-nickname"></div>
         </div>
-        <div class="skeleton-card hidden xl:block">
-          <div class="skeleton h-24 mb-3"></div>
-          <div class="skeleton h-3 w-3/4 mb-2"></div>
-          <div class="skeleton h-2 w-1/2"></div>
+        <div class="online-skeleton" aria-hidden="true">
+          <div class="skeleton online-avatar"></div>
+          <div class="skeleton online-name"></div>
+          <div class="skeleton online-nickname"></div>
         </div>
       </div>
+    </section>
+    </div>
+    <section id="followingFeed" class="hidden pt-8" role="tabpanel" aria-labelledby="followingTab">
+      <h2 class="text-xl font-bold">Pronósticos de quienes sigues</h2>
+      <p id="followingStatus" class="mt-2 text-sm text-zinc-400" role="status">Inicia sesión para ver tu feed.</p>
+      <div id="followingPicks" class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-busy="false"></div>
     </section>
 
     <section id="profileSection" class="hidden scroll-mt-6 pt-12 sm:pt-16" aria-labelledby="profileTitle">
@@ -302,6 +352,7 @@
                 <p id="profileUsername" class="mt-1 text-sm text-zinc-500"></p>
                 <p id="profileBio" class="mt-3 max-w-2xl text-sm leading-6 text-zinc-300"></p>
                 <div id="profileSocials" class="mt-4 flex flex-wrap gap-2"></div>
+                <div id="profileFollow" class="mt-4"></div>
               </div>
             </div>
             <div class="grid shrink-0 grid-cols-2 gap-x-7 gap-y-3 px-2 py-1 sm:min-w-[188px]">
@@ -336,9 +387,52 @@
     </nav>
   </footer>
 
+  <dialog id="viewerAuth" aria-labelledby="viewerAuthTitle">
+    <form id="viewerAuthForm">
+      <h2 id="viewerAuthTitle" class="text-xl font-bold">Entrar a Fijas</h2>
+      <label for="viewerAuthEmail">Correo electrónico</label>
+      <input id="viewerAuthEmail" type="email" autocomplete="username" required>
+      <label for="viewerAuthPassword">Contraseña</label>
+      <input id="viewerAuthPassword" type="password" autocomplete="current-password" minlength="6" required>
+      <fieldset id="viewerAuthRegistration" hidden disabled>
+        <label for="viewerAuthName">Nombre público</label>
+        <input id="viewerAuthName" autocomplete="name" maxlength="60" required>
+        <label><input id="viewerAuthAge" type="checkbox" required><span>Tengo al menos 18 años y cumplo la edad mínima exigida en mi país.</span></label>
+        <label><input id="viewerAuthTerms" type="checkbox" required><span>Acepto los <a href="legal.html#terminos" target="_blank" rel="noopener">Términos</a> y el <a href="legal.html#privacidad" target="_blank" rel="noopener">Aviso de privacidad</a>.</span></label>
+      </fieldset>
+      <p id="viewerAuthMessage" class="auth-message" role="status" aria-live="polite"></p>
+      <div class="auth-actions">
+        <button id="viewerAuthSubmit" type="submit" class="auth-button auth-button-primary">Iniciar sesión</button>
+        <button id="viewerAuthGoogle" type="button" class="auth-button">Continuar con Google</button>
+        <button id="viewerAuthReset" type="button" class="auth-button">¿Olvidaste tu contraseña?</button>
+        <button id="viewerAuthToggle" type="button" class="auth-button">Crear cuenta</button>
+        <button id="viewerAuthCancel" type="button" class="auth-button">Cancelar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="viewerConsent" aria-labelledby="viewerConsentTitle">
+    <form id="viewerConsentForm">
+      <h2 id="viewerConsentTitle" class="text-xl font-bold">Antes de seguir tipsters</h2>
+      <p class="mt-3 text-sm leading-6 text-zinc-300">Confirma tu edad y acepta los documentos vigentes para participar en la comunidad.</p>
+      <label><input id="viewerAge" type="checkbox" required><span>Tengo al menos 18 años y cumplo la edad mínima exigida en mi país.</span></label>
+      <label><input id="viewerTerms" type="checkbox" required><span>Acepto los <a href="legal.html#terminos" target="_blank" rel="noopener">Términos</a> y el <a href="legal.html#privacidad" target="_blank" rel="noopener">Aviso de privacidad</a>, versión 2026-10-03.</span></label>
+      <p id="viewerConsentError" class="mt-3 text-sm text-rose-200" role="alert"></p>
+      <div class="mt-6 flex flex-wrap justify-end gap-3">
+        <button id="viewerConsentCancel" type="button" class="community-control">Cancelar</button>
+        <button id="viewerConsentSave" type="submit" class="community-control">Aceptar y continuar</button>
+      </div>
+    </form>
+  </dialog>
+
   <script type="module">
-    import { firebaseConfigured, firebaseConfigError, firebaseDb } from "./firebase-config.js?v=2";
-    import { collection, doc, getDoc, onSnapshot, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+    import { firebaseConfigured, firebaseConfigError, firebaseDb, firebaseAuth } from "./firebase-config.js?v=2";
+    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+    import { collection, doc, getDoc, onSnapshot, query, where, orderBy, limit, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+    import { ensureViewer, setFollowing, subscribeFollowingFeed } from "./community.js";
+    import { installViewerAccess } from "./auth-ui.js";
+    import { installBusyButtons, showSkeleton } from "./ui-feedback.js";
+    installBusyButtons();
 
     const $ = id => document.getElementById(id);
     const ONLINE_WINDOW = 90_000;
@@ -359,6 +453,283 @@
     let db, profiles = [], selectedProfile = null, profilePicks = [], selectedFilter = "todas", stopPicks = null, routeUsername = null, profileRenderKey = "", onlineRenderKey = "", directoryRenderKey = "";
     const presenceUnsubs = new Map();
     const presenceData = new Map();
+    let profileSnapshotGeneration = 0;
+    let viewer = null, authReady = false, viewerReady = false, viewerAcceptedTerms = false, viewerGeneration = 0;
+    let stopFollows = null, stopFollowingFeed = null, feedKey = "", feedGeneration = 0, activeFeed = "explore";
+    let followedIds = new Set(), followsReady = false, followingPicks = [], consentResolver = null;
+    const optimisticFollows = new Map();
+    const TERMS_VERSION = "2026-10-03";
+    const openViewerAccess = installViewerAccess();
+
+    function communityError(error, fallback) {
+      console.error(fallback, error);
+      $("communityMessage").textContent = error.code === "auth/popup-closed-by-user"
+        ? "Se cerró el acceso de Google. Pulsa Entrar con Google para volver a intentarlo."
+        : error.code === "auth/popup-blocked"
+          ? "El navegador bloqueó Google. Permite ventanas emergentes y vuelve a intentarlo."
+          : error.code === "permission-denied"
+            ? "Firestore rechazó la operación. Publica las reglas actualizadas y vuelve a intentarlo."
+            : fallback;
+      $("communityMessage").classList.remove("hidden");
+    }
+    function isFollowing(tipsterId) {
+      return optimisticFollows.get(tipsterId)?.following ?? followedIds.has(tipsterId);
+    }
+    function followButton(profile) {
+      const button = createElement("button", "community-control shrink-0");
+      button.type = "button";
+      button.dataset.follow = profile.id;
+      button.dataset.tipsterName = profile.nombre_publico || profile.username || "tipster";
+      return button;
+    }
+    function updateFollowButtons() {
+      document.querySelectorAll("button[data-follow]").forEach(button => {
+        const following = isFollowing(button.dataset.follow);
+        button.textContent = following ? "Siguiendo" : "Seguir";
+        button.setAttribute("aria-pressed", String(following));
+        button.setAttribute("aria-label", `${following ? "Dejar de seguir a" : "Seguir a"} ${button.dataset.tipsterName}`);
+        button.disabled = !authReady || Boolean(viewer && (!viewerReady || !followsReady))
+          || optimisticFollows.get(button.dataset.follow)?.busy === true;
+        button.setAttribute("aria-busy", String(optimisticFollows.get(button.dataset.follow)?.busy === true));
+      });
+    }
+    function renderFollowingFeed() {
+      const grid = $("followingPicks");
+      grid.replaceChildren();
+      if (!viewer) {
+        $("followingStatus").textContent = "Inicia sesión y sigue tipsters para ver aquí sus pronósticos.";
+        return;
+      }
+      if (!followsReady || grid.getAttribute("aria-busy") === "true") {
+        $("followingStatus").textContent = "Cargando tu feed…";
+        showSkeleton(grid, { variant: "cards", label: "Cargando pronósticos de tus tipsters" });
+        return;
+      }
+      const followedProfiles = profiles.filter(profile => isFollowing(profile.id));
+      $("followingStatus").textContent = followedProfiles.length
+        ? followingPicks.length ? "Hasta 60 pronósticos recientes, actualizados en tiempo real." : "Los tipsters que sigues aún no han publicado pronósticos."
+        : "Todavía no sigues tipsters disponibles. Encuéntralos en Explorar.";
+      for (const pick of followingPicks) {
+        const profile = followedProfiles.find(candidate => candidate.id === pick.user_id);
+        if (!profile) continue;
+        const article = createElement("article", "rounded-xl border border-white/[.08] bg-[#111114] p-4");
+        const heading = createElement("div", "flex items-center justify-between gap-3");
+        const author = createElement("a", "truncate text-sm font-semibold text-emerald-200", profile.nombre_publico || profile.username);
+        author.href = profileHref(profile);
+        heading.append(author, badgeNode(pick.estado));
+        article.append(
+          heading,
+          createElement("h3", "mt-3 font-semibold leading-5", pick.evento),
+          createElement("p", "mt-2 text-sm leading-6 text-zinc-300", pick.seleccion || pick.prediccion),
+          createElement("p", "mt-4 text-sm text-zinc-300", `Cuota ${Number(pick.cuota).toFixed(2)} · ${pick.casa_de_apuestas || pick.casa_apuestas}`),
+          createElement("p", "mt-2 text-xs text-zinc-400", pickDate(pick.fecha_evento)),
+          followButton(profile)
+        );
+        grid.append(article);
+      }
+      updateFollowButtons();
+    }
+    function refreshFollowingFeed() {
+      const ids = viewer && followsReady ? profiles.filter(profile => isFollowing(profile.id)).map(profile => profile.id).sort() : [];
+      const key = JSON.stringify([viewer?.uid, activeFeed, followsReady, ids]);
+      if (key === feedKey) {
+        renderFollowingFeed();
+        return;
+      }
+      feedKey = key;
+      const generation = ++feedGeneration;
+      if (stopFollowingFeed) stopFollowingFeed();
+      stopFollowingFeed = null;
+      followingPicks = [];
+      $("followingPicks").setAttribute("aria-busy", String(activeFeed === "following" && ids.length > 0));
+      renderFollowingFeed();
+      if (activeFeed !== "following" || !ids.length) return;
+      stopFollowingFeed = subscribeFollowingFeed(ids, picks => {
+        if (generation !== feedGeneration) return;
+        followingPicks = picks;
+        $("followingPicks").setAttribute("aria-busy", "false");
+        $("followingPicks").replaceChildren();
+        renderFollowingFeed();
+      }, error => {
+        if (generation !== feedGeneration) return;
+        $("followingPicks").setAttribute("aria-busy", "false");
+        $("followingPicks").replaceChildren();
+        $("followingStatus").textContent = "No se pudo cargar el feed. Cambia a Explorar y vuelve a Siguiendo para reintentar.";
+        communityError(error, "No se pudo cargar tu feed. Comprueba la conexión e inténtalo de nuevo.");
+      });
+    }
+    function selectFeed(feed) {
+      activeFeed = feed;
+      for (const [id, value] of [["exploreTab", "explore"], ["followingTab", "following"]]) {
+        const selected = value === feed;
+        $(id).setAttribute("aria-selected", String(selected));
+        $(id).tabIndex = selected ? 0 : -1;
+      }
+      $("exploreFeed").classList.toggle("hidden", feed !== "explore");
+      $("directorySection").classList.toggle("hidden", feed !== "explore");
+      $("followingFeed").classList.toggle("hidden", feed !== "following");
+      refreshFollowingFeed();
+    }
+    function requestViewerConsent() {
+      if (consentResolver) return Promise.resolve(false);
+      $("viewerConsentForm").reset();
+      $("viewerConsentError").textContent = "";
+      $("viewerConsent").showModal();
+      return new Promise(resolve => { consentResolver = resolve; });
+    }
+    async function handleFollow(tipsterId) {
+      if (!authReady || optimisticFollows.get(tipsterId)?.busy) return;
+      $("communityMessage").classList.add("hidden");
+      try {
+        const user = viewer || await openViewerAccess();
+        if (!user) return;
+        if (!viewerReady) await ensureViewer(user);
+        if (firebaseAuth.currentUser?.uid !== user.uid) return;
+        if (!followsReady) {
+          const follow = await getDoc(doc(db, "follows", `${user.uid}_${tipsterId}`));
+          if (follow.exists()) followedIds.add(tipsterId);
+        }
+        if (!viewerAcceptedTerms) {
+          const acceptance = await getDoc(doc(db, "legalAcceptances", user.uid, "versions", TERMS_VERSION));
+          if (!acceptance.exists() && !await requestViewerConsent()) return;
+        }
+        if (firebaseAuth.currentUser?.uid !== user.uid) return;
+        const following = !isFollowing(tipsterId);
+        optimisticFollows.set(tipsterId, { following, busy: true });
+        updateFollowButtons();
+        refreshFollowingFeed();
+        try {
+          await setFollowing(user, tipsterId, following);
+          if (firebaseAuth.currentUser?.uid !== user.uid) return;
+          if (followedIds.has(tipsterId) === following) optimisticFollows.delete(tipsterId);
+          else optimisticFollows.set(tipsterId, { following, busy: false });
+        } catch (error) {
+          optimisticFollows.delete(tipsterId);
+          throw error;
+        } finally {
+          updateFollowButtons();
+          refreshFollowingFeed();
+        }
+      } catch (error) {
+        communityError(error, error.message?.includes("contador") ? error.message : "No se pudo cambiar el seguimiento. Inténtalo de nuevo.");
+      }
+    }
+
+    $("viewerConsentForm").addEventListener("submit", async event => {
+      event.preventDefault();
+      const user = viewer;
+      if (!user) return;
+      $("viewerConsentSave").disabled = true;
+      $("viewerConsentCancel").disabled = true;
+      try {
+        await runTransaction(db, async transaction => {
+          const ref = doc(db, "legalAcceptances", user.uid, "versions", TERMS_VERSION);
+          const acceptance = await transaction.get(ref);
+          if (!acceptance.exists()) transaction.set(ref, {
+            uid: user.uid, terms_version: TERMS_VERSION, privacy_version: TERMS_VERSION,
+            age_confirmed: true, accepted_at: serverTimestamp()
+          });
+        });
+        if (viewer?.uid === user.uid) viewerAcceptedTerms = true;
+        $("viewerConsent").close("accepted");
+      } catch (error) {
+        console.error("No se pudo registrar la aceptación:", error);
+        $("viewerConsentError").textContent = "No se pudo guardar la aceptación. Comprueba la conexión y las reglas de Firestore y vuelve a intentarlo.";
+      } finally {
+        $("viewerConsentSave").disabled = false;
+        $("viewerConsentCancel").disabled = false;
+      }
+    });
+    $("viewerConsentCancel").addEventListener("click", () => $("viewerConsent").close("cancel"));
+    $("viewerConsent").addEventListener("cancel", event => {
+      if ($("viewerConsentSave").disabled) event.preventDefault();
+    });
+    $("viewerConsent").addEventListener("close", () => {
+      const resolve = consentResolver;
+      consentResolver = null;
+      if (resolve) resolve($("viewerConsent").returnValue === "accepted");
+    });
+    $("viewerLogin").addEventListener("click", async () => {
+      $("viewerLogin").disabled = true;
+      $("communityMessage").classList.add("hidden");
+      try { await openViewerAccess(); }
+      catch (error) { communityError(error, "No se pudo iniciar sesión. Comprueba la conexión y vuelve a intentarlo."); }
+      finally { $("viewerLogin").disabled = !authReady; }
+    });
+    $("viewerLogout").addEventListener("click", async () => {
+      $("viewerLogout").disabled = true;
+      try { await signOut(firebaseAuth); }
+      catch (error) { communityError(error, "No se pudo cerrar la sesión. Vuelve a intentarlo."); }
+      finally { $("viewerLogout").disabled = false; }
+    });
+    $("feedTabs").addEventListener("click", event => {
+      const tab = event.target.closest("button[role='tab']");
+      if (tab) selectFeed(tab.id === "followingTab" ? "following" : "explore");
+    });
+    $("feedTabs").addEventListener("keydown", event => {
+      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+      event.preventDefault();
+      const focused = event.target.closest("button[role='tab']")?.id === "followingTab" ? "following" : "explore";
+      selectFeed(event.key === "Home" ? "explore" : event.key === "End" ? "following" : focused === "explore" ? "following" : "explore");
+      $(activeFeed === "explore" ? "exploreTab" : "followingTab").focus();
+    });
+    document.addEventListener("click", event => {
+      const button = event.target.closest("button[data-follow]");
+      if (button && !button.disabled) handleFollow(button.dataset.follow);
+    });
+    if (firebaseConfigured) onAuthStateChanged(firebaseAuth, async user => {
+      const generation = ++viewerGeneration;
+      if (stopFollows) stopFollows();
+      stopFollows = null;
+      viewer = user;
+      authReady = true;
+      viewerReady = false;
+      viewerAcceptedTerms = false;
+      followsReady = !user;
+      followedIds = new Set();
+      optimisticFollows.clear();
+      if ($("viewerConsent").open) $("viewerConsent").close("cancel");
+      $("viewerNav").setAttribute("aria-busy", "false");
+      $("viewerName").textContent = user?.displayName || user?.email || "Tu cuenta";
+      $("viewerName").classList.toggle("hidden", !user);
+      $("viewerLogin").classList.toggle("hidden", Boolean(user));
+      $("viewerLogout").classList.toggle("hidden", !user);
+      $("viewerLogin").disabled = false;
+      updateFollowButtons();
+      refreshFollowingFeed();
+      if (!user) return;
+      if (!user.emailVerified) {
+        $("communityMessage").textContent = "Verifica tu correo antes de seguir tipsters. Revisa el enlace de verificación enviado a tu correo.";
+        $("communityMessage").classList.remove("hidden");
+        return;
+      }
+      try {
+        const [, acceptance] = await Promise.all([
+          ensureViewer(user),
+          getDoc(doc(db, "legalAcceptances", user.uid, "versions", TERMS_VERSION))
+        ]);
+        if (generation !== viewerGeneration) return;
+        viewerAcceptedTerms = acceptance.exists();
+        viewerReady = true;
+        updateFollowButtons();
+        stopFollows = onSnapshot(query(collection(db, "follows"), where("followerId", "==", user.uid)), snapshot => {
+          if (generation !== viewerGeneration) return;
+          followedIds = new Set(snapshot.docs.map(item => item.data().tipsterId));
+          followsReady = true;
+          for (const [id, pending] of optimisticFollows) {
+            if (!pending.busy && followedIds.has(id) === pending.following) optimisticFollows.delete(id);
+          }
+          updateFollowButtons();
+          refreshFollowingFeed();
+        }, error => {
+          if (generation !== viewerGeneration) return;
+          communityError(error, "No se pudieron cargar tus seguimientos. Recarga para reintentar.");
+          $("followingStatus").textContent = "No se pudieron cargar tus seguimientos. Recarga para reintentar.";
+        });
+      } catch (error) {
+        if (generation === viewerGeneration) communityError(error, "No se pudo preparar tu cuenta. Verifica tu correo y recarga para reintentar.");
+      }
+    }, error => communityError(error, "No se pudo restaurar tu sesión. Recarga para reintentar."));
 
     function showError(message) {
       $("onlineGrid").setAttribute("aria-busy", "false");
@@ -417,6 +788,7 @@
       return `?u=${encodeURIComponent(profile.username || "")}`;
     }
     function renderOnline() {
+      if (profiles.some(profile => !presenceData.has(profile.id))) return;
       const allOnline = profiles.filter(profile => profileOnline(profile)).sort((a, b) =>
         String(a.nombre_publico || a.username || "").localeCompare(String(b.nombre_publico || b.username || ""), navigator.language || "es"));
       const online = allOnline.slice(0, 20);
@@ -443,30 +815,30 @@
         return;
       }
       for (const profile of online) {
-        const link = createElement("a", "profile-card control group min-w-0 overflow-hidden rounded-2xl border border-emerald-300/20 bg-white/[.08] backdrop-blur-md p-3.5 sm:p-4");
+        const link = createElement("a", "profile-card online-card control");
         link.href = profileHref(profile);
         link.dataset.username = profile.username || "";
-        const imageFrame = createElement("div", "avatar-ring relative mb-3 aspect-[4/3] overflow-hidden rounded-xl bg-gradient-to-br from-emerald-300/20 to-emerald-300/5");
-        imageFrame.append(createElement("div", "absolute inset-0 grid place-items-center text-4xl font-bold text-emerald-100", (profile.nombre_publico || profile.username || "T").trim().charAt(0).toUpperCase()));
+        const imageFrame = createElement("div", "online-avatar");
+        imageFrame.append(createElement("span", "online-avatar-fallback", (profile.nombre_publico || profile.username || "T").trim().charAt(0).toUpperCase()));
         const avatar = safeImageSource(profile.avatar_url, IMAGE_DATA_LIMITS.avatar);
         if (avatar) {
           const image = createElement("img");
           image.src = avatar;
           image.alt = "";
           image.loading = "lazy";
-          image.width = 256;
-          image.height = 192;
-          image.className = "absolute inset-0 h-full w-full object-cover";
+          image.width = 64;
+          image.height = 64;
+          image.className = "online-avatar-image";
           image.addEventListener("error", () => image.remove(), { once: true });
           imageFrame.append(image);
         }
-        const onlineBadge = createElement("span", "badge-status absolute bottom-2.5 left-2.5 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold text-emerald-200", "En plataforma");
-        onlineBadge.prepend(createElement("span", "h-1.5 w-1.5 rounded-full bg-emerald-300"));
+        const onlineBadge = createElement("span", "online-status");
+        onlineBadge.setAttribute("aria-label", "Conectado en la plataforma");
         imageFrame.append(onlineBadge);
         link.append(
           imageFrame,
-          createElement("p", "truncate text-sm font-semibold text-zinc-100", profile.nombre_publico || profile.username || "Tipster"),
-          createElement("p", "mt-1 truncate text-xs text-zinc-500", `@${profile.username || ""}`)
+          createElement("p", "online-name text-sm font-semibold text-zinc-100", profile.nombre_publico || profile.username || "Tipster"),
+          createElement("p", "online-nickname text-xs text-emerald-200", `@${profile.username || ""}`)
         );
         grid.append(link);
       }
@@ -507,8 +879,12 @@
           : createElement("span", "shrink-0 text-xs text-zinc-500", "Ver perfil");
         if (profileOnline(profile)) presence.prepend(createElement("span", "h-1.5 w-1.5 rounded-full bg-emerald-300"));
         link.append(avatarNode(profile, "h-11 w-11 shrink-0 rounded-xl"), nameGroup, presence);
-        list.append(link);
+        const row = createElement("div", "flex items-center gap-3");
+        link.classList.add("min-w-0", "flex-1");
+        row.append(link, followButton(profile));
+        list.append(row);
       }
+      updateFollowButtons();
     }
     function renderFilters() {
       const filters = $("filters");
@@ -592,6 +968,8 @@
       $("profileTitle").textContent = profile.nombre_publico || profile.username || "Tipster";
       $("profileUsername").textContent = profile.username ? `@${profile.username}` : "";
       $("profileBio").textContent = profile.bio || "Este tipster aún no ha añadido una descripción.";
+      $("profileFollow").replaceChildren(followButton(profile));
+      updateFollowButtons();
       $("profilePresence").classList.toggle("hidden", !profileOnline(profile));
       $("profilePresence").classList.toggle("inline-flex", profileOnline(profile));
       const avatar = safeImageSource(profile.avatar_url, IMAGE_DATA_LIMITS.avatar);
@@ -640,6 +1018,7 @@
         $("profileAvatar").classList.add("hidden");
         $("profileBanner").classList.add("hidden");
         $("profileSocials").replaceChildren();
+        $("profileFollow").replaceChildren();
         $("featured").replaceChildren();
         $("picksGrid").replaceChildren();
         return;
@@ -651,17 +1030,21 @@
         }));
       }
       history.replaceState({}, "", profileHref(match));
+      showSkeleton($("picksGrid"), { variant: "cards", label: "Cargando pronósticos del tipster" });
       const picksQuery = query(collection(db, "picks"), where("user_id", "==", match.id), orderBy("created_at", "desc"), limit(60));
       stopPicks = onSnapshot(picksQuery, snapshot => {
+        $("picksGrid").setAttribute("aria-busy", "false");
         profilePicks = snapshot.docs.map(item => ({ id: item.id, ...item.data() }));
         renderPicks();
       }, error => {
+        $("picksGrid").setAttribute("aria-busy", "false");
         console.error("No se pudieron cargar los pronósticos:", error);
         $("picksGrid").replaceChildren(createElement("p", "col-span-full rounded-xl border border-rose-300/15 bg-rose-300/[.05] p-4 text-sm text-rose-200", "No se pudieron cargar los pronósticos. Recarga la página para intentarlo de nuevo."));
       });
     }
     function subscribeToProfiles() {
       onSnapshot(query(collection(db, "perfiles"), where("tipster_status", "==", "approved")), async snapshot => {
+        const generation = ++profileSnapshotGeneration;
         try {
           const activeIds = new Set(snapshot.docs.map(item => item.id));
           for (const [uid, unsubscribe] of presenceUnsubs) {
@@ -671,7 +1054,7 @@
               presenceData.delete(uid);
             }
           }
-          profiles = await Promise.all(snapshot.docs.map(async item => {
+          const nextProfiles = await Promise.all(snapshot.docs.map(async item => {
             const socialSnapshot = await getDoc(doc(db, "perfiles_social", item.id));
             return {
               id: item.id,
@@ -680,6 +1063,8 @@
               ...(presenceData.get(item.id) || { is_online: false, last_active_at: null })
             };
           }));
+          if (generation !== profileSnapshotGeneration) return;
+          profiles = nextProfiles.map(profile => ({ ...profile, ...presenceData.get(profile.id) }));
           for (const item of snapshot.docs) {
             if (presenceUnsubs.has(item.id)) continue;
             presenceUnsubs.set(item.id, onSnapshot(doc(db, "presencia", item.id), presenceSnapshot => {
@@ -692,6 +1077,7 @@
               Object.assign(profile, currentPresence);
               renderOnline();
               renderDirectory();
+              refreshFollowingFeed();
               if (selectedProfile?.id === item.id) {
                 selectedProfile = profile;
                 const online = profileOnline(profile);
@@ -700,10 +1086,12 @@
               }
             }, error => {
               console.error("No se pudo cargar la presencia del tipster:", error);
+              showError("No se pudieron cargar los tipsters conectados. Recarga para reintentar.");
             }));
           }
           renderOnline();
           renderDirectory();
+          refreshFollowingFeed();
           if (routeUsername) {
             const match = profiles.find(profile => String(profile.username || "").toLowerCase() === routeUsername.toLowerCase());
             if (match && selectedProfile?.id === match.id) {
@@ -729,6 +1117,7 @@
             $("profilePresence").classList.toggle("inline-flex", online);
           }
         } catch (error) {
+          if (generation !== profileSnapshotGeneration) return;
           console.error("No se pudieron combinar los perfiles sociales:", error);
           showError("No se pudieron cargar los perfiles completos. Comprueba las reglas de Firestore e inténtalo de nuevo.");
         }
@@ -779,6 +1168,7 @@
     }, 15_000);
 
     if (!firebaseConfigured) {
+      $("viewerNav").setAttribute("aria-busy", "false");
       $("firebaseSetup").classList.remove("hidden");
       $("firebaseSetup").setAttribute("role", "alert");
       $("onlineGrid").setAttribute("aria-busy", "false");

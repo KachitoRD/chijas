@@ -2,9 +2,9 @@
 .firebase/
 node_modules/
 skills-lock.json
-firebase-debug.log
-firestore-debug.log
-.firebase/
+*.log
+*.tmp
+*.bak
 playwright-report/
 test-results/
 reports/

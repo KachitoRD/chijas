@@ -50,15 +50,15 @@
     button, a, input { -webkit-tap-highlight-color: transparent; }
     button:active, a:active { transform: scale(.98); }
     .control { transition: border-color 180ms var(--ease-out), background-color 180ms var(--ease-out), color 180ms var(--ease-out), transform 180ms var(--ease-out); }
-    .input { width: 100%; min-height: 42px; border: 1px solid rgb(255 255 255 / .1); border-radius: 10px; background: #09090b; padding: 9px 12px; color: #f4f4f5; font-size: 14px; outline: none; transition: border-color 180ms var(--ease-out), box-shadow 180ms var(--ease-out); }
-    .input:focus { border-color: rgb(110 231 183 / .7); box-shadow: 0 0 0 3px rgb(110 231 183 / .12); }
-    .label { display: block; margin-bottom: 7px; font-size: 12px; font-weight: 600; color: #d4d4d8; }
     @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
   </style>
+  <link rel="stylesheet" href="emerald-surface.css">
+  <link rel="stylesheet" href="auth-styles.css">
+  <link rel="stylesheet" href="ui-polish.css">
   <!-- Plausible Analytics - Core Web Vitals Monitoring -->
   <script defer data-domain="fijas.app" src="https://plausible.io/js/script.js"></script>
 </head>
-<body class="min-h-[100dvh] font-sans text-zinc-100 antialiased">
+<body class="ui-app min-h-[100dvh] font-sans text-zinc-100 antialiased">
   <header class="border-b border-white/[.07]">
     <div class="mx-auto flex min-h-[68px] max-w-5xl items-center justify-between gap-3 px-4 sm:px-6">
       <a href="./" class="flex items-center gap-2.5 text-sm font-bold"><span class="grid h-8 w-8 place-items-center rounded-lg bg-emerald-300 text-xs font-extrabold text-zinc-950">F.</span>Fijas <span class="font-medium text-zinc-500">en vivo</span></a>
@@ -71,9 +71,9 @@
 
   <main class="mx-auto max-w-5xl px-4 pb-16 pt-8 sm:px-6 sm:pt-12">
     <section id="loading" class="py-16 text-center text-sm text-zinc-400" role="status">Comprobando acceso...</section>
+    <dialog id="ownerAuth" class="auth-panel-dialog" aria-labelledby="creatorLoginTitle">
     <section id="creatorLogin" class="hidden mx-auto max-w-md" aria-labelledby="creatorLoginTitle">
       <div class="border-b border-white/[.08] pb-6">
-        <p class="mb-3 text-xs font-semibold uppercase tracking-[.14em] text-emerald-200">Área privada</p>
         <h1 id="creatorLoginTitle" class="text-3xl font-bold tracking-tight">Acceso de creador</h1>
         <p class="mt-3 text-sm leading-6 text-zinc-400">Entra con la cuenta administrativa, separada de tu cuenta de tipster o lector.</p>
       </div>
@@ -82,11 +82,13 @@
         <div><label for="creatorPassword" class="label">Contraseña</label><input id="creatorPassword" class="input" type="password" autocomplete="current-password" required></div>
         <p id="creatorLoginMessage" class="hidden rounded-lg border px-3 py-2.5 text-sm leading-5" role="alert"></p>
         <button id="creatorLoginButton" type="submit" class="control min-h-11 w-full rounded-xl bg-emerald-300 px-4 text-sm font-bold text-zinc-950 hover:bg-emerald-200 disabled:cursor-wait disabled:opacity-60">Entrar al panel de creador</button>
-        <button id="resetCreatorPassword" type="button" class="control min-h-10 w-full text-sm font-semibold text-emerald-200 underline decoration-emerald-200/30 underline-offset-4 hover:decoration-emerald-200">Enviar enlace para restablecer contraseña</button>
+        <button id="creatorGoogle" type="button" class="auth-button w-full">Continuar con Google</button>
+        <button id="resetCreatorPassword" type="button" class="auth-button w-full">¿Olvidaste tu contraseña?</button>
       </form>
       <p class="mt-5 text-xs leading-5 text-zinc-500">El acceso se asigna manualmente desde Firebase Console. Este formulario no crea cuentas ni concede permisos.</p>
       <a href="admin.html" class="control mt-5 inline-flex min-h-10 items-center rounded-lg border border-white/10 px-4 text-sm font-semibold text-zinc-300 hover:bg-white/[.05]">Ir al acceso de tipster o lector</a>
     </section>
+    </dialog>
     <section id="denied" class="hidden mx-auto max-w-xl rounded-2xl border border-amber-300/15 bg-[#111114] p-6 sm:p-8" role="alert">
       <h1 class="text-2xl font-bold tracking-tight">Acceso de creador</h1>
       <p id="deniedMessage" class="mt-3 text-sm leading-6 text-zinc-400">Este panel está reservado para la cuenta administradora de la plataforma.</p>
@@ -127,13 +129,15 @@
         </div>
       </section>
 
-      <section aria-labelledby="settingsTitle" class="max-w-3xl border-b border-white/[.08] pb-8">
+      <section aria-labelledby="settingsTitle" class="space-y-4 rounded-2xl p-6 md:p-8">
         <h2 id="settingsTitle" class="text-lg font-bold">Límites del proyecto</h2>
-        <p class="mt-1.5 text-sm leading-6 text-zinc-400">Los valores son orientativos en el plan gratuito: las reglas protegen la aprobación y la autoría, pero no aplican un tope mensual de publicaciones ni restringen la lectura.</p>
-        <form id="settingsForm" class="mt-5 grid gap-4 sm:grid-cols-2">
+        <p class="text-sm leading-6 text-zinc-400">Los valores son orientativos en el plan gratuito: las reglas protegen la aprobación y la autoría, pero no aplican un tope mensual de publicaciones ni restringen la lectura.</p>
+        <form id="settingsForm" class="space-y-4">
+          <div class="form-field-grid grid grid-cols-1 md:grid-cols-2 gap-6">
           <div><label for="tipsterLimit" class="label">Límite orientativo de publicaciones por tipster al mes</label><input id="tipsterLimit" class="input" type="number" min="1" max="500" step="1" required></div>
           <div><label for="viewerLimit" class="label">Pronósticos visibles por usuario al mes, reservado para planes</label><input id="viewerLimit" class="input" type="number" min="0" max="500" step="1" required></div>
-          <p id="settingsMessage" class="hidden sm:col-span-2 rounded-lg border px-3 py-2.5 text-sm leading-5" role="status"></p>
+          </div>
+          <p id="settingsMessage" class="hidden rounded-lg border px-3 py-2.5 text-sm leading-5" role="status"></p>
           <div><button id="saveSettings" type="submit" class="control min-h-10 rounded-lg bg-emerald-300 px-4 text-sm font-bold text-zinc-950 hover:bg-emerald-200 disabled:cursor-wait disabled:opacity-60">Guardar límites</button></div>
         </form>
       </section>
@@ -177,7 +181,12 @@
 
   <script type="module">
     import { firebaseApp, firebaseConfigured, firebaseDb } from "./firebase-config.js?v=2";
-    import { getAuth, onAuthStateChanged, sendPasswordResetEmail, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+    import { installAuthModal, installGoogleAccess, installPasswordRecovery } from "./auth-ui.js";
+    import { installBusyButtons, showSkeleton } from "./ui-feedback.js";
+    installBusyButtons();
+    installAuthModal({ dialog: document.getElementById("ownerAuth"), visibilityTarget: document.getElementById("creatorLogin"), title: "Administración de la plataforma" });
+    showSkeleton(document.getElementById("loading"), { variant: "cards", label: "Comprobando acceso de creador" });
     import { collection, doc, getDoc, getDocs, limit, orderBy, query, runTransaction, serverTimestamp, setDoc, where } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
     const $ = id => document.getElementById(id);
@@ -201,11 +210,9 @@
     }
     async function loadOwnerDashboard() {
       await loadSettings();
-      await loadApplications();
-      await loadProfileChangeRequests();
-      await loadTipsters();
       $("loading").classList.add("hidden");
       $("ownerDashboard").classList.remove("hidden");
+      await Promise.all([loadApplications(), loadProfileChangeRequests(), loadTipsters()]);
     }
     function showCreatorLogin(messageText = "") {
       $("loading").classList.add("hidden");
@@ -225,7 +232,7 @@
     }
     async function loadApplications() {
       $("applications").setAttribute("aria-busy", "true");
-      $("applications").replaceChildren(createElement("p", "py-5 text-sm text-zinc-500", "Cargando solicitudes..."));
+      showSkeleton($("applications"), { label: "Cargando solicitudes de tipster" });
       try {
         const applicationsQuery = query(collection(db, "tipsterApplications"), where("status", "==", "pending"), orderBy("submitted_at", "asc"), limit(100));
         const snapshot = await getDocs(applicationsQuery);
@@ -292,7 +299,7 @@
     async function loadProfileChangeRequests() {
       const container = $("profileRequests");
       container.setAttribute("aria-busy", "true");
-      container.replaceChildren(createElement("p", "py-5 text-sm text-zinc-500", "Cargando solicitudes de cambio..."));
+      showSkeleton(container, { label: "Cargando solicitudes de cambio" });
       try {
         const snapshot = await getDocs(query(collection(db, "perfilSolicitudes"), where("estado", "==", "pendiente")));
         const requests = await Promise.all(snapshot.docs.map(async item => {
@@ -370,7 +377,7 @@
     }
     async function loadTipsters() {
       $("tipsters").setAttribute("aria-busy", "true");
-      $("tipsters").replaceChildren(createElement("p", "py-5 text-sm text-zinc-500", "Cargando permisos..."));
+      showSkeleton($("tipsters"), { label: "Cargando permisos de tipster" });
       try {
         const tipstersQuery = query(collection(db, "perfiles"), where("tipster_status", "in", ["approved", "revoked"]), limit(100));
         const snapshot = await getDocs(tipstersQuery);
@@ -442,32 +449,8 @@
         button.textContent = "Entrar al panel de creador";
       }
     });
-    $("resetCreatorPassword").addEventListener("click", async () => {
-      const email = $("creatorEmail").value.trim();
-      if (!email) {
-        notice("creatorLoginMessage", "Escribe primero el correo de la cuenta creadora.");
-        $("creatorEmail").focus();
-        return;
-      }
-      const button = $("resetCreatorPassword");
-      button.disabled = true;
-      button.textContent = "Enviando enlace...";
-      clearNotice("creatorLoginMessage");
-      try {
-        await sendPasswordResetEmail(auth, email);
-        notice("creatorLoginMessage", "Si ese correo tiene una cuenta, Firebase enviará un enlace para cambiar su contraseña. Revisa también Spam.", true);
-      } catch (error) {
-        console.error("No se pudo solicitar el cambio de contraseña:", error);
-        notice("creatorLoginMessage", error.code === "auth/invalid-email"
-          ? "Escribe una dirección de correo válida."
-          : error.code === "auth/too-many-requests"
-            ? "Hubo varios intentos. Espera un momento antes de volver a solicitar el enlace."
-            : "No se pudo enviar el enlace. Comprueba el correo y la configuración de Firebase.");
-      } finally {
-        button.disabled = false;
-        button.textContent = "Enviar enlace para restablecer contraseña";
-      }
-    });
+    installGoogleAccess({ button: $("creatorGoogle"), showMessage: (text, success) => notice("creatorLoginMessage", text, success) });
+    installPasswordRecovery({ button: $("resetCreatorPassword"), emailInput: $("creatorEmail"), showMessage: (text, success) => notice("creatorLoginMessage", text, success) });
     $("settingsForm").addEventListener("submit", async event => {
       event.preventDefault();
       const button = $("saveSettings");
@@ -543,6 +526,8 @@
             username,
             nombre_publico: application.display_name,
             tipster_status: "approved",
+            followerCount: profile.followerCount ?? 0,
+            ...(profile.followerCountUpdatedBy ? { followerCountUpdatedBy: profile.followerCountUpdatedBy } : {}),
             bio: profile.bio || null,
             color_primario: profile.color_primario || "#34d399",
             is_online: false,

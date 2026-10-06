@@ -27,6 +27,31 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/perfiles/$(userId)).data.tipster_status == "approved";
     }
 
+    function followerCount(data) {
+      return data.get("followerCount", 0);
+    }
+
+    function validFollowCounter(profileId) {
+      let followPath = /databases/$(database)/documents/follows/$(request.auth.uid + "_" + profileId);
+      let before = exists(followPath);
+      let after = existsAfter(followPath);
+      return signedInAs(request.auth.uid)
+        && acceptedCurrentTerms(request.auth.uid)
+        && resource.data.tipster_status == "approved"
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["followerCount", "followerCountUpdatedBy"])
+        && request.resource.data.followerCountUpdatedBy == request.auth.uid
+        && request.resource.data.followerCount is int
+        && request.resource.data.followerCount >= 0
+        && (( !before && after
+            && getAfter(followPath).data.followerId == request.auth.uid
+            && getAfter(followPath).data.tipsterId == profileId
+            && request.resource.data.followerCount == followerCount(resource.data) + 1)
+          || (before && !after
+            && get(followPath).data.followerId == request.auth.uid
+            && get(followPath).data.tipsterId == profileId
+            && request.resource.data.followerCount == followerCount(resource.data) - 1));
+    }
+
     // Username claims must match the profile and application written in the same transaction.
     function ownsUsername(username) {
       return existsAfter(/databases/$(database)/documents/usernames/$(username))
@@ -70,7 +95,8 @@ service cloud.firestore {
     function validProfileFields(profileId) {
       return request.resource.data.keys().hasOnly([
           "id", "username", "nombre_publico", "bio", "color_primario",
-          "is_online", "last_active_at", "created_at", "tipster_status"
+          "is_online", "last_active_at", "created_at", "tipster_status",
+          "followerCount", "followerCountUpdatedBy"
         ])
         && request.resource.data.keys().hasAll([
           "id", "username", "nombre_publico", "bio", "color_primario",
@@ -90,7 +116,11 @@ service cloud.firestore {
         && request.resource.data.is_online is bool
         && (request.resource.data.last_active_at == null || request.resource.data.last_active_at is timestamp)
         && request.resource.data.created_at is timestamp
-        && request.resource.data.tipster_status in ["approved", "revoked"];
+        && request.resource.data.tipster_status in ["approved", "revoked"]
+        && followerCount(request.resource.data) is int
+        && followerCount(request.resource.data) >= 0
+        && (!request.resource.data.keys().hasAny(["followerCountUpdatedBy"])
+          || request.resource.data.followerCountUpdatedBy is string);
     }
 
     // Full basic-profile validation is used when an admin creates or approves a profile.
@@ -413,7 +443,7 @@ service cloud.firestore {
         && request.resource.data.tipster_status == "approved"
         && request.resource.data.created_at == request.time
         && approvedApplicationClaimsUsername(profileId, request.resource.data.username);
-      allow update: if isPlatformAdmin()
+      allow update: if validFollowCounter(profileId) || (isPlatformAdmin()
         && (
           (
             resource.data.tipster_status in ["approved", "revoked"]
@@ -438,8 +468,49 @@ service cloud.firestore {
             ])
             && applyingApprovedProfileRequest(profileId)
           )
-        );
+        ));
       allow delete: if false;
+    }
+
+    match /users/{userId} {
+      allow read: if signedInAs(userId);
+      allow create: if signedInAs(userId)
+        && request.resource.data.keys().hasOnly(["uid", "role", "displayName", "photoURL", "created_at"])
+        && request.resource.data.keys().hasAll(["uid", "role", "displayName", "photoURL", "created_at"])
+        && request.resource.data.uid == userId
+        && request.resource.data.role == "viewer"
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() <= 120
+        && validOptionalHttpsUrl(request.resource.data.photoURL)
+        && request.resource.data.created_at == request.time;
+      allow update, delete: if false;
+    }
+
+    match /follows/{followId} {
+      function validCounterChange(tipsterId, delta) {
+        let path = /databases/$(database)/documents/perfiles/$(tipsterId);
+        return profileIsApproved(tipsterId)
+          && getAfter(path).data.followerCountUpdatedBy == request.auth.uid
+          && getAfter(path).data.followerCount == followerCount(get(path).data) + delta;
+      }
+      // Owners can also read their absent deterministic document before creating it.
+      allow get: if verifiedUser()
+        && (resource == null || resource.data.followerId == request.auth.uid);
+      allow list: if verifiedUser() && resource.data.followerId == request.auth.uid;
+      allow create: if signedInAs(request.resource.data.followerId)
+        && acceptedCurrentTerms(request.auth.uid)
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && request.resource.data.keys().hasOnly(["followerId", "tipsterId", "created_at"])
+        && request.resource.data.keys().hasAll(["followerId", "tipsterId", "created_at"])
+        && request.resource.data.tipsterId is string
+        && followId == request.auth.uid + "_" + request.resource.data.tipsterId
+        && request.resource.data.created_at == request.time
+        && validCounterChange(request.resource.data.tipsterId, 1);
+      allow delete: if signedInAs(resource.data.followerId)
+        && acceptedCurrentTerms(request.auth.uid)
+        && followId == request.auth.uid + "_" + resource.data.tipsterId
+        && validCounterChange(resource.data.tipsterId, -1);
+      allow update: if false;
     }
 
     // Social profile data is public only while its basic profile is approved.

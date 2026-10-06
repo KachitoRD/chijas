@@ -1,0 +1,169 @@
+/* Verde Analytics · Emerald Dark Mode surface system */
+
+:root {
+  --ease-out: cubic-bezier(.23, 1, .32, 1);
+  --ease-tactile: cubic-bezier(.175, .885, .32, 1.275);
+  --emerald: 16 185 129;
+  --emerald-surface: #0c1614;
+  --emerald-surface-raised: #0e1b17;
+  --emerald-light: linear-gradient(90deg, transparent, rgb(var(--emerald) / .8) 22%, rgb(var(--emerald) / .25) 65%, transparent);
+  --emerald-depth:
+    0 2px 6px rgb(2 12 9 / .12),
+    0 16px 40px -12px rgb(2 12 9 / .22),
+    0 36px 80px -24px rgb(2 12 9 / .18),
+    inset 0 1px 0 rgb(var(--emerald) / .12);
+  --emerald-depth-soft:
+    0 1px 3px rgb(2 12 9 / .1),
+    0 10px 28px -10px rgb(2 12 9 / .2),
+    inset 0 1px 0 rgb(var(--emerald) / .08);
+  --glow-rest: .055;
+  --glow-hover: .11;
+  --lift-duration: 280ms;
+}
+
+body { background: radial-gradient(ellipse at 50% 0%, rgb(var(--emerald) / .045), transparent 65%), #080e0c; }
+
+/* Primary surfaces: top light + depth + ambient glow */
+:is(
+  #loginForm, #legalAcceptanceForm, #accountGate, #pickForm, #profileForm, #widgetView > div,
+  section[aria-labelledby="myPicksTitle"], section[aria-labelledby="bankrollDashboardTitle"], #cropModal > section,
+  #profilePanel, #featured > article, .profile-card,
+  #creatorLogin, #denied, #ownerDashboard > section
+) {
+  position: relative;
+  isolation: isolate;
+  border-color: transparent;
+  background: linear-gradient(155deg, rgb(var(--emerald) / .035), transparent 55%), var(--emerald-surface);
+  box-shadow: var(--emerald-depth);
+  transition: transform var(--lift-duration) var(--ease-tactile), border-color 180ms var(--ease-out), background-color 180ms var(--ease-out), color 180ms var(--ease-out);
+}
+
+/* Secondary surfaces: top light + soft depth, no glow (dense grids) */
+:is(#picksGrid > article, .skeleton-card) {
+  position: relative;
+  border-color: rgb(var(--emerald) / .07);
+  background: var(--emerald-surface);
+  box-shadow: var(--emerald-depth-soft);
+  transition: transform var(--lift-duration) var(--ease-tactile);
+}
+
+:is(
+  #loginForm, #legalAcceptanceForm, #accountGate, #pickForm, #profileForm, #widgetView > div,
+  section[aria-labelledby="myPicksTitle"], section[aria-labelledby="bankrollDashboardTitle"], #cropModal > section,
+  #profilePanel, #featured > article, .profile-card,
+  #creatorLogin, #denied, #ownerDashboard > section,
+  #picksGrid > article, .skeleton-card
+)::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  inset: 0 16px auto;
+  height: 1px;
+  background: var(--emerald-light);
+  pointer-events: none;
+}
+
+:is(
+  #loginForm, #legalAcceptanceForm, #accountGate, #pickForm, #profileForm, #widgetView > div,
+  section[aria-labelledby="myPicksTitle"], section[aria-labelledby="bankrollDashboardTitle"], #cropModal > section,
+  #profilePanel, #featured > article, .profile-card,
+  #creatorLogin, #denied, #ownerDashboard > section
+)::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: auto 12% 0;
+  height: 80px;
+  border-radius: 50%;
+  background: rgb(var(--emerald));
+  filter: blur(56px);
+  opacity: var(--glow-rest);
+  pointer-events: none;
+  transition: opacity var(--lift-duration) var(--ease-out);
+}
+
+/* Layout adjustments for containers that were flat sections */
+section[aria-labelledby="bankrollDashboardTitle"] { padding-inline: 20px; border-radius: 1rem; }
+:is(#creatorLogin, #ownerDashboard > section) { padding: 20px; border-radius: 1rem; }
+@media (min-width: 640px) {
+  section[aria-labelledby="bankrollDashboardTitle"] { padding-inline: 24px; }
+  :is(#creatorLogin, #ownerDashboard > section) { padding: 24px; }
+}
+
+/* Index: let cards emit light beyond their bounds without leaking image corners */
+.profile-card { overflow: visible; animation-fill-mode: backwards; }
+#profilePanel { overflow: visible; }
+#profileBanner { border-radius: calc(1rem - 1px) calc(1rem - 1px) 0 0; }
+#profilePanel .border-\[\#111114\] { border-color: var(--emerald-surface); }
+
+/* Nested surfaces */
+:is(#profileForm > section, .bankroll-filter-panel) {
+  border-color: rgb(var(--emerald) / .09);
+  background-color: rgb(2 12 9 / .2);
+  box-shadow: inset 0 1px 0 rgb(var(--emerald) / .055);
+}
+.dashboard-table thead th { background: var(--emerald-surface-raised); }
+
+/* Controls */
+.control { transition: border-color 180ms var(--ease-out), background-color 180ms var(--ease-out), color 180ms var(--ease-out), transform var(--lift-duration) var(--ease-tactile); }
+:is(button, a.control):not(:disabled):not([aria-disabled="true"]):active { transform: scale(.98); transition-duration: 120ms; }
+
+@media (hover: hover) and (pointer: fine) {
+  :is(
+    #loginForm, #legalAcceptanceForm, #accountGate, #pickForm, #profileForm, #widgetView > div,
+    section[aria-labelledby="myPicksTitle"], section[aria-labelledby="bankrollDashboardTitle"],
+    #profilePanel, #featured > article,
+    #creatorLogin, #denied, #ownerDashboard > section,
+    #picksGrid > article
+  ):hover { transform: translateY(-2px); }
+
+  .profile-card:hover { transform: translateY(-3px); }
+
+  :is(
+    #loginForm, #legalAcceptanceForm, #accountGate, #pickForm, #profileForm, #widgetView > div,
+    section[aria-labelledby="myPicksTitle"], section[aria-labelledby="bankrollDashboardTitle"], #cropModal > section,
+    #profilePanel, #featured > article, .profile-card,
+    #creatorLogin, #denied, #ownerDashboard > section
+  ):hover::after { opacity: var(--glow-hover); }
+
+  :is(button.control, a.control):not(.tab):not(.profile-card):not(:disabled):not([aria-disabled="true"]):hover { transform: translateY(-1px); }
+  :is(button.control, a.control):not(.tab):not(:disabled):not([aria-disabled="true"]):active { transform: scale(.98); transition-duration: 120ms; }
+}
+
+/* Overlay (OBS): light + depth + header glow; no hover — there is no pointer on stream */
+.widget-header, .pick {
+  position: relative;
+  border-color: rgb(var(--emerald) / .14);
+  box-shadow: 0 2px 6px rgb(0 0 0 / .14), 0 14px 32px -12px rgb(0 0 0 / .3), inset 0 1px 0 rgb(var(--emerald) / .14);
+}
+.widget-header { isolation: isolate; }
+.widget-header::before, .pick::before {
+  content: "";
+  position: absolute;
+  inset: 0 14px auto;
+  height: 1px;
+  background: var(--emerald-light);
+  pointer-events: none;
+}
+.widget-header::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: auto 15% -6px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgb(var(--emerald));
+  filter: blur(50px);
+  opacity: .14;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(
+    #loginForm, #legalAcceptanceForm, #accountGate, #pickForm, #profileForm, #widgetView > div,
+    section[aria-labelledby="myPicksTitle"], section[aria-labelledby="bankrollDashboardTitle"],
+    #profilePanel, #featured > article, .profile-card,
+    #creatorLogin, #denied, #ownerDashboard > section,
+    #picksGrid > article, button, a
+  ) { transform: none !important; }
+}
