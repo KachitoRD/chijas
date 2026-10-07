@@ -11,6 +11,8 @@
       ".firebase",
       ".firebase/**",
       ".agents/**",
+      "docs/**",
+      "archivo/**",
       "reports/**",
       "test-results/**",
       "playwright-report/**",
