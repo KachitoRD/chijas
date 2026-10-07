@@ -26,7 +26,7 @@
           await reg.unregister();
           console.log('❌ Unregistered old Service Worker:', reg.scope);
         }
-        
+
         // Delete all old caches
         const cacheNames = await caches.keys();
         for (const name of cacheNames) {
@@ -35,7 +35,7 @@
             console.log('🗑️ Deleted cache:', name);
           }
         }
-        
+
         console.log('✅ Old Service Workers and caches cleaned successfully');
       } catch (error) {
         console.warn('⚠️ Cleanup script error (expected in some environments):', error);
@@ -203,6 +203,17 @@
       </section>
 
       <section id="picksView" aria-labelledby="picksTab">
+        <section class="mb-6" aria-labelledby="tipsterPerformanceTitle">
+          <h2 id="tipsterPerformanceTitle" class="text-lg font-bold">Rendimiento de tus fijas</h2>
+          <p class="mt-2 text-xs leading-5 text-zinc-400">Datos del período seleccionado en Bankroll. Aciertos = ganadas / (ganadas + perdidas); excluye pendientes, anuladas y cash-out. Cuota promedio de todos los pronósticos del período.</p>
+          <dl class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div class="rounded-2xl border border-emerald-900/40 bg-emerald-950/20 p-4"><dt class="text-xs text-zinc-300">Pronósticos activos</dt><dd id="tipsterActivePicks" class="mt-2 text-2xl font-bold tabular-nums text-emerald-200">Cargando…</dd></div>
+            <div class="rounded-2xl border border-emerald-900/40 bg-emerald-950/20 p-4"><dt class="text-xs text-zinc-300">Tasa de aciertos</dt><dd id="tipsterWinRate" class="mt-2 text-2xl font-bold tabular-nums text-emerald-200">Cargando…</dd></div>
+            <div class="rounded-2xl border border-emerald-900/40 bg-emerald-950/20 p-4"><dt class="text-xs text-zinc-300">Cuota promedio</dt><dd id="tipsterAverageOdds" class="mt-2 text-2xl font-bold tabular-nums text-emerald-200">Cargando…</dd></div>
+            <div class="rounded-2xl border border-emerald-900/40 bg-emerald-950/20 p-4"><dt class="text-xs text-zinc-300">ROI / Yield en unidades públicas</dt><dd id="tipsterYield" class="mt-2 text-2xl font-bold tabular-nums text-emerald-200">Cargando…</dd></div>
+          </dl>
+          <p id="tipsterExcluded" class="mt-3 text-xs leading-5 text-zinc-400"></p>
+        </section>
         <div class="grid min-w-0 items-start gap-5">
           <form id="pickForm" class="space-y-4 rounded-2xl border border-white/[.08] bg-[#111114] p-5 sm:p-6">
             <div><h2 id="pickFormTitle" class="text-lg font-bold">Publicar pronóstico</h2><p id="pickFormHint" class="mt-1 text-xs text-zinc-500">Completa los datos del evento y tu selección.</p><p id="pickLimitHint" class="mt-1 whitespace-pre-line text-xs text-zinc-500"></p></div>
@@ -211,13 +222,18 @@
               <div><label for="odds" class="label">Cuota</label><input id="odds" class="input" type="number" min="1.01" max="1000" step="0.01" inputmode="decimal" placeholder="1.85" required></div>
             </div>
             <div><label for="event" class="label">Evento</label><input id="event" class="input" placeholder="Equipo A vs. Equipo B" maxlength="120" required></div>
+            <div class="form-field-grid grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div><label for="league" class="label">Torneo / competición</label><input id="league" class="input" maxlength="120" required placeholder="Liga del evento"></div>
+              <div><label for="market" class="label">Mercado</label><input id="market" class="input" maxlength="120" required placeholder="1X2, Más/Menos…"></div>
+            </div>
+            <div><label for="publicStake" class="label">Stake público (unidades, no dinero)</label><input id="publicStake" class="input" type="number" min="0.01" max="10000" step="0.01" value="1" required><p class="mt-1 text-xs text-zinc-400">Unidades de exposición publicadas para calcular el rendimiento; no se extraen de tu bankroll privado.</p></div>
             <div><label for="selection" class="label">Pronóstico</label><input id="selection" class="input" placeholder="Más de 2.5 goles" maxlength="120" required></div>
             <div class="form-field-grid grid grid-cols-1 md:grid-cols-2 gap-6">
               <div><label for="bookmaker" class="label">Casa de apuestas</label><select id="bookmaker" class="input" required><option value="betano">Betano</option><option value="inkabet">Inkabet</option><option value="te_apuesto">Te Apuesto</option><option value="betsson">Betsson</option><option value="doradobet">Doradobet</option><option value="apuesta_total">Apuesta Total</option><option value="bet365">bet365</option><option value="otra">Otra</option></select></div>
               <div><label for="confidence" class="label">Confianza</label><select id="confidence" class="input"><option value="">Sin indicar</option><option value="1">1 de 5</option><option value="2">2 de 5</option><option value="3">3 de 5</option><option value="4" selected>4 de 5</option><option value="5">5 de 5</option></select></div>
             </div>
             <div><label for="eventDate" class="label">Fecha del evento</label><input id="eventDate" class="input" type="datetime-local" required></div>
-            <div><label for="note" class="label">Nota (opcional)</label><textarea id="note" class="input min-h-20 resize-y" rows="2" maxlength="500" placeholder="Contexto de tu pronóstico"></textarea></div>
+            <div><label for="note" class="label">Análisis detallado (opcional)</label><textarea id="note" class="input min-h-20 resize-y" rows="4" maxlength="4000" placeholder="Contexto y análisis de tu pronóstico"></textarea></div>
             <fieldset class="space-y-3 border-t border-white/10 pt-4">
               <legend class="text-sm font-semibold text-zinc-200">Control financiero privado (opcional)</legend>
               <p id="bankrollHelp" class="text-xs leading-5 text-zinc-400">Solo tú puedes consultar este importe desde la aplicación. No aparece en tu perfil público ni en el widget. Déjalo vacío para no registrarlo.</p>
@@ -244,7 +260,7 @@
                 <div><label for="bankrollPeriod" class="label">Período</label><select id="bankrollPeriod" class="input"><option value="month">Mes en curso</option><option value="custom">Personalizado</option></select></div>
                 <div><label for="bankrollFrom" class="label">Desde</label><input id="bankrollFrom" class="input" type="date" disabled></div>
                 <div><label for="bankrollThrough" class="label">Hasta (inclusive)</label><input id="bankrollThrough" class="input" type="date" disabled></div>
-                <div><label for="bankrollStatus" class="label">Estado</label><select id="bankrollStatus" class="input"><option value="">Todas</option><option value="ganada">Ganadas</option><option value="perdida">Perdidas</option><option value="pendiente">Pendientes</option><option value="cash_out">Cashback / Cash out</option><option value="anulada">Anuladas</option></select></div>
+                <div><label for="bankrollStatus" class="label">Estado</label><select id="bankrollStatus" class="input"><option value="">Todas</option><option value="won">Ganadas</option><option value="lost">Perdidas</option><option value="pending">Pendientes</option><option value="cashed_out">Cierre anticipado</option><option value="void">Anuladas</option></select></div>
                 <div><label for="bankrollSport" class="label">Deporte / categoría</label><select id="bankrollSport" class="input"><option value="">Todos</option></select></div>
                 <div><label for="bankrollBookmaker" class="label">Casa de apuestas</label><select id="bankrollBookmaker" class="input"><option value="">Todas</option></select></div>
               </div>
@@ -373,18 +389,24 @@
 
   <script type="module">
     import { mountTipsterView } from "./tipster-view.js";
-    try {
-      const response = await fetch("tipster-dashboard.html");
-      if (!response.ok) throw new Error("No se pudo cargar el panel operativo.");
-      const template = new DOMParser().parseFromString(await response.text(), "text/html");
-      template.querySelectorAll("script").forEach(script => script.remove());
-      document.body.replaceChildren(...template.body.childNodes);
-      const cleanup = mountTipsterView(document.body);
-      addEventListener("pagehide", cleanup, { once: true });
-    } catch (error) {
-      console.error("No se pudo cargar el panel:", error);
-      document.getElementById("panelLoading").textContent = "No se pudo cargar el panel. Recarga para reintentar.";
-    }
+    import { firebaseAuth, firebaseConfigured } from "./firebase-config.js?v=2";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+    let cleanup;
+    const stopAuth = firebaseConfigured ? onAuthStateChanged(firebaseAuth, user => {
+      if (!user) {
+        window.location.replace("index.html#view=tipster");
+        return;
+      }
+      if (!cleanup) cleanup = mountTipsterView(document.body);
+    }, error => {
+      console.error("No se pudo comprobar la sesión del panel:", error);
+      document.getElementById("panelLoading").textContent = "No se pudo comprobar tu sesión. Recarga para reintentar.";
+    }) : null;
+    if (!firebaseConfigured) cleanup = mountTipsterView(document.body);
+    addEventListener("pagehide", () => {
+      if (stopAuth) stopAuth();
+      if (cleanup) cleanup();
+    }, { once: true });
   </script>
   <script src="toasts.js"></script>
   <!-- Service Worker Registration - PWA Support -->

@@ -7,6 +7,7 @@ const authRoot = "http://127.0.0.1:9099";
 const firestoreRoot = "http://127.0.0.1:8080/v1/projects/demo-fijas-vivo/databases/(default)/documents";
 const password = "Test-password-123!";
 let account;
+let oobEndpoint;
 
 test.beforeEach(async ({ request, page }) => {
   const email = `auth-${randomUUID()}@example.test`;
@@ -15,6 +16,9 @@ test.beforeEach(async ({ request, page }) => {
   });
   expect(response.ok()).toBeTruthy();
   account = { ...await response.json(), email };
+  const claims = JSON.parse(Buffer.from(account.idToken.split(".")[1], "base64url").toString("utf8"));
+  expect(["demo-fijas-vivo", "chijas"], "Proyecto efectivo del Auth Emulator").toContain(claims.aud);
+  oobEndpoint = `${authRoot}/emulator/v1/projects/${encodeURIComponent(claims.aud)}/oobCodes`;
   await request.patch(`${firestoreRoot}/legalAcceptances/${account.localId}/versions/2026-10-03`, {
     headers: { Authorization: "Bearer owner" },
     data: { fields: {
@@ -31,8 +35,8 @@ test.beforeEach(async ({ request, page }) => {
   await page.route(/https:\/\/(firestore|identitytoolkit|securetoken)\.googleapis\.com\/.*/, route => route.abort());
 });
 
-test.afterEach(async ({ request, page }) => {
-  if (page.url().startsWith("http://localhost:5500")) {
+test.afterEach(async ({ request, page }, testInfo) => {
+  if (new URL(page.url()).origin === new URL(testInfo.project.use.baseURL).origin) {
     const user = await page.evaluate(async () => {
       const { firebaseAuth } = await import("/firebase-config.js?v=2");
       return firebaseAuth.currentUser ? { uid: firebaseAuth.currentUser.uid, idToken: await firebaseAuth.currentUser.getIdToken() } : null;
@@ -44,6 +48,7 @@ test.afterEach(async ({ request, page }) => {
     }
   }
   await request.delete(`${firestoreRoot}/users/${account.localId}`, { headers: { Authorization: "Bearer owner" } });
+  await request.delete(`${firestoreRoot}/viewerPresence/${account.localId}`, { headers: { Authorization: "Bearer owner" } });
   await request.delete(`${firestoreRoot}/platformAdmins/${account.localId}`, { headers: { Authorization: "Bearer owner" } });
   await request.delete(`${firestoreRoot}/legalAcceptances/${account.localId}/versions/2026-10-03`, { headers: { Authorization: "Bearer owner" } });
   const response = await request.post(`${authRoot}/identitytoolkit.googleapis.com/v1/accounts:delete?key=demo-key`, { data: { idToken: account.idToken } });
@@ -57,12 +62,33 @@ for (const surface of [
 ]) {
   test(`recuperación real en Auth Emulator desde ${surface.path}`, async ({ page, request }, testInfo) => {
     await page.goto(surface.path);
+    const configuration = await page.evaluate(async () => {
+      const { firebaseApp, firebaseAuth } = await import("/firebase-config.js?v=2");
+      return { projectId: firebaseApp.options.projectId, emulator: firebaseAuth.emulatorConfig };
+    });
+    expect(configuration.projectId).toBe("demo-fijas-vivo");
+    expect(configuration.emulator).toMatchObject({ host: "127.0.0.1", port: 9099, protocol: "http" });
     if (surface.path === "/") await page.locator("#viewerLogin").click();
     await page.locator(surface.email).fill(account.email);
+    const resetRequest = page.waitForRequest(request => request.url().includes("accounts:sendOobCode"));
     await page.locator(surface.reset).click();
+    const sent = await resetRequest;
+    const url = new URL(sent.url());
+    expect(url.origin).toBe(authRoot);
+    expect(url.searchParams.get("key")).toBe("demo-key");
+    expect(sent.postDataJSON()).toMatchObject({ requestType: "PASSWORD_RESET", email: account.email });
     await expect(page.locator(surface.message)).toContainText("recibirás un enlace");
-    const codes = await (await request.get(`${authRoot}/emulator/v1/projects/demo-fijas-vivo/oobCodes`)).json();
-    expect(codes.oobCodes.some(code => code.email === account.email && code.requestType === "PASSWORD_RESET")).toBeTruthy();
+    await expect.poll(async () => {
+      const response = await request.get(oobEndpoint, { timeout: 5000 });
+      expect(response.status(), "Auth Emulator debe responder a la consulta OOB").toBe(200);
+      const codes = await response.json();
+      expect(Array.isArray(codes.oobCodes), "La respuesta OOB debe contener una lista de códigos").toBeTruthy();
+      return codes.oobCodes.some(code => code.email === account.email && code.requestType === "PASSWORD_RESET");
+    }, {
+      message: "Auth Emulator debe generar el código PASSWORD_RESET de la cuenta de prueba",
+      timeout: 15000,
+      intervals: [100, 250, 500, 1000]
+    }).toBeTruthy();
     await page.setViewportSize({ width: 390, height: 844 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
     await page.screenshot({ path: testInfo.outputPath("auth-mobile.png"), fullPage: true });
@@ -87,6 +113,64 @@ test("login viewer por correo persiste y las credenciales inválidas tienen feed
   await expect(page.locator("#viewerLogin")).toBeHidden();
 });
 
+test("cuenta privada: el enlace aparece con sesión y conserva login en la vitrina", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator("#viewerAccount")).toBeHidden();
+  await expect(page.locator("#viewerLogin")).toBeEnabled();
+  await expect(page.locator("#userMenuButton")).toBeHidden();
+  await page.locator("#viewerLogin").click();
+  await page.locator("#viewerAuthEmail").fill(account.email);
+  await page.locator("#viewerAuthPassword").fill(password);
+  await page.locator("#viewerAuthSubmit").click();
+  await expect(page.locator("#userMenuButton")).toBeVisible();
+  await page.locator("#userMenuButton").click();
+  await expect(page.locator("#viewerAccount")).toBeVisible();
+  await expect(page.locator("#viewerAccount")).toHaveAttribute("href", "#view=settings");
+  await expect(page.locator("#followingTab")).toBeVisible();
+  await page.locator("#viewerAccount").click();
+  await expect(page.locator("#accountSettingsForm")).toBeVisible();
+  await page.goto("/user-profile.html");
+  await expect(page.locator("#profile")).toBeVisible();
+  await expect(page.locator("#profile-email")).toHaveText(account.email);
+  await expect(page.locator("#profile-uid")).toHaveText(account.localId);
+  await expect(page.locator("#profile-verification")).toHaveText("Verificado");
+  for (const width of [390, 1280]) {
+    await page.setViewportSize({ width, height: 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
+  }
+  await page.reload();
+  await expect(page.locator("#profile-email")).toHaveText(account.email);
+  await page.locator("#sign-out").click();
+  await expect(page.locator("#signed-out")).toBeVisible();
+  await expect(page.locator("#profile")).toBeHidden();
+  await expect(page.locator("#profile-email")).toBeEmpty();
+  await expect(page.locator("#profile-uid")).toBeEmpty();
+  await page.goto("/");
+  await expect(page.locator("#viewerLogin")).toBeVisible();
+  await expect(page.locator("#viewerAccount")).toBeHidden();
+});
+
+test("cuenta privada: una visita sin sesión no muestra datos personales", async ({ page }) => {
+  await page.goto("/user-profile.html");
+  await expect(page.locator("#signed-out")).toBeVisible();
+  await expect(page.locator("#profile")).toBeHidden();
+  await expect(page.locator("#profile-email")).toBeEmpty();
+  await expect(page.locator("#profile-uid")).toBeEmpty();
+});
+
+test("cuenta privada: muestra el nombre básico del visor autenticado", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator("#viewerLogin")).toBeEnabled();
+  await page.evaluate(async ({ email, password }) => {
+    const { firebaseAuth } = await import("/firebase-config.js?v=2");
+    const { signInWithEmailAndPassword, updateProfile } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
+    const { user } = await signInWithEmailAndPassword(firebaseAuth, email, password);
+    await updateProfile(user, { displayName: "Visor de prueba" });
+  }, { email: account.email, password });
+  await page.goto("/user-profile.html");
+  await expect(page.locator("#profile-name")).toHaveText("Visor de prueba");
+});
+
 test("registro viewer guarda aceptación y exige verificar correo", async ({ page, request }) => {
   await page.goto("/");
   await page.locator("#viewerLogin").click();
@@ -99,7 +183,7 @@ test("registro viewer guarda aceptación y exige verificar correo", async ({ pag
   await page.locator("#viewerAuthTerms").check();
   await page.locator("#viewerAuthSubmit").click();
   await expect(page.locator("#viewerAuthMessage")).toContainText("Cuenta creada");
-  const codes = await (await request.get(`${authRoot}/emulator/v1/projects/demo-fijas-vivo/oobCodes`)).json();
+  const codes = await (await request.get(oobEndpoint)).json();
   const verification = codes.oobCodes.find(code => code.email === email && code.requestType === "VERIFY_EMAIL");
   expect(verification).toBeTruthy();
   await request.post(`${authRoot}/identitytoolkit.googleapis.com/v1/accounts:update?key=demo-key`, { data: { oobCode: verification.oobCode } });
@@ -117,7 +201,7 @@ test("owner usa Google alternativo sin conceder permisos administrativos", async
 });
 
 for (const provider of ["google", "password"]) {
-  test(`inicio redirige al owner autorizado con ${provider} y al restaurar sesión`, async ({ page, request }) => {
+  test(`inicio conserva viewer y ofrece panel autorizado con ${provider} y al restaurar sesión`, async ({ page, request }) => {
     const provisioned = await request.patch(`${firestoreRoot}/platformAdmins/${account.localId}`, {
       headers: { Authorization: "Bearer owner" }, data: { fields: { enabled: { booleanValue: true } } }
     });
@@ -134,15 +218,20 @@ for (const provider of ["google", "password"]) {
       await page.locator("#viewerAuthPassword").fill(password);
       await page.locator("#viewerAuthSubmit").click();
     }
-    await expect(page).toHaveURL(/\/owner\.html$/);
-    await expect(page.locator("#ownerDashboard")).toBeVisible();
-    await page.goto("/");
-    await expect(page).toHaveURL(/\/owner\.html$/);
-    await expect(page.locator("#ownerDashboard")).toBeVisible();
+    await expect(page.locator("#userMenuButton")).toBeVisible();
+    await expect(page.locator("#viewerMain")).toBeVisible();
+    await expect(page).toHaveURL(/\/$/);
+    await page.locator("#userMenuButton").click();
+    await expect(page.locator("#userAdminLink")).toBeVisible();
+    await page.reload();
+    await expect(page.locator("#userMenuButton")).toBeVisible();
+    await page.locator("#userMenuButton").click();
+    await expect(page.locator("#userAdminLink")).toBeVisible();
+    await expect(page.locator("#viewerMain")).toBeVisible();
     const viewerProfile = await request.get(`${firestoreRoot}/users/${account.localId}`, {
       headers: { Authorization: "Bearer owner" }
     });
-    expect(viewerProfile.status()).toBe(404);
+    expect(viewerProfile.ok()).toBeTruthy();
   });
 }
 

@@ -1,0 +1,18 @@
+#dashboardView[data-view="admin"] {
+  .admin-table-scroll { max-width: 100%; min-width: 0; overflow-x: auto; }
+  .admin-application-table { width: 100%; min-width: 480px; font-size: 13px; border-collapse: collapse; }
+  .admin-application-table caption { text-align: left; color: #bbcec3; padding-block: 16px; }
+  .admin-application-table :is(th, td) { padding: 16px 12px; text-align: left; vertical-align: top; border-bottom: 1px solid rgb(110 231 183 / .12); overflow-wrap: anywhere; }
+  .admin-application-table .admin-actions { margin-top: 0; }
+  .admin-list > article { padding: 20px 0; border-bottom: 1px solid rgb(110 231 183 / .1); overflow-wrap: anywhere; }
+  .admin-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 16px; }
+  .admin-button { min-height: 44px; padding: 8px 16px; border: 1px solid rgb(110 231 183 / .2); border-radius: 10px; font-weight: 600; }
+  .admin-button:hover { border-color: #6ee7b7; }
+  .admin-button:disabled { opacity: .5; cursor: not-allowed; }
+  .admin-field { display: grid; gap: 8px; min-width: 0; }
+  .admin-field :is(input, select, textarea) { width: 100%; min-height: 44px; padding: 10px 12px; border-radius: 10px; border: 1px solid rgb(110 231 183 / .2); background: #0e1b17; color: #f4f4f5; }
+  #admin-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 24px 0; }
+  #admin-tabs [aria-selected="true"] { border-color: #6ee7b7; color: #a7f3d0; }
+  .admin-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 24px; margin: 24px 0; }
+  .admin-metrics dd { margin-top: 8px; font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+}

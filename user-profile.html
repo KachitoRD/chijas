@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#09090b">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Mi perfil | Fijas en vivo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="dist/styles.min.css">
+    <link rel="stylesheet" href="emerald-surface.css">
+    <style>
+      :root { color-scheme: dark; }
+      :focus-visible { outline: 2px solid #6ee7b7; outline-offset: 3px; }
+    </style>
+  </head>
+  <body class="min-h-screen bg-zinc-950 font-sans text-zinc-100 antialiased selection:bg-emerald-300 selection:text-emerald-950">
+    <div id="auth-loading" class="mx-auto max-w-7xl px-6 py-16 text-sm text-zinc-400" role="status" aria-live="polite">
+      Verificando tu sesión…
+    </div>
+    <section id="auth-message" class="mx-auto hidden max-w-xl px-6 py-16" role="alert" aria-live="assertive">
+      <h1 class="text-2xl font-bold tracking-tight">No se pudo abrir tu perfil</h1>
+      <p id="auth-message-text" class="mt-3 text-sm leading-6 text-zinc-300"></p>
+      <a class="mt-6 inline-flex min-h-11 items-center rounded-lg bg-emerald-300 px-4 font-semibold text-emerald-950 hover:bg-emerald-200" href="index.html">Volver al inicio</a>
+    </section>
+    <section id="signed-out" class="mx-auto hidden max-w-xl px-6 py-16">
+      <h1 class="text-2xl font-bold tracking-tight">Inicia sesión para continuar</h1>
+      <p class="mt-3 text-sm leading-6 text-zinc-300">Tu cuenta es privada. Inicia sesión desde la vitrina para consultar tus datos.</p>
+      <a class="mt-6 inline-flex min-h-11 items-center rounded-lg bg-emerald-300 px-4 font-semibold text-emerald-950 hover:bg-emerald-200" href="index.html">Ir al inicio de sesión</a>
+    </section>
+
+    <div id="profile" class="hidden">
+      <!-- Auth confirma identidad; Firestore Rules autorizan por separado cada acceso a datos. -->
+      <header class="border-b border-white/10 bg-zinc-950/90">
+        <div class="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-6 py-5">
+          <a class="text-lg font-bold tracking-tight" href="index.html">Fijas <span class="font-medium text-zinc-400">en vivo</span></a>
+          <div class="flex min-w-0 flex-wrap items-center gap-4">
+            <p class="min-w-0 break-all text-sm text-zinc-300">Sesión: <span id="user-email" class="font-semibold text-zinc-100"></span></p>
+            <button id="sign-out" class="min-h-10 rounded-lg border border-white/15 px-3 text-sm font-semibold hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-300">Cerrar sesión</button>
+          </div>
+        </div>
+      </header>
+
+      <main class="mx-auto max-w-5xl px-6 py-10">
+        <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">Mi perfil</h1>
+        <p class="mt-3 max-w-2xl text-sm leading-6 text-zinc-300">Consulta la información básica de tu cuenta. Explorar pronósticos y seguir tipsters sigue disponible en la vitrina.</p>
+
+        <section aria-labelledby="account-title" class="mt-10 border-t border-white/10 py-8">
+          <h2 id="account-title" class="text-xl font-semibold">Cuenta</h2>
+          <!-- Los datos privados futuros se consultarán en users/{uid}, solo para el usuario autenticado y bajo Firestore Rules. -->
+          <dl class="mt-5 grid gap-4 sm:grid-cols-2">
+            <div>
+              <dt class="text-sm text-zinc-400">Nombre</dt>
+              <dd id="profile-name" class="mt-1 break-all font-medium"></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-zinc-400">Correo de sesión</dt>
+              <dd id="profile-email" class="mt-1 break-all font-medium"></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-zinc-400">Identificador</dt>
+              <dd id="profile-uid" class="mt-1 break-all font-medium"></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-zinc-400">Correo electrónico</dt>
+              <dd id="profile-verification" class="mt-1 font-medium"></dd>
+            </div>
+          </dl>
+        </section>
+
+        <section aria-labelledby="preferences-title" class="border-t border-white/10 py-8">
+          <h2 id="preferences-title" class="text-xl font-semibold">Preferencias</h2>
+          <!-- TODO: Añadir preferencias de cuenta sin almacenar permisos, roles ni suscripciones desde el cliente. -->
+          <p class="mt-2 text-sm text-zinc-400">Las preferencias de perfil se conectarán en una fase posterior.</p>
+        </section>
+        <section aria-labelledby="subscriptions-title" class="border-t border-white/10 py-8">
+          <h2 id="subscriptions-title" class="text-xl font-semibold">Suscripciones</h2>
+          <!-- La gestión privada de suscripciones irá aquí cuando exista autorización de backend; nunca conceder permisos desde el cliente. -->
+          <p class="mt-2 text-sm text-zinc-400">Las suscripciones comerciales no están activas en el MVP.</p>
+        </section>
+      </main>
+    </div>
+
+    <script type="module">
+      import { firebaseAuth, firebaseConfigured, firebaseConfigError } from "./firebase-config.js?v=2";
+      import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+      import { watchAccountPermissions } from "./permissions.js";
+
+      const loading = document.querySelector("#auth-loading");
+      const profile = document.querySelector("#profile");
+      const signedOut = document.querySelector("#signed-out");
+      const authMessage = document.querySelector("#auth-message");
+      const authMessageText = document.querySelector("#auth-message-text");
+      const signOutButton = document.querySelector("#sign-out");
+      let stopPermissions = null;
+
+      function clearAccount() {
+        profile.classList.add("hidden");
+        for (const id of ["user-email", "profile-email", "profile-uid", "profile-name", "profile-verification"]) {
+          document.getElementById(id).textContent = "";
+        }
+      }
+
+      function showError(message) {
+        clearAccount();
+        loading.classList.add("hidden");
+        signedOut.classList.add("hidden");
+        authMessageText.textContent = message;
+        authMessage.classList.remove("hidden");
+      }
+
+      if (!firebaseConfigured || !firebaseAuth) {
+        showError(firebaseConfigError);
+      } else {
+        onAuthStateChanged(firebaseAuth, user => {
+          if (stopPermissions) stopPermissions();
+          stopPermissions = null;
+          clearAccount();
+          loading.classList.add("hidden");
+          authMessage.classList.add("hidden");
+          authMessageText.textContent = "";
+          if (!user) {
+            signedOut.classList.remove("hidden");
+            return;
+          }
+          signedOut.classList.add("hidden");
+          loading.classList.remove("hidden");
+          stopPermissions = watchAccountPermissions(user, permissions => {
+            if (firebaseAuth.currentUser?.uid !== user.uid) return;
+            if (permissions.suspended) {
+              showError("Tu cuenta está suspendida. Contacta al administrador.");
+              return;
+            }
+            authMessage.classList.add("hidden");
+            loading.classList.add("hidden");
+            document.querySelector("#user-email").textContent = user.email || user.uid;
+            document.querySelector("#profile-email").textContent = user.email || "No disponible";
+            document.querySelector("#profile-uid").textContent = user.uid;
+            document.querySelector("#profile-name").textContent = user.displayName || "Sin nombre";
+            document.querySelector("#profile-verification").textContent = user.emailVerified ? "Verificado" : "Pendiente de verificación";
+            profile.classList.remove("hidden");
+          }, error => {
+            console.error("No se pudo comprobar el estado de la cuenta:", error);
+            showError("No se pudo comprobar tu cuenta. Recarga para reintentar.");
+          });
+        }, error => {
+          console.error("No se pudo comprobar la sesión de Firebase:", error);
+          showError("No se pudo comprobar tu sesión. Revisa la conexión e inténtalo de nuevo.");
+        });
+
+        signOutButton.addEventListener("click", async () => {
+          signOutButton.disabled = true;
+          try {
+            await signOut(firebaseAuth);
+          } catch (error) {
+            console.error("No se pudo cerrar la sesión:", error);
+            showError("No se pudo cerrar la sesión. Inténtalo de nuevo.");
+          } finally {
+            signOutButton.disabled = false;
+          }
+        });
+      }
+    </script>
+  </body>
+</html>

@@ -1,3 +1,5 @@
+import { normalizePick } from "./pick-schema.js";
+
 export const bankrollCurrencies = Object.freeze([
   { code: "PEN", label: "PEN - Soles", minorUnitDigits: 2 },
   { code: "USD", label: "USD - Dólares", minorUnitDigits: 2 },
@@ -29,20 +31,21 @@ export function parseCashOutReturn(value, currencyCode) {
 }
 
 export function pickFinancialResult(pick, bankroll) {
+  pick = normalizePick(pick);
   if (!bankroll) return null;
   const stake = bankroll.stakeMinorUnits;
   let returned = null;
-  if (pick.estado === "ganada") returned = Math.round(stake * pick.cuota);
-  else if (pick.estado === "perdida") returned = 0;
-  else if (pick.estado === "anulada") returned = stake;
-  else if (pick.estado === "cash_out") {
+  if (pick.status === "won") returned = Math.round(stake * pick.odds);
+  else if (pick.status === "lost") returned = 0;
+  else if (pick.status === "void") returned = stake;
+  else if (pick.status === "cashed_out") {
     if (!Number.isSafeInteger(bankroll.returnMinorUnits) || bankroll.returnMinorUnits < 0) {
       throw new Error("El cierre anticipado no tiene un retorno privado válido.");
     }
     returned = bankroll.returnMinorUnits;
   }
   const profit = returned === null ? null : returned - stake;
-  const yieldPercent = profit === null || pick.estado === "anulada" ? null : profit / stake * 100;
+  const yieldPercent = profit === null || pick.status === "void" ? null : profit / stake * 100;
   return { currency: bankroll.currency, stake, returned, profit, yield: yieldPercent };
 }
 
@@ -58,7 +61,7 @@ export function summarizeBankroll(picks, records) {
     else {
       total.returned += result.returned;
       total.profit += result.profit;
-      if (pick.estado !== "anulada") total.settledStake += result.stake;
+      if (normalizePick(pick).status !== "void") total.settledStake += result.stake;
     }
   }
   return [...totals.values()].map(total => ({
@@ -85,21 +88,21 @@ export function eventDateRange(from, through) {
 }
 
 export function filterBankrollPicks(picks, { status = "", sport = "", bookmaker = "" } = {}) {
-  return picks.filter(pick => (!status || pick.estado === status)
-    && (!sport || pick.deporte === sport)
-    && (!bookmaker || (pick.casa_de_apuestas || pick.casa_apuestas) === bookmaker));
+  return picks.map(normalizePick).filter(pick => (!status || pick.status === status)
+    && (!sport || pick.sport === sport)
+    && (!bookmaker || (pick.bookmaker || pick.bookmaker) === bookmaker));
 }
 
 export function bankrollReportData(picks, records, filters) {
   const { start, end } = eventDateRange(filters.from, filters.through);
   const selected = filterBankrollPicks(picks, filters).filter(pick => {
-    const date = pick.fecha_evento?.toDate?.() || new Date(pick.fecha_evento);
+    const date = pick.event_date?.toDate?.() || new Date(pick.event_date);
     if (!Number.isFinite(date.getTime())) throw new Error("Un pick no tiene una fecha de evento válida.");
     return date >= start && date < end;
   });
   if (selected.some(pick => !records.has(pick.id))) throw new Error("Faltan registros privados por cargar; no se puede exportar un reporte parcial.");
-  const won = selected.filter(pick => pick.estado === "ganada").length;
-  const lost = selected.filter(pick => pick.estado === "perdida").length;
+  const won = selected.filter(pick => pick.status === "won").length;
+  const lost = selected.filter(pick => pick.status === "lost").length;
   return {
     filters: { ...filters }, picks: selected, totals: summarizeBankroll(selected, records),
     count: selected.length, financialCount: selected.filter(pick => records.get(pick.id)).length,
@@ -129,12 +132,12 @@ export function bankrollCSV(picks, records, filters, summaryOnly = false) {
     rows.push([], ["ID pick", "Fecha evento (hora local)", "Evento", "Selección", "Deporte", "Casa", "Estado",
       "Cuota", "Confianza", "Nota", "Moneda", "Stake privado", "Retorno", "Profit neto", "Yield (%)"]);
     for (const pick of picks) {
-      const date = pick.fecha_evento?.toDate?.() || new Date(pick.fecha_evento);
+      const date = pick.event_date?.toDate?.() || new Date(pick.event_date);
       if (!Number.isFinite(date.getTime())) throw new Error("Un pick no tiene una fecha de evento válida.");
       const financial = pickFinancialResult(pick, records.get(pick.id));
-      rows.push([pick.id, date.toLocaleString("sv-SE"), pick.evento, pick.seleccion || pick.prediccion,
-        pick.deporte, pick.casa_de_apuestas || pick.casa_apuestas, pick.estado, pick.cuota, pick.confianza,
-        pick.nota, financial?.currency, financial ? financial.stake / 100 : "",
+      rows.push([pick.id, date.toLocaleString("sv-SE"), pick.event, pick.selection || pick.selection,
+        pick.sport, pick.bookmaker || pick.bookmaker, pick.status, pick.odds, pick.confianza,
+        pick.analysis, financial?.currency, financial ? financial.stake / 100 : "",
         financial?.returned == null ? "" : financial.returned / 100,
         financial?.profit == null ? "" : financial.profit / 100,
         financial?.yield == null ? "" : Number(financial.yield.toFixed(4))]);

@@ -232,6 +232,7 @@
   </style>
   <!-- Plausible Analytics - Core Web Vitals Monitoring -->
   <link rel="stylesheet" href="ui-polish.css">
+  <link rel="stylesheet" href="viewer-styles.css">
   <style>
     .ui-app.frontpage :is(.hero-gradient, .frontpage-accent) {
       color: #a7f3d0;
@@ -256,28 +257,50 @@
   </style>
   <script defer data-domain="fijas.app" src="https://plausible.io/js/script.js"></script>
 </head>
-<body class="ui-app frontpage min-h-[100dvh] font-sans text-zinc-100 antialiased">
+<body class="ui-app frontpage h-screen overflow-hidden font-sans text-zinc-100 antialiased">
   <div id="firebaseSetup" class="hidden border-b border-amber-300/20 bg-amber-300/[.07] px-4 py-3 text-sm text-amber-100" role="status">
     <div class="mx-auto max-w-6xl"><strong class="font-semibold">Falta conectar Firebase.</strong> Completa las credenciales web en <code class="rounded bg-black/30 px-1.5 py-0.5">firebase-config.js</code> y sigue <a class="underline underline-offset-4" href="FIREBASE_SETUP.md">la guía de configuración</a>.</div>
   </div>
 
-  <header class="border-b border-white/[.07]">
+  <header class="viewer-header border-b border-white/[.07]">
     <nav class="mx-auto flex min-h-[68px] max-w-6xl items-center justify-between gap-4 px-4 sm:px-6" aria-label="Navegación principal">
       <a href="./" class="flex items-center gap-3 rounded-lg" aria-label="Fijas, inicio">
         <span class="grid h-9 w-9 place-items-center rounded-xl bg-emerald-300 text-sm font-extrabold tracking-tight text-zinc-950">F.</span>
         <span class="text-sm font-bold tracking-tight sm:text-base">Fijas <span class="font-medium text-zinc-500">en vivo</span></span>
       </a>
+      <button id="toggleChannels" class="shell-icon-button" type="button" aria-label="Reducir barra de tipsters" aria-controls="channelSidebar" aria-expanded="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"></rect><path d="M9 4v16m5-12 3 4-3 4"></path></svg>
+      </button>
       <div id="viewerNav" class="viewer-nav" aria-busy="true">
-        <span id="viewerName" class="hidden text-sm text-zinc-300"></span>
         <button id="viewerLogin" type="button" class="community-control" disabled>Iniciar sesión</button>
-        <button id="viewerLogout" type="button" class="community-control hidden">Salir</button>
-        <a href="admin.html" class="community-control">Panel tipster</a>
+        <button id="userMenuButton" type="button" class="user-menu-button" popovertarget="userMenu" aria-expanded="false" hidden>
+          <span id="userAvatar" class="user-avatar" aria-hidden="true"></span>
+          <span id="viewerName" class="text-sm text-zinc-300"></span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+        </button>
+        <nav id="userMenu" class="user-menu-popover" popover="auto" aria-label="Opciones de tu cuenta">
+          <p id="userMenuEmail" class="user-menu-email"></p>
+          <p id="userMenuRole" class="user-menu-role" role="status">Comprobando permisos…</p>
+          <a id="viewerAccount" href="#view=settings" data-dashboard="settings" class="user-menu-item hidden">Configuración de perfil</a>
+          <a id="userTipsterLink" href="#view=tipster" class="user-menu-item" data-dashboard="tipster" hidden>Panel de Tipster</a>
+          <a id="userAdminLink" href="#view=admin" class="user-menu-item" data-dashboard="admin" hidden>Panel de Administración</a>
+          <button id="viewerLogout" type="button" class="user-menu-item hidden">Cerrar sesión</button>
+        </nav>
       </div>
     </nav>
   </header>
 
-  <main class="mx-auto max-w-6xl px-4 pb-20 pt-9 sm:px-6 sm:pt-14">
-    <section class="grid items-end gap-6 border-b border-white/[.08] pb-8 md:grid-cols-[minmax(0,1fr)_minmax(250px,360px)] md:gap-10 md:pb-10">
+  <div class="viewer-layout">
+    <aside id="channelSidebar" class="viewer-sidebar" aria-label="Tipsters destacados">
+        <h2 class="sidebar-heading">Tipsters destacados</h2>
+        <p class="sidebar-hint">Conexión en la plataforma, no emisión de vídeo.</p>
+        <div id="sidebarChannels" aria-busy="true">
+          <div class="skeleton h-12"></div><div class="skeleton mt-3 h-12"></div>
+        </div>
+        <a href="#directorySection" class="sidebar-directory">Ver todo el directorio</a>
+    </aside>
+  <main id="viewerMain" class="viewer-main px-4 sm:px-6" tabindex="0" aria-label="Explorar tipsters y pronósticos">
+    <section class="viewer-hero grid items-end gap-6 border-b border-white/[.08] pb-8 md:grid-cols-[minmax(0,1fr)_minmax(250px,360px)] md:gap-10 md:pb-10">
       <div>
         <h1 class="max-w-2xl hero-gradient text-4xl font-extrabold leading-[1.15] tracking-tight sm:text-5xl sm:leading-[1.15]">Encuentra a quien seguir.</h1>
         <p class="mt-5 max-w-2xl text-base leading-7 text-zinc-300 sm:text-lg sm:leading-8">Explora <span class="frontpage-accent font-bold">perfiles activos</span>, revisa sus <span class="frontpage-accent font-bold">pronósticos</span> y consulta los <span class="frontpage-accent font-bold">resultados</span> publicados.</p>
@@ -292,12 +315,20 @@
       </div>
     </section>
 
+    <div id="sportCategories" class="sport-categories" role="group" aria-label="Filtrar por deporte"></div>
     <p id="communityMessage" class="hidden mt-6 rounded-xl border border-rose-300/20 p-4 text-sm text-rose-200" role="alert"></p>
     <nav id="feedTabs" class="mt-8 flex gap-2" role="tablist" aria-label="Tu feed">
       <button id="exploreTab" type="button" role="tab" class="community-control" aria-selected="true" aria-controls="exploreFeed" tabindex="0">Explorar</button>
       <button id="followingTab" type="button" role="tab" class="community-control" aria-selected="false" aria-controls="followingFeed" tabindex="-1">Siguiendo</button>
     </nav>
     <div id="exploreFeed" role="tabpanel" aria-labelledby="exploreTab">
+    <section class="public-picks-section" aria-labelledby="publicPicksTitle">
+      <h2 id="publicPicksTitle" class="text-xl font-bold tracking-tight sm:text-2xl">Pronósticos para explorar</h2>
+      <p id="publicPicksStatus" class="mt-2 text-sm text-zinc-400" role="status">Cargando hasta 60 pronósticos recientes…</p>
+      <div id="publicPicks" class="viewer-picks-grid" aria-busy="true">
+        <div class="skeleton h-48" aria-hidden="true"></div><div class="skeleton h-48" aria-hidden="true"></div><div class="skeleton h-48" aria-hidden="true"></div>
+      </div>
+    </section>
     <section id="onlineSection" class="pt-8 sm:pt-10" aria-labelledby="onlineTitle">
       <div class="mb-5 flex items-end justify-between gap-4">
         <div>
@@ -382,8 +413,6 @@
         <div class="skeleton h-16 rounded-xl"></div><div class="skeleton mt-2 h-16 rounded-xl"></div><div class="skeleton mt-2 h-16 rounded-xl"></div>
       </div>
     </section>
-  </main>
-
   <footer class="border-t border-white/[.07] px-4 py-6 text-center text-xs leading-5 text-zinc-500">
     <p>Fijas en vivo comparte información publicada por usuarios; no es una casa de apuestas. Si decides apostar, hazlo bajo tu responsabilidad y con prudencia.</p>
     <nav class="mt-3 flex justify-center gap-5" aria-label="Información legal">
@@ -391,6 +420,42 @@
       <a class="underline underline-offset-4 hover:text-zinc-300" href="legal.html#privacidad">Privacidad</a>
     </nav>
   </footer>
+  </main>
+    <section id="dashboardView" class="native-dashboard-view" hidden tabindex="-1" aria-label="Panel integrado">
+      <header class="dashboard-view-toolbar">
+        <button id="returnStreaming" type="button" class="community-control">Regresar al streaming</button>
+        <h2 id="nativeDashboardTitle">Panel</h2>
+      </header>
+      <div id="dashboardViewContent"></div>
+    </section>
+    <aside id="communityChat" class="community-chat" aria-labelledby="chatTitle">
+      <header class="chat-heading">
+        <div><h2 id="chatTitle">Chat de la comunidad</h2><p>Demo local · mensajes simulados</p></div>
+        <button id="closeChat" class="shell-icon-button" type="button" aria-label="Cerrar chat">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"></path></svg>
+        </button>
+      </header>
+      <div class="chat-toolbar"><span>No conectado a Firebase</span><button id="pauseChat" type="button" aria-pressed="false">Pausar demo</button></div>
+      <div id="chatMessages" class="chat-messages" role="log" aria-live="off" aria-label="Mensajes de demostración" tabindex="0"></div>
+      <form id="chatForm" class="chat-composer">
+        <label for="chatInput">Probar un mensaje local</label>
+        <div class="chat-input-row">
+          <input id="chatInput" type="text" maxlength="240" autocomplete="off" placeholder="Escribe un mensaje…" required aria-describedby="chatNotice">
+          <button id="chatSend" type="submit" aria-label="Enviar mensaje local">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="m4 4 17 8-17 8 3-8-3-8Zm3 8h14"></path></svg>
+          </button>
+        </div>
+        <p id="chatNotice" role="status">Solo visible en tu navegador. No se guarda ni se publica.</p>
+      </form>
+    </aside>
+  </div>
+  <button id="openChat" class="chat-launcher" type="button" aria-haspopup="dialog" aria-controls="chatDrawer" aria-expanded="false">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9H13a8.5 8.5 0 0 1 8 8v.5Z"></path></svg>
+    Chat <span>Demo</span>
+  </button>
+  <dialog id="chatDrawer" aria-labelledby="chatTitle"></dialog>
+  <script type="module" src="viewer-shell.js"></script>
+  <script type="module" src="dashboard-navigation.js"></script>
 
   <dialog id="viewerAuth" aria-labelledby="viewerAuthTitle">
     <form id="viewerAuthForm">
@@ -436,6 +501,9 @@
     import { collection, doc, getDoc, onSnapshot, query, where, orderBy, limit, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
     import { ensureViewer, setFollowing, subscribeFollowingFeed } from "./community.js";
     import { installViewerAccess } from "./auth-ui.js";
+    import { getAccountPermissions } from "./permissions.js";
+    import { startViewerPresence } from "./viewer-presence.js";
+    import { normalizePick } from "./pick-schema.js";
     import { installBusyButtons, showSkeleton } from "./ui-feedback.js";
     installBusyButtons();
 
@@ -447,20 +515,31 @@
       ["kick_url", "Kick"], ["twitch_url", "Twitch"], ["youtube_url", "YouTube"],
       ["telegram_url", "Telegram"], ["twitter_url", "X"], ["instagram_url", "Instagram"]
     ];
-    const FILTERS = [["todas", "Todas"], ["pendiente", "Pendientes"], ["ganada", "Ganadas"], ["perdida", "Perdidas"], ["anulada", "Anuladas"], ["cash_out", "Cierre anticipado"]];
+    const FILTERS = [["todas", "Todas"], ["pending", "Pendientes"], ["won", "Ganadas"], ["lost", "Perdidas"], ["void", "Anuladas"], ["cashed_out", "Cierre anticipado"]];
+    const SPORTS = [
+      { id: "todos", label: "Todos" }, { id: "futbol", label: "Fútbol" },
+      { id: "baloncesto", label: "Baloncesto" }, { id: "tenis", label: "Tenis" },
+      { id: "esports", label: "E-Sports" }, { id: "otros", label: "Otros / Más deportes" }
+    ];
+    let selectedSport = "todos", publicPicks = [], publicFeedKey = null, stopPublicFeed = null, publicFeedGeneration = 0, sidebarRenderKey = null;
+    function matchesSport(pick) {
+      if (selectedSport === "todos") return true;
+      if (selectedSport === "otros") return !SPORTS.some(sport => sport.id === pick.sport);
+      return pick.sport === selectedSport;
+    }
     const BADGES = {
-      pendiente: ["Pendiente", "border-amber-300/20 bg-amber-300/[.08] text-amber-200"],
-      ganada: ["Ganada", "border-emerald-300/20 bg-emerald-300/[.08] text-emerald-200"],
-      perdida: ["Perdida", "border-rose-300/20 bg-rose-300/[.08] text-rose-200"],
-      anulada: ["Anulada", "border-zinc-300/10 bg-white/[.04] text-zinc-300"],
-      cash_out: ["Cierre anticipado", "border-zinc-300/10 bg-white/[.04] text-zinc-300"]
+      pending: ["Pendiente", "border-amber-300/20 bg-amber-300/[.08] text-amber-200"],
+      won: ["Ganada", "border-emerald-300/20 bg-emerald-300/[.08] text-emerald-200"],
+      lost: ["Perdida", "border-rose-300/20 bg-rose-300/[.08] text-rose-200"],
+      void: ["Anulada", "border-zinc-300/10 bg-white/[.04] text-zinc-300"],
+      cashed_out: ["Cierre anticipado", "border-zinc-300/10 bg-white/[.04] text-zinc-300"]
     };
     let db, profiles = [], selectedProfile = null, profilePicks = [], selectedFilter = "todas", stopPicks = null, routeUsername = null, profileRenderKey = "", onlineRenderKey = "", directoryRenderKey = "";
     const presenceUnsubs = new Map();
     const presenceData = new Map();
     let profileSnapshotGeneration = 0;
     let viewer = null, authReady = false, viewerReady = false, viewerAcceptedTerms = false, viewerGeneration = 0;
-    let viewerAdminCheck = Promise.resolve(false);
+    let stopViewerStatus = null, stopViewerPresence = null;
     let stopFollows = null, stopFollowingFeed = null, feedKey = "", feedGeneration = 0, activeFeed = "explore";
     let followedIds = new Set(), followsReady = false, followingPicks = [], consentResolver = null;
     const optimisticFollows = new Map();
@@ -515,20 +594,22 @@
       $("followingStatus").textContent = followedProfiles.length
         ? followingPicks.length ? "Hasta 60 pronósticos recientes, actualizados en tiempo real." : "Los tipsters que sigues aún no han publicado pronósticos."
         : "Todavía no sigues tipsters disponibles. Encuéntralos en Explorar.";
-      for (const pick of followingPicks) {
+      const visiblePicks = followingPicks.filter(matchesSport);
+      if (followingPicks.length && !visiblePicks.length) $("followingStatus").textContent = "No hay pronósticos recientes en este deporte.";
+      for (const pick of visiblePicks) {
         const profile = followedProfiles.find(candidate => candidate.id === pick.user_id);
         if (!profile) continue;
         const article = createElement("article", "rounded-xl border border-white/[.08] bg-[#111114] p-4");
         const heading = createElement("div", "flex items-center justify-between gap-3");
         const author = createElement("a", "truncate text-sm font-semibold text-emerald-200", profile.nombre_publico || profile.username);
         author.href = profileHref(profile);
-        heading.append(author, badgeNode(pick.estado));
+        heading.append(author, badgeNode(pick.status));
         article.append(
           heading,
-          createElement("h3", "mt-3 font-semibold leading-5", pick.evento),
-          createElement("p", "mt-2 text-sm leading-6 text-zinc-300", pick.seleccion || pick.prediccion),
-          createElement("p", "mt-4 text-sm text-zinc-300", `Cuota ${Number(pick.cuota).toFixed(2)} · ${pick.casa_de_apuestas || pick.casa_apuestas}`),
-          createElement("p", "mt-2 text-xs text-zinc-400", pickDate(pick.fecha_evento)),
+          createElement("h3", "mt-3 font-semibold leading-5", pick.event),
+          createElement("p", "mt-2 text-sm leading-6 text-zinc-300", pick.selection || pick.selection),
+          createElement("p", "mt-4 text-sm text-zinc-300", `Cuota ${Number(pick.odds).toFixed(2)} · ${pick.bookmaker || pick.bookmaker}`),
+          createElement("p", "mt-2 text-xs text-zinc-400", pickDate(pick.event_date)),
           followButton(profile)
         );
         grid.append(article);
@@ -590,7 +671,6 @@
         const user = viewer || await openViewerAccess();
         if (!user) return;
         if (!viewerReady) {
-          if (await viewerAdminCheck) return;
           if (firebaseAuth.currentUser?.uid !== user.uid) return;
           await ensureViewer(user);
         }
@@ -689,11 +769,14 @@
     });
     if (firebaseConfigured) onAuthStateChanged(firebaseAuth, async user => {
       const generation = ++viewerGeneration;
+      if (stopViewerStatus) stopViewerStatus();
+      if (stopViewerPresence) stopViewerPresence();
+      stopViewerStatus = null;
+      stopViewerPresence = null;
       if (stopFollows) stopFollows();
       stopFollows = null;
       viewer = user;
       authReady = true;
-      viewerAdminCheck = Promise.resolve(false);
       viewerReady = false;
       viewerAcceptedTerms = false;
       followsReady = !user;
@@ -703,6 +786,7 @@
       $("viewerNav").setAttribute("aria-busy", "false");
       $("viewerName").textContent = user?.displayName || user?.email || "Tu cuenta";
       $("viewerName").classList.toggle("hidden", !user);
+      $("viewerAccount").classList.toggle("hidden", !user);
       $("viewerLogin").classList.toggle("hidden", Boolean(user));
       $("viewerLogout").classList.toggle("hidden", !user);
       $("viewerLogin").disabled = false;
@@ -715,12 +799,10 @@
         return;
       }
       try {
-        viewerAdminCheck = getDoc(doc(db, "platformAdmins", user.uid))
-          .then(admin => admin.exists() && admin.data().enabled === true);
-        const isAdmin = await viewerAdminCheck;
+        const accountPermissions = await getAccountPermissions(user);
         if (generation !== viewerGeneration) return;
-        if (isAdmin) {
-          window.location.replace("owner.html");
+        if (accountPermissions.suspended) {
+          communityError(new Error("Cuenta suspendida"), "Tu cuenta está suspendida. Contacta al administrador.");
           return;
         }
         const [, acceptance] = await Promise.all([
@@ -729,6 +811,22 @@
         ]);
         if (generation !== viewerGeneration) return;
         viewerAcceptedTerms = acceptance.exists();
+        stopViewerStatus = onSnapshot(doc(db, "users", user.uid), snapshot => {
+          if (generation !== viewerGeneration || snapshot.data()?.status !== "suspended") return;
+          viewerReady = false;
+          if (stopViewerPresence) stopViewerPresence();
+          if (stopFollows) stopFollows();
+          stopFollows = null;
+          followedIds.clear();
+          followsReady = false;
+          updateFollowButtons();
+          refreshFollowingFeed();
+          communityError(new Error("Cuenta suspendida"), "Tu cuenta está suspendida. Contacta al administrador.");
+        }, error => communityError(error, "No se pudo comprobar el estado de tu cuenta. Recarga para reintentar."));
+        if (accountPermissions.role === "viewer") {
+          stopViewerPresence = startViewerPresence(user, error =>
+            communityError(error, "No se pudo actualizar tu actividad. Recarga para reintentar."));
+        }
         viewerReady = true;
         updateFollowButtons();
         stopFollows = onSnapshot(query(collection(db, "follows"), where("followerId", "==", user.uid)), snapshot => {
@@ -751,6 +849,17 @@
     }, error => communityError(error, "No se pudo restaurar tu sesión. Recarga para reintentar."));
 
     function showError(message) {
+      publicFeedGeneration++;
+      if (stopPublicFeed) stopPublicFeed();
+      stopPublicFeed = null;
+      publicFeedKey = null;
+      publicPicks = [];
+      $("publicPicks").replaceChildren();
+      $("publicPicks").setAttribute("aria-busy", "false");
+      $("publicPicksStatus").textContent = message;
+      $("sidebarChannels").replaceChildren(createElement("p", "sidebar-hint", message));
+      $("sidebarChannels").setAttribute("aria-busy", "false");
+      sidebarRenderKey = null;
       $("onlineGrid").setAttribute("aria-busy", "false");
       onlineRenderKey = "";
       $("onlineGrid").replaceChildren(createElement("p", "col-span-full rounded-xl border border-rose-300/15 bg-rose-300/[.05] p-4 text-sm leading-6 text-rose-200", message));
@@ -799,12 +908,97 @@
       return new Intl.DateTimeFormat(navigator.language || "es", { dateStyle: "medium", timeStyle: "short" }).format(date);
     }
     function badgeNode(status) {
-      const normalized = String(status || "pendiente").toLowerCase();
+      const normalized = String(status || "pending").toLowerCase();
       const [label, classes] = BADGES[normalized] || BADGES.pendiente;
       return createElement("span", `inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-xs font-medium ${classes}`, label);
     }
     function profileHref(profile) {
       return `?u=${encodeURIComponent(profile.username || "")}`;
+    }
+    function renderSidebar() {
+      const target = $("sidebarChannels");
+      target.setAttribute("aria-busy", "false");
+      const featured = [...profiles].sort((a, b) => Number(profileOnline(b)) - Number(profileOnline(a))
+        || String(a.username).localeCompare(String(b.username))).slice(0, 12);
+      const key = JSON.stringify(featured.map(profile => [
+        profile.id, profile.username, profile.nombre_publico, profile.avatar_url, profileOnline(profile)
+      ]));
+      if (key === sidebarRenderKey) return;
+      sidebarRenderKey = key;
+      const position = target.scrollTop;
+      const horizontalPosition = target.scrollLeft;
+      target.replaceChildren();
+      for (const profile of featured) {
+        const link = createElement("a", "sidebar-channel");
+        link.href = profileHref(profile);
+        link.dataset.username = profile.username;
+        link.title = `${profile.nombre_publico || profile.username} · ${profileOnline(profile) ? "Conectado" : "Desconectado"}`;
+        link.setAttribute("aria-label", link.title);
+        const info = createElement("span", "min-w-0");
+        info.append(createElement("strong", "block truncate", profile.nombre_publico || profile.username),
+          createElement("span", "sidebar-presence", profileOnline(profile) ? "Conectado" : "Desconectado"));
+        link.append(avatarNode(profile, "sidebar-avatar"), info);
+        if (profileOnline(profile)) link.append(createElement("span", "sidebar-dot"));
+        target.append(link);
+      }
+      if (!featured.length) target.textContent = "Aún no hay tipsters disponibles.";
+      target.scrollTop = position;
+      target.scrollLeft = horizontalPosition;
+    }
+    function renderPublicPicks() {
+      const grid = $("publicPicks");
+      grid.replaceChildren();
+      const visible = publicPicks.filter(matchesSport);
+      $("publicPicksStatus").textContent = visible.length
+        ? "Hasta 60 pronósticos recientes de tipsters aprobados. Actualizados en tiempo real."
+        : "No hay pronósticos recientes en esta categoría.";
+      for (const pick of visible) {
+        const profile = profiles.find(item => item.id === pick.user_id);
+        if (!profile) continue;
+        const article = createElement("article", "viewer-pick-card");
+        article.dataset.author = profile.id;
+        const author = createElement("a", "pick-author");
+        author.href = profileHref(profile);
+        author.append(avatarNode(profile, "pick-avatar"),
+          createElement("span", "min-w-0 truncate font-semibold", profile.nombre_publico || profile.username));
+        const top = createElement("div", "pick-card-heading");
+        top.append(author, badgeNode(pick.status));
+        const sport = SPORTS.find(item => item.id === pick.sport)?.label || "Otros deportes";
+        article.append(top, createElement("p", "pick-sport", sport),
+          createElement("h3", "pick-event", pick.event || "Pronóstico"),
+          createElement("p", "pick-selection", pick.selection || pick.selection || ""),
+          createElement("p", "pick-metadata", `Cuota ${Number(pick.odds).toFixed(2)} · ${pick.bookmaker || pick.bookmaker || "Casa no indicada"}`),
+          createElement("p", "pick-date", pickDate(pick.event_date)), followButton(profile));
+        grid.append(article);
+      }
+      updateFollowButtons();
+    }
+    function refreshPublicFeed() {
+      const ids = profiles.map(profile => profile.id).sort();
+      const key = JSON.stringify(ids);
+      if (key === publicFeedKey) {
+        if ($("publicPicks").getAttribute("aria-busy") === "false") renderPublicPicks();
+        return;
+      }
+      publicFeedKey = key;
+      const generation = ++publicFeedGeneration;
+      if (stopPublicFeed) stopPublicFeed();
+      publicPicks = [];
+      $("publicPicks").setAttribute("aria-busy", "true");
+      showSkeleton($("publicPicks"), { variant: "cards", label: "Cargando pronósticos públicos" });
+      stopPublicFeed = subscribeFollowingFeed(ids, picks => {
+        if (generation !== publicFeedGeneration) return;
+        publicPicks = picks;
+        $("publicPicks").setAttribute("aria-busy", "false");
+        renderPublicPicks();
+      }, error => {
+        if (generation !== publicFeedGeneration) return;
+        publicPicks = [];
+        $("publicPicks").replaceChildren();
+        $("publicPicks").setAttribute("aria-busy", "false");
+        $("publicPicksStatus").textContent = "No se pudieron cargar los pronósticos. Recarga para reintentar.";
+        communityError(error, "No se pudo conectar al feed público.");
+      });
     }
     function renderOnline() {
       if (profiles.some(profile => !presenceData.has(profile.id))) return;
@@ -863,6 +1057,7 @@
       }
     }
     function renderDirectory() {
+      renderSidebar();
       const term = $("searchTipsters").value.trim().replace(/^@/, "").toLocaleLowerCase();
       const ordered = [...profiles].sort((a, b) => {
         const onlineDifference = Number(profileOnline(b)) - Number(profileOnline(a));
@@ -885,7 +1080,7 @@
         return;
       }
       for (const profile of matches) {
-        const link = createElement("a", "control flex min-h-[76px] items-center gap-3 py-3.5 hover:bg-white/[.025] sm:gap-4 sm:px-3");
+        const link = createElement("a", "directory-profile control flex min-h-[76px] items-center gap-3 py-3.5 sm:gap-4 sm:px-3");
         link.href = profileHref(profile);
         link.dataset.username = profile.username || "";
         const nameGroup = createElement("span", "min-w-0 flex-1");
@@ -897,8 +1092,8 @@
           ? createElement("span", "inline-flex shrink-0 items-center gap-1.5 text-xs font-medium text-emerald-200", "Conectado")
           : createElement("span", "shrink-0 text-xs text-zinc-500", "Ver perfil");
         if (profileOnline(profile)) presence.prepend(createElement("span", "h-1.5 w-1.5 rounded-full bg-emerald-300"));
-        link.append(avatarNode(profile, "h-11 w-11 shrink-0 rounded-xl"), nameGroup, presence);
-        const row = createElement("div", "flex items-center gap-3");
+        link.append(avatarNode(profile, "h-11 w-11 shrink-0 rounded-full"), nameGroup, presence);
+        const row = createElement("div", "directory-card flex items-center gap-3");
         link.classList.add("min-w-0", "flex-1");
         row.append(link, followButton(profile));
         list.append(row);
@@ -918,37 +1113,38 @@
       }
     }
     function renderStats() {
-      const won = profilePicks.filter(pick => String(pick.estado || "").toLowerCase() === "ganada").length;
-      const lost = profilePicks.filter(pick => String(pick.estado || "").toLowerCase() === "perdida").length;
+      const won = profilePicks.filter(pick => String(pick.status || "").toLowerCase() === "won").length;
+      const lost = profilePicks.filter(pick => String(pick.status || "").toLowerCase() === "lost").length;
       const total = won + lost;
       $("winRate").textContent = total ? `${Math.round(won / total * 100)}%` : "-";
       $("resolvedCount").textContent = String(total);
     }
     function renderPicks() {
-      const visible = profilePicks.filter(pick => selectedFilter === "todas" || String(pick.estado || "").toLowerCase() === selectedFilter);
+      const visible = profilePicks.filter(pick => matchesSport(pick)
+        && (selectedFilter === "todas" || String(pick.status || "").toLowerCase() === selectedFilter));
       const featured = visible.find(pick => pick.destacada);
       const featuredContainer = $("featured");
       featuredContainer.replaceChildren();
       if (featured) {
         const article = createElement("article", "mb-4 rounded-2xl border border-emerald-300/20 bg-[#111512] p-5 sm:p-6");
         const heading = createElement("div", "flex flex-wrap items-center justify-between gap-3");
-        heading.append(createElement("span", "text-xs font-semibold text-emerald-200", "Fija destacada"), badgeNode(featured.estado));
+        heading.append(createElement("span", "text-xs font-semibold text-emerald-200", "Fija destacada"), badgeNode(featured.status));
         const metadata = createElement("p", "mt-4 text-xs font-medium text-zinc-500");
         metadata.append(
-          document.createTextNode(featured.deporte || "Deporte"),
+          document.createTextNode(featured.sport || "Deporte"),
           createElement("span", "px-1.5 text-zinc-500", "/"),
-          document.createTextNode(featured.evento || "")
+          document.createTextNode(featured.event || "")
         );
-        const selection = createElement("h4", "mt-1 text-lg font-bold tracking-tight", featured.seleccion || featured.prediccion || "Pronóstico");
+        const selection = createElement("h4", "mt-1 text-lg font-bold tracking-tight", featured.selection || featured.selection || "Pronóstico");
         article.append(heading, metadata, selection);
-        if (featured.nota) article.append(createElement("p", "mt-2 max-w-2xl text-sm leading-6 text-zinc-400", featured.nota));
+        if (featured.analysis) article.append(createElement("p", "mt-2 max-w-2xl text-sm leading-6 text-zinc-400", featured.analysis));
         const footer = createElement("div", "mt-4 flex flex-wrap items-end justify-between gap-4");
-        const date = pickDate(featured.fecha_evento || featured.created_at);
+        const date = pickDate(featured.event_date || featured.created_at);
         footer.append(
-          createElement("p", "text-xs text-zinc-500", `${featured.casa_de_apuestas || featured.casa_apuestas || ""}${date ? ` / ${date}` : ""}`)
+          createElement("p", "text-xs text-zinc-500", `${featured.bookmaker || featured.bookmaker || ""}${date ? ` / ${date}` : ""}`)
         );
         const odds = createElement("p", "text-xs text-zinc-500", "Cuota");
-        odds.append(createElement("strong", "ml-1 text-xl tabular-nums text-zinc-100", Number(featured.cuota || 0).toFixed(2)));
+        odds.append(createElement("strong", "ml-1 text-xl tabular-nums text-zinc-100", Number(featured.odds || 0).toFixed(2)));
         footer.append(odds);
         article.append(footer);
         featuredContainer.append(article);
@@ -963,14 +1159,14 @@
         for (const pick of visible) {
           const article = createElement("article", "rounded-xl border border-white/[.08] bg-[#111114] p-4");
           const heading = createElement("div", "flex items-center justify-between gap-3");
-          heading.append(badgeNode(pick.estado), createElement("span", "truncate text-xs text-zinc-500", pick.deporte || "Deporte"));
-          const event = createElement("h4", "mt-3 font-semibold leading-5", pick.evento || "");
-          const selection = createElement("p", "mt-1.5 text-sm leading-5 text-zinc-400", pick.seleccion || pick.prediccion || "");
+          heading.append(badgeNode(pick.status), createElement("span", "truncate text-xs text-zinc-500", pick.sport || "Deporte"));
+          const event = createElement("h4", "mt-3 font-semibold leading-5", pick.event || "");
+          const selection = createElement("p", "mt-1.5 text-sm leading-5 text-zinc-400", pick.selection || pick.selection || "");
           const footer = createElement("div", "mt-4 flex items-end justify-between gap-3 border-t border-white/[.07] pt-3");
-          const bookmaker = createElement("p", "min-w-0 truncate text-xs text-zinc-500", pick.casa_de_apuestas || pick.casa_apuestas || "");
-          bookmaker.append(createElement("span", "mt-1 block", pickDate(pick.fecha_evento || pick.created_at)));
+          const bookmaker = createElement("p", "min-w-0 truncate text-xs text-zinc-500", pick.bookmaker || pick.bookmaker || "");
+          bookmaker.append(createElement("span", "mt-1 block", pickDate(pick.event_date || pick.created_at)));
           const odds = createElement("p", "shrink-0 text-xs text-zinc-500", "Cuota");
-          odds.append(createElement("strong", "ml-1 text-lg tabular-nums text-zinc-100", Number(pick.cuota || 0).toFixed(2)));
+          odds.append(createElement("strong", "ml-1 text-lg tabular-nums text-zinc-100", Number(pick.odds || 0).toFixed(2)));
           footer.append(bookmaker, odds);
           article.append(heading, event, selection, footer);
           grid.append(article);
@@ -1053,7 +1249,13 @@
       const picksQuery = query(collection(db, "picks"), where("user_id", "==", match.id), orderBy("created_at", "desc"), limit(60));
       stopPicks = onSnapshot(picksQuery, snapshot => {
         $("picksGrid").setAttribute("aria-busy", "false");
-        profilePicks = snapshot.docs.map(item => ({ id: item.id, ...item.data() }));
+        try {
+          profilePicks = snapshot.docs.map(item => normalizePick({ id: item.id, ...item.data() }));
+        } catch (error) {
+          console.error("No se pudo interpretar el historial público:", error);
+          showError("El historial contiene un pronóstico inválido. Contacta al administrador.");
+          return;
+        }
         renderPicks();
       }, error => {
         $("picksGrid").setAttribute("aria-busy", "false");
@@ -1084,6 +1286,7 @@
           }));
           if (generation !== profileSnapshotGeneration) return;
           profiles = nextProfiles.map(profile => ({ ...profile, ...presenceData.get(profile.id) }));
+          refreshPublicFeed();
           for (const item of snapshot.docs) {
             if (presenceUnsubs.has(item.id)) continue;
             presenceUnsubs.set(item.id, onSnapshot(doc(db, "presencia", item.id), presenceSnapshot => {
@@ -1146,6 +1349,24 @@
       });
     }
     $("searchTipsters").addEventListener("input", renderDirectory);
+    for (const sport of SPORTS) {
+      const button = createElement("button", "sport-category", sport.label);
+      button.type = "button";
+      button.dataset.sport = sport.id;
+      button.setAttribute("aria-pressed", String(sport.id === selectedSport));
+      $("sportCategories").append(button);
+    }
+    $("sportCategories").addEventListener("click", event => {
+      const button = event.target.closest("button[data-sport]");
+      if (!button) return;
+      selectedSport = button.dataset.sport;
+      $("sportCategories").querySelectorAll("button").forEach(item => {
+        item.setAttribute("aria-pressed", String(item.dataset.sport === selectedSport));
+      });
+      if ($("publicPicks").getAttribute("aria-busy") === "false") renderPublicPicks();
+      renderFollowingFeed();
+      if (selectedProfile) renderPicks();
+    });
     $("filters").addEventListener("click", event => {
       const button = event.target.closest("button[data-filter]");
       if (!button) return;
@@ -1187,6 +1408,7 @@
     }, 15_000);
 
     if (!firebaseConfigured) {
+      showError(firebaseConfigError);
       $("viewerNav").setAttribute("aria-busy", "false");
       $("firebaseSetup").classList.remove("hidden");
       $("firebaseSetup").setAttribute("role", "alert");

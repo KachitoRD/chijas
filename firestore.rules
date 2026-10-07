@@ -3,7 +3,9 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // Shared identity and approval checks.
     function verifiedUser() {
-      return request.auth != null && request.auth.token.email_verified == true;
+      return request.auth != null && request.auth.token.email_verified == true
+        && (!exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get("status", "active") == "active");
     }
 
     function signedInAs(userId) {
@@ -19,7 +21,51 @@ service cloud.firestore {
     function isPlatformAdmin() {
       return verifiedUser()
         && exists(/databases/$(database)/documents/platformAdmins/$(request.auth.uid))
-        && get(/databases/$(database)/documents/platformAdmins/$(request.auth.uid)).data.enabled == true;
+        && validAdminIdentity(get(/databases/$(database)/documents/platformAdmins/$(request.auth.uid)).data);
+    }
+
+    // A missing role preserves the out-of-band legacy owner ACL.
+    function validAdminIdentity(data) {
+      return data.enabled == true
+        && data.get("role", "super_admin") in ["super_admin", "admin"];
+    }
+
+    function isSuperAdmin() {
+      return isPlatformAdmin()
+        && get(/databases/$(database)/documents/platformAdmins/$(request.auth.uid)).data.get("role", "super_admin") == "super_admin";
+    }
+
+    function hasAdminPermission(permission) {
+      return isPlatformAdmin()
+        && (isSuperAdmin()
+          || permission in get(/databases/$(database)/documents/platformAdmins/$(request.auth.uid)).data.get(
+            "permissions", ["tipsters", "profiles", "viewers", "kpis"]));
+    }
+
+    function validAdminDocument(data) {
+      return data.keys().hasOnly(["enabled", "role", "permissions", "updated_at", "updated_by"])
+        && data.keys().hasAll(["enabled", "role", "permissions", "updated_at", "updated_by"])
+        && data.enabled is bool
+        && data.role in ["super_admin", "admin"]
+        && data.permissions is list
+        && data.permissions.size() <= 4
+        && data.permissions.hasOnly(["tipsters", "profiles", "viewers", "kpis"])
+        && data.updated_at == request.time
+        && data.updated_by == request.auth.uid;
+    }
+
+    function validUser(data, userId) {
+      return data.keys().hasOnly(["uid", "role", "displayName", "photoURL", "email", "created_at",
+          "status", "moderated_at", "moderated_by"])
+        && data.keys().hasAll(["uid", "role", "displayName", "photoURL", "created_at"])
+        && data.uid == userId && data.role == "viewer"
+        && data.displayName is string && data.displayName.size() <= 120
+        && validOptionalHttpsUrl(data.photoURL)
+        && data.created_at is timestamp
+        && (!data.keys().hasAny(["email"]) || (data.email is string && data.email.size() <= 254))
+        && data.get("status", "active") in ["active", "suspended"]
+        && (!data.keys().hasAny(["moderated_at"]) || data.moderated_at is timestamp)
+        && (!data.keys().hasAny(["moderated_by"]) || (data.moderated_by is string && data.moderated_by.size() <= 128));
     }
 
     function profileIsApproved(userId) {
@@ -282,67 +328,93 @@ service cloud.firestore {
           || request.resource.data.last_active_at is timestamp);
     }
 
-    // Pronóstico schema is strict; legacy duplicate keys must be present and identical.
+    function pickStatus(data) {
+      let legacy = data.get("estado", "");
+      return data.get("status", legacy == "pendiente" ? "pending"
+        : legacy == "ganada" ? "won" : legacy == "perdida" ? "lost"
+          : legacy == "anulada" ? "void" : legacy == "cash_out" ? "cashed_out" : "invalid");
+    }
+
+    function pickEventDate(data) {
+      return data.get("event_date", data.get("fecha_evento", data.get("event_start_at", timestamp.date(1970, 1, 1))));
+    }
+
+    function samePickTerms(before, after) {
+      return after.event_date == pickEventDate(before)
+        && after.sport == before.get("sport", before.get("deporte", ""))
+        && after.event == before.get("event", before.get("evento", ""))
+        && after.selection == before.get("selection", before.get("seleccion", before.get("prediccion", before.get("pronostico", ""))))
+        && after.odds == before.get("odds", before.get("cuota", 0))
+        && after.bookmaker == before.get("bookmaker", before.get("casa_de_apuestas", before.get("casa_apuestas", "")))
+        && after.league == before.get("league", "")
+        && after.market == before.get("market", "")
+        && after.stake == before.get("stake", null)
+        && after.analysis == before.get("analysis", before.get("nota", "") == null ? "" : before.get("nota", ""))
+        && after.confianza == before.get("confianza", null)
+        && after.destacada == before.get("destacada", false)
+        && after.show_on_stream == before.get("show_on_stream", false);
+    }
+
+    function validPublicCashOut(data) {
+      return data.status == "cashed_out"
+        ? (data.keys().hasAny(["cashout_value"]) && !data.keys().hasAny(["cashout_odds"])
+            && data.cashout_value is number && data.cashout_value >= 0 && data.cashout_value <= 10000000)
+          || (data.keys().hasAny(["cashout_odds"]) && !data.keys().hasAny(["cashout_value"])
+            && data.cashout_odds is number && data.cashout_odds >= 0 && data.cashout_odds <= 1000)
+        : !data.keys().hasAny(["cashout_value", "cashout_odds"]);
+    }
+
+    // Canonical public units only. Monetary stake and return remain in private/bankroll.
     function validPick(data, userId) {
       return data.keys().hasOnly([
-          "user_id", "deporte", "evento", "seleccion", "prediccion", "cuota",
-          "casa_de_apuestas", "casa_apuestas", "fecha_evento", "confianza",
-          "nota", "destacada", "show_on_stream", "estado", "created_at"
+          "user_id", "sport", "event", "selection", "odds", "bookmaker", "event_date",
+          "league", "market", "stake", "analysis", "status", "cashout_value", "cashout_odds",
+          "confianza", "destacada", "show_on_stream", "created_at"
         ])
         && data.keys().hasAll([
-          "user_id", "deporte", "evento", "seleccion", "prediccion", "cuota",
-          "casa_de_apuestas", "casa_apuestas", "fecha_evento", "confianza",
-          "nota", "destacada", "show_on_stream", "estado", "created_at"
+          "user_id", "sport", "event", "selection", "odds", "bookmaker", "event_date",
+          "league", "market", "stake", "analysis", "status",
+          "confianza", "destacada", "show_on_stream", "created_at"
         ])
         && data.user_id == userId
-        && data.deporte is string
-        && data.deporte.size() > 0
-        && data.deporte.size() <= 50
-        && data.deporte in ["futbol", "baloncesto", "tenis", "beisbol", "esports", "otro"]
-        && data.evento is string
-        && data.evento.size() > 0
-        && data.evento.size() <= 120
-        && data.seleccion is string
-        && data.seleccion.size() > 0
-        && data.seleccion.size() <= 120
-        && data.prediccion is string
-        && data.prediccion.size() > 0
-        && data.prediccion.size() <= 120
-        && data.seleccion == data.prediccion
-        && data.cuota is number
-        && data.cuota >= 1.01
-        && data.cuota <= 1000
-        && data.casa_de_apuestas is string
-        && data.casa_de_apuestas.size() > 0
-        && data.casa_de_apuestas.size() <= 60
-        && data.casa_de_apuestas in [
+        && data.sport in ["futbol", "baloncesto", "tenis", "beisbol", "esports", "otro"]
+        && data.event is string && data.event.size() > 0 && data.event.size() <= 120
+        && data.selection is string && data.selection.size() > 0 && data.selection.size() <= 120
+        && data.odds is number && data.odds >= 1.01 && data.odds <= 1000
+        && data.league is string && data.league.size() <= 120
+        && data.market is string && data.market.size() <= 120
+        && (data.stake == null || (data.stake is number && data.stake > 0 && data.stake <= 10000))
+        && data.bookmaker in [
           "betano", "inkabet", "te_apuesto", "betsson",
           "doradobet", "apuesta_total", "bet365", "otra"
         ]
-        && data.casa_apuestas is string
-        && data.casa_apuestas.size() > 0
-        && data.casa_apuestas.size() <= 60
-        && data.casa_apuestas == data.casa_de_apuestas
-        && data.fecha_evento is timestamp
+        && data.event_date is timestamp
         && (data.confianza == null
           || (data.confianza is int && data.confianza >= 1 && data.confianza <= 5))
-        && (data.nota == null || (data.nota is string && data.nota.size() <= 500))
+        && data.analysis is string && data.analysis.size() <= 4000
         && data.destacada is bool
         && data.show_on_stream is bool
-        && data.estado in ["pendiente", "ganada", "perdida", "anulada", "cash_out"]
+        && data.status in ["pending", "won", "lost", "void", "cashed_out"]
+        && validPublicCashOut(data)
         && data.created_at is timestamp;
     }
 
-    // Admin identity documents are provisioned out of band and never writable by clients.
+    // Bootstrap is out of band; only a super_admin can manage other identities.
     match /platformAdmins/{adminId} {
-      allow read: if signedInAs(adminId);
-      allow write: if false;
+      allow read: if signedInAs(adminId) || isSuperAdmin();
+      allow create, update: if isSuperAdmin()
+        && adminId != request.auth.uid
+        && adminId.size() > 0 && adminId.size() <= 128
+        && validAdminDocument(request.resource.data)
+        && (!exists(/databases/$(database)/documents/users/$(adminId))
+          || get(/databases/$(database)/documents/users/$(adminId)).data.get("status", "active") == "active");
+      allow delete: if false;
     }
 
-    // Only the platform owner can change the bounded public configuration.
+    // Global government is exclusively super_admin.
     match /platformSettings/{settingId} {
       allow read: if verifiedUser();
-      allow create, update: if isPlatformAdmin()
+      allow create, update: if isSuperAdmin()
         && settingId == "limits"
         && request.resource.data.keys().hasOnly([
           "tipsterMonthlyPickLimit", "viewerMonthlyPickLimit", "updated_at", "updated_by"
@@ -378,7 +450,7 @@ service cloud.firestore {
 
     // Applicants manage their own request; only an admin can review its status.
     match /tipsterApplications/{userId} {
-      allow read: if signedInAs(userId) || isPlatformAdmin();
+      allow read: if signedInAs(userId) || hasAdminPermission("tipsters");
       allow create: if signedInAs(userId)
         && acceptedCurrentTerms(userId)
         && request.resource.data.keys().hasOnly([
@@ -421,7 +493,7 @@ service cloud.firestore {
             || get(/databases/$(database)/documents/usernames/$(request.resource.data.requested_username)).data.uid == userId)
         )
         || (
-          isPlatformAdmin()
+          hasAdminPermission("tipsters")
           && resource.data.status == "pending"
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "reviewed_at", "reviewed_by"])
           && request.resource.data.status in ["approved", "rejected"]
@@ -438,7 +510,7 @@ service cloud.firestore {
       allow read: if resource.data.tipster_status == "approved"
         || signedInAs(profileId)
         || isPlatformAdmin();
-      allow create: if isPlatformAdmin()
+      allow create: if hasAdminPermission("tipsters")
         && validProfile(profileId)
         && request.resource.data.tipster_status == "approved"
         && request.resource.data.created_at == request.time
@@ -447,11 +519,13 @@ service cloud.firestore {
         && (
           (
             resource.data.tipster_status in ["approved", "revoked"]
+            && hasAdminPermission("tipsters")
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["tipster_status"])
             && request.resource.data.tipster_status in ["approved", "revoked"]
           )
           || (
             resource.data.tipster_status == "pending"
+            && hasAdminPermission("tipsters")
             && validProfile(profileId)
             && request.resource.data.tipster_status == "approved"
             && request.resource.data.created_at == resource.data.created_at
@@ -459,6 +533,7 @@ service cloud.firestore {
           )
           || (
             resource.data.tipster_status == "approved"
+            && hasAdminPermission("profiles")
             && request.resource.data.tipster_status == resource.data.tipster_status
             && validProfile(profileId)
             && request.resource.data.created_at == resource.data.created_at
@@ -473,17 +548,79 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read: if signedInAs(userId);
+      allow read: if (request.auth != null && request.auth.uid == userId)
+        || (hasAdminPermission("viewers") && resource.data.role == "viewer");
       allow create: if signedInAs(userId)
-        && request.resource.data.keys().hasOnly(["uid", "role", "displayName", "photoURL", "created_at"])
-        && request.resource.data.keys().hasAll(["uid", "role", "displayName", "photoURL", "created_at"])
-        && request.resource.data.uid == userId
-        && request.resource.data.role == "viewer"
-        && request.resource.data.displayName is string
-        && request.resource.data.displayName.size() <= 120
-        && validOptionalHttpsUrl(request.resource.data.photoURL)
+        && validUser(request.resource.data, userId)
+        && request.resource.data.get("status", "active") == "active"
+        && !request.resource.data.keys().hasAny(["moderated_at", "moderated_by"])
+        && request.resource.data.get("email", request.auth.token.email) == request.auth.token.email
         && request.resource.data.created_at == request.time;
-      allow update, delete: if false;
+      allow update: if hasAdminPermission("viewers")
+        && userId != request.auth.uid
+        && (!exists(/databases/$(database)/documents/platformAdmins/$(userId))
+          || get(/databases/$(database)/documents/platformAdmins/$(userId)).data.enabled != true)
+        && validUser(request.resource.data, userId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "moderated_at", "moderated_by"])
+        && request.resource.data.moderated_at == request.time
+        && request.resource.data.moderated_by == request.auth.uid;
+      allow delete: if false;
+
+      // Private viewer identity/preferences; never grants roles or changes editorial profiles.
+      match /settings/{settingId} {
+        function validViewerSettings(data) {
+          return data.keys().hasOnly(["displayName", "photoURL", "bio", "theme", "notifications", "updated_at"])
+            && data.keys().hasAll(["displayName", "photoURL", "bio", "theme", "notifications", "updated_at"])
+            && data.displayName is string && data.displayName.size() > 0 && data.displayName.size() <= 120
+            && validOptionalHttpsUrl(data.photoURL)
+            && data.bio is string && data.bio.size() <= 280
+            && data.theme in ["emerald", "contrast"]
+            && data.notifications is bool
+            && data.updated_at == request.time;
+        }
+        allow read: if request.auth != null && request.auth.uid == userId && settingId == "profile";
+        allow create, update: if signedInAs(userId) && settingId == "profile"
+          && exists(/databases/$(database)/documents/users/$(userId))
+          && validViewerSettings(request.resource.data);
+        allow delete: if false;
+      }
+    }
+
+    // Private heartbeat; connection counts are estimates, not Auth session counts.
+    match /viewerPresence/{userId} {
+      function validViewerPresence() {
+        return request.resource.data.keys().hasOnly(["uid", "is_online", "last_active_at"])
+          && request.resource.data.keys().hasAll(["uid", "is_online", "last_active_at"])
+          && request.resource.data.uid == userId
+          && request.resource.data.is_online is bool
+          && request.resource.data.last_active_at == request.time;
+      }
+      allow read: if signedInAs(userId) || hasAdminPermission("viewers") || hasAdminPermission("kpis");
+      allow create, update: if validViewerPresence()
+        && ((signedInAs(userId)
+            && exists(/databases/$(database)/documents/users/$(userId))
+            && get(/databases/$(database)/documents/users/$(userId)).data.role == "viewer")
+          || (hasAdminPermission("viewers")
+            && request.resource.data.is_online == false
+            && getAfter(/databases/$(database)/documents/users/$(userId)).data.status == "suspended"
+            && getAfter(/databases/$(database)/documents/users/$(userId)).data.moderated_by == request.auth.uid
+            && getAfter(/databases/$(database)/documents/users/$(userId)).data.moderated_at == request.time));
+      allow delete: if false;
+    }
+
+    // Percentage configuration only: no bankroll or invented monetary balances.
+    match /tipsterFinance/{userId} {
+      function validTakeRate() {
+        return request.resource.data.keys().hasOnly(["takeRate", "updated_at", "updated_by"])
+          && request.resource.data.keys().hasAll(["takeRate", "updated_at", "updated_by"])
+          && request.resource.data.takeRate is number
+          && request.resource.data.takeRate >= 0 && request.resource.data.takeRate <= 100
+          && request.resource.data.updated_at == request.time
+          && request.resource.data.updated_by == request.auth.uid;
+      }
+      allow read: if isSuperAdmin();
+      allow create, update: if isSuperAdmin() && profileIsApproved(userId) && validTakeRate();
+      allow delete: if false;
     }
 
     match /follows/{followId} {
@@ -518,11 +655,11 @@ service cloud.firestore {
       allow read: if profileIsApproved(profileId)
         || signedInAs(profileId)
         || isPlatformAdmin();
-      allow create: if isPlatformAdmin()
+      allow create: if hasAdminPermission("tipsters")
         && validSocialProfile()
         && existsAfter(/databases/$(database)/documents/perfiles/$(profileId))
         && getAfter(/databases/$(database)/documents/perfiles/$(profileId)).data.tipster_status == "approved";
-      allow update: if isPlatformAdmin()
+      allow update: if hasAdminPermission("profiles")
         && (
           (
             profileIsApproved(profileId)
@@ -544,14 +681,14 @@ service cloud.firestore {
 
     // Tipsters submit validated profile changes; admins make the final decision.
     match /perfilSolicitudes/{requestId} {
-      allow read: if signedInAs(resource.data.uid) || isPlatformAdmin();
+      allow read: if signedInAs(resource.data.uid) || hasAdminPermission("profiles");
       allow create: if signedInAs(request.resource.data.uid)
         && acceptedCurrentTerms(request.resource.data.uid)
         && profileIsApproved(request.resource.data.uid)
         && validProfileRequest(request.resource.data.uid, requestId, request.resource.data)
         && existsAfter(/databases/$(database)/documents/perfilSolicitudesPendientes/$(request.resource.data.uid))
         && getAfter(/databases/$(database)/documents/perfilSolicitudesPendientes/$(request.resource.data.uid)).data.solicitud_id == requestId;
-      allow update: if isPlatformAdmin()
+      allow update: if hasAdminPermission("profiles")
         && resource.data.estado == "pendiente"
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           "estado", "motivoRechazo", "revisado_at", "revisado_por"
@@ -574,7 +711,7 @@ service cloud.firestore {
 
     // A per-tipster reservation makes a second pending request impossible.
     match /perfilSolicitudesPendientes/{userId} {
-      allow read: if signedInAs(userId) || isPlatformAdmin();
+      allow read: if signedInAs(userId) || hasAdminPermission("profiles");
       allow create: if signedInAs(userId)
         && acceptedCurrentTerms(userId)
         && profileIsApproved(userId)
@@ -590,7 +727,7 @@ service cloud.firestore {
           getAfter(/databases/$(database)/documents/perfilSolicitudes/$(request.resource.data.solicitud_id)).data
         );
       allow update: if false;
-      allow delete: if isPlatformAdmin()
+      allow delete: if hasAdminPermission("profiles")
         && getAfter(/databases/$(database)/documents/perfilSolicitudes/$(resource.data.solicitud_id)).data.uid == resource.data.uid
         && getAfter(/databases/$(database)/documents/perfilSolicitudes/$(resource.data.solicitud_id)).data.estado in ["aprobada", "rechazada"]
         && getAfter(/databases/$(database)/documents/perfilSolicitudes/$(resource.data.solicitud_id)).data.revisado_por == request.auth.uid;
@@ -599,7 +736,7 @@ service cloud.firestore {
     // Presence is separate from the admin-managed public profile.
     match /presencia/{userId} {
       allow read: if profileIsApproved(userId) || signedInAs(userId) || isPlatformAdmin();
-      allow create: if (isPlatformAdmin()
+      allow create: if (hasAdminPermission("tipsters")
           && validPresence(userId)
           && existsAfter(/databases/$(database)/documents/perfiles/$(userId))
           && getAfter(/databases/$(database)/documents/perfiles/$(userId)).data.tipster_status == "approved")
@@ -659,24 +796,27 @@ service cloud.firestore {
     // Writes require the authenticated owner to have current approval.
     match /picks/{pickId} {
       function pickIsEditable(data) {
-        return data.fecha_evento > request.time
-          && data.estado == "pendiente";
+        return pickEventDate(data) > request.time && pickStatus(data) == "pending";
       }
       function consistentCashOut() {
         let privatePath = /databases/$(database)/documents/picks/$(pickId)/private/bankroll;
-        return request.resource.data.estado == "cash_out"
-          ? existsAfter(privatePath)
-            && getAfter(privatePath).data.keys().hasAll(["returnAmount", "returnMinorUnits"])
+        return request.resource.data.status == "cashed_out"
+          ? !existsAfter(privatePath)
+            || getAfter(privatePath).data.keys().hasAll(["returnAmount", "returnMinorUnits"])
           : !existsAfter(privatePath)
             || !getAfter(privatePath).data.keys().hasAny(["returnAmount", "returnMinorUnits"]);
       }
-      allow read: if resource.data.user_id is string
-        && profileIsApproved(resource.data.user_id);
+      allow read: if (resource.data.user_id is string && profileIsApproved(resource.data.user_id))
+        || hasAdminPermission("kpis");
       allow create: if verifiedUser()
         && acceptedCurrentTerms(request.auth.uid)
         && profileIsApproved(request.auth.uid)
         && validPick(request.resource.data, request.auth.uid)
-        && request.resource.data.estado == "pendiente"
+        && request.resource.data.status == "pending"
+        && request.resource.data.stake != null
+        && request.resource.data.league.size() > 0
+        && request.resource.data.market.size() > 0
+        && request.resource.data.event_date > request.time
         && request.resource.data.created_at == request.time;
       allow update: if verifiedUser()
         && acceptedCurrentTerms(request.auth.uid)
@@ -684,17 +824,13 @@ service cloud.firestore {
         && resource.data.user_id == request.auth.uid
         && request.resource.data.user_id == request.auth.uid
         && validPick(request.resource.data, request.auth.uid)
-        && pickIsEditable(resource.data)
-        && request.resource.data.fecha_evento > request.time
         && request.resource.data.created_at == resource.data.created_at
-        && (request.resource.data.estado == resource.data.estado
-          || request.resource.data.diff(resource.data).affectedKeys().hasOnly(["estado"]))
-        && consistentCashOut()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          "deporte", "evento", "seleccion", "prediccion", "cuota",
-          "casa_de_apuestas", "casa_apuestas", "fecha_evento",
-          "confianza", "nota", "destacada", "show_on_stream", "estado"
-        ]);
+        && pickStatus(resource.data) == "pending"
+        && (request.resource.data.stake != null || resource.data.get("stake", null) == null)
+        && (request.resource.data.status == "pending"
+          ? pickIsEditable(resource.data) && request.resource.data.event_date > request.time
+          : samePickTerms(resource.data, request.resource.data))
+        && consistentCashOut();
       allow delete: if verifiedUser()
         && acceptedCurrentTerms(request.auth.uid)
         && profileIsApproved(request.auth.uid)
@@ -705,8 +841,7 @@ service cloud.firestore {
       match /private/{privateId} {
         function parentPickIsEditable() {
           let pick = get(/databases/$(database)/documents/picks/$(pickId)).data;
-          return pick.fecha_evento > request.time
-            && pick.estado == "pendiente";
+          return pickEventDate(pick) > request.time && pickStatus(pick) == "pending";
         }
         function ownsPick() {
           return request.auth != null
@@ -728,7 +863,7 @@ service cloud.firestore {
             && data.stakeMinorUnits <= 100000000000
             && data.stakeAmount is number
             && data.stakeAmount == data.stakeMinorUnits / 100.0
-            && (getAfter(/databases/$(database)/documents/picks/$(pickId)).data.estado == "cash_out"
+            && (pickStatus(getAfter(/databases/$(database)/documents/picks/$(pickId)).data) == "cashed_out"
               ? data.keys().hasAll(["returnAmount", "returnMinorUnits"])
                 && data.returnMinorUnits is int
                 && data.returnMinorUnits >= 0
@@ -741,17 +876,24 @@ service cloud.firestore {
         allow read: if privateId == "bankroll" && ownsPick();
         allow create: if privateId == "bankroll"
           && canSaveBankroll()
+          && (!exists(/databases/$(database)/documents/picks/$(pickId)) || parentPickIsEditable())
           && validBankroll()
           && request.resource.data.created_at == request.time;
         allow update: if privateId == "bankroll"
           && ownsPick()
           && canSaveBankroll()
           && validBankroll()
-          && parentPickIsEditable()
-          && (getAfter(/databases/$(database)/documents/picks/$(pickId)).data.estado
-              == get(/databases/$(database)/documents/picks/$(pickId)).data.estado
+          && (parentPickIsEditable()
+            || (pickStatus(get(/databases/$(database)/documents/picks/$(pickId)).data) == "pending"
+              && pickStatus(getAfter(/databases/$(database)/documents/picks/$(pickId)).data) != "pending"
+              && request.resource.data.stakeAmount == resource.data.stakeAmount
+              && request.resource.data.stakeMinorUnits == resource.data.stakeMinorUnits
+              && request.resource.data.currency == resource.data.currency))
+          && (pickStatus(getAfter(/databases/$(database)/documents/picks/$(pickId)).data)
+              == pickStatus(get(/databases/$(database)/documents/picks/$(pickId)).data)
             || (request.resource.data.stakeAmount == resource.data.stakeAmount
-              && request.resource.data.stakeMinorUnits == resource.data.stakeMinorUnits))
+              && request.resource.data.stakeMinorUnits == resource.data.stakeMinorUnits
+              && request.resource.data.currency == resource.data.currency))
           && request.resource.data.created_at == resource.data.created_at;
         allow delete: if privateId == "bankroll"
           && ownsPick()
@@ -760,7 +902,7 @@ service cloud.firestore {
           && profileIsApproved(request.auth.uid)
           && (!existsAfter(/databases/$(database)/documents/picks/$(pickId))
             || (parentPickIsEditable()
-              && getAfter(/databases/$(database)/documents/picks/$(pickId)).data.estado != "cash_out"));
+              && pickStatus(getAfter(/databases/$(database)/documents/picks/$(pickId)).data) != "cashed_out"));
       }
     }
   }

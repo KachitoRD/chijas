@@ -7,7 +7,7 @@ const EMULATOR_PROJECT_ID = "demo-fijas-vivo";
 
 // Public web configuration from Firebase Console > Project settings.
 export const firebaseConfig = {
-  apiKey: "AIzaSyCe9_IEp4pZ1KWwAC7Io5AmieGwMONC2fY",
+  apiKey: useEmulators ? "demo-key" : "AIzaSyCe9_IEp4pZ1KWwAC7Io5AmieGwMONC2fY",
   authDomain: useEmulators ? `${EMULATOR_PROJECT_ID}.firebaseapp.com` : "chijas.firebaseapp.com",
   projectId: useEmulators ? EMULATOR_PROJECT_ID : "chijas",
   messagingSenderId: "772345093720",

@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createCanvas } from "@napi-rs/canvas";
 import { fileURLToPath } from "node:url";
@@ -49,25 +50,64 @@ test("CSV y PDF exportan el período completo con filtros, no solo la página vi
     window.reportPrintCount = 0;
     window.print = () => { window.reportPrintCount++; };
   });
-  const auth = await request.post("http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=demo-key", {
-    data: { email: "tipster@test.local", password: "Test-password-123!", returnSecureToken: true }
+  const authRoot = "http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1";
+  const prefix = `report-${randomUUID()}`;
+  const email = `${prefix}@example.test`;
+  const password = "Test-password-123!";
+  const auth = await request.post(`${authRoot}/accounts:signUp?key=demo-key`, {
+    data: { email, password, returnSecureToken: true }
   });
-  expect(auth.ok(), "Se necesitan Auth/Firestore locales y la cuenta de pruebas").toBeTruthy();
-  const { localId: uid } = await auth.json();
-  const prefix = `report-${testInfo.project.name}-${Date.now()}-${testInfo.workerIndex}`;
+  expect(auth.ok(), "Crear exclusivamente la cuenta temporal de informes").toBeTruthy();
+  const { localId: uid, idToken } = await auth.json();
+  const username = `report-${uid.slice(0, 20).toLowerCase()}`;
   const names = [];
+  const associatedDocuments = [
+    `users/${uid}`, `perfiles/${uid}`, `perfiles_social/${uid}`, `presencia/${uid}`,
+    `viewerPresence/${uid}`, `usernames/${username}`, `legalAcceptances/${uid}/versions/2026-10-03`
+  ];
+  try {
+  const verified = await request.post(`${authRoot}/accounts:update?key=demo-key`, {
+    headers, data: { localId: uid, emailVerified: true }
+  });
+  expect(verified.ok(), "Verificar la cuenta temporal de informes").toBeTruthy();
+  const createdAt = { timestampValue: new Date().toISOString() };
+  const fixtureDocuments = {
+    [`users/${uid}`]: {
+      uid: { stringValue: uid }, role: { stringValue: "viewer" }, email: { stringValue: email },
+      displayName: { stringValue: "Tipster de informes" }, photoURL: { nullValue: null }, created_at: createdAt
+    },
+    [`perfiles/${uid}`]: {
+      id: { stringValue: uid }, username: { stringValue: username },
+      nombre_publico: { stringValue: "Tipster de informes" }, bio: { nullValue: null },
+      color_primario: { stringValue: "#34d399" }, tipster_status: { stringValue: "approved" },
+      followerCount: { integerValue: "0" }, created_at: createdAt
+    },
+    [`perfiles_social/${uid}`]: {
+      avatar_url: { nullValue: null }, banner_url: { nullValue: null }, kick_url: { nullValue: null },
+      twitch_url: { nullValue: null }, youtube_url: { nullValue: null }, telegram_url: { nullValue: null },
+      twitter_url: { nullValue: null }, instagram_url: { nullValue: null }
+    },
+    [`usernames/${username}`]: { uid: { stringValue: uid } },
+    [`legalAcceptances/${uid}/versions/2026-10-03`]: {
+      uid: { stringValue: uid }, terms_version: { stringValue: "2026-10-03" },
+      privacy_version: { stringValue: "2026-10-03" }, age_confirmed: { booleanValue: true }, accepted_at: createdAt
+    }
+  };
   const writes = [];
+  for (const [path, fields] of Object.entries(fixtureDocuments)) {
+    writes.push({ update: { name: `${documentRoot}/${path}`, fields }, currentDocument: { exists: false } });
+  }
   for (let i = 0; i < 110; i++) {
     const name = `${documentRoot}/picks/${prefix}-${i}`;
     names.push(name);
     const fields = {
-      user_id: { stringValue: uid }, evento: { stringValue: `Prueba de reporte ${i}` },
-      seleccion: { stringValue: 'Selección, "con comillas"' }, nota: { stringValue: "=SUM(1,2)\nNota" },
-      deporte: { stringValue: i === 107 ? "futbol" : "tenis" },
-      casa_de_apuestas: { stringValue: i === 108 ? "betano" : "bet365" },
-      estado: { stringValue: i === 109 ? "perdida" : "ganada" },
-      cuota: { doubleValue: 2 }, confianza: { integerValue: "3" },
-      fecha_evento: { timestampValue: i === 105 ? "2025-08-31T12:00:00Z" : i === 106 ? "2025-10-01T12:00:00Z" : "2025-09-15T12:00:00Z" },
+      user_id: { stringValue: uid }, event: { stringValue: `Prueba de reporte ${i}` },
+      selection: { stringValue: 'Selección, "con comillas"' }, analysis: { stringValue: "=SUM(1,2)\nNota" },
+      sport: { stringValue: i === 107 ? "futbol" : "tenis" },
+      bookmaker: { stringValue: i === 108 ? "betano" : "bet365" },
+      status: { stringValue: i === 109 ? "lost" : "won" },
+      odds: { doubleValue: 2 }, confianza: { integerValue: "3" },
+      event_date: { timestampValue: i === 105 ? "2025-08-31T12:00:00Z" : i === 106 ? "2025-10-01T12:00:00Z" : "2025-09-15T12:00:00Z" },
       created_at: { timestampValue: "2025-09-15T12:00:00Z" }, show_on_stream: { booleanValue: false }
     };
     writes.push({ update: { name, fields }, currentDocument: { exists: false } });
@@ -78,18 +118,17 @@ test("CSV y PDF exportan el período completo con filtros, no solo la página vi
   }
   const commit = await request.post(`${endpoint}:commit`, { headers, data: { writes } });
   expect(commit.ok()).toBeTruthy();
-  try {
     await page.route("**/firebase-config.js*", route => route.fulfill({ contentType: "text/javascript", body: demoConfig }));
     await page.route(/https:\/\/(firestore|identitytoolkit|securetoken)\.googleapis\.com\/.*/, route => route.abort());
     await page.goto("/admin.html", { waitUntil: "domcontentloaded" });
-    await page.locator("#email").fill("tipster@test.local");
-    await page.locator("#password").fill("Test-password-123!");
+    await page.locator("#email").fill(email);
+    await page.locator("#password").fill(password);
     await page.locator("#loginButton").click();
     await page.locator("#bankrollFilterPanel > summary").click();
     await page.locator("#bankrollPeriod").selectOption("custom");
     await page.locator("#bankrollFrom").fill("2025-09-01");
     await page.locator("#bankrollThrough").fill("2025-09-30");
-    await page.locator("#bankrollStatus").selectOption("ganada");
+    await page.locator("#bankrollStatus").selectOption("won");
     await page.locator("#bankrollSport").selectOption("tenis");
     await page.locator("#bankrollBookmaker").selectOption("bet365");
     await expect(page.locator("#pickCount")).toHaveText("105 en el filtro", { timeout: 30000 });
@@ -116,13 +155,13 @@ test("CSV y PDF exportan el período completo con filtros, no solo la página vi
     expect(detail).toHaveLength(105);
     expect(new Set(detail.map(row => row[0])).size).toBe(105);
     expect(rows[1]).toEqual(["Fecha del evento desde", "2025-09-01", "hasta (inclusive)", "2025-09-30"]);
-    expect(rows[2]).toEqual(["Estado", "ganada", "Deporte", "tenis", "Casa", "bet365"]);
+    expect(rows[2]).toEqual(["Estado", "won", "Deporte", "tenis", "Casa", "bet365"]);
     expect(rows).toContainEqual(["PEN", "105", "0", "2100", "1050", "1050", "100"]);
     for (const row of detail) {
       expect(row[0]).toMatch(new RegExp(`^${prefix}-\\d+$`));
       expect(Number(row[0].slice(prefix.length + 1))).toBeLessThan(105);
       expect(row[3]).toBe('Selección, "con comillas"');
-      expect(row.slice(4, 7)).toEqual(["tenis", "bet365", "ganada"]);
+      expect(row.slice(4, 7)).toEqual(["tenis", "bet365", "won"]);
       expect(row[9]).toBe("'=SUM(1,2)\nNota");
       expect(row[14]).toBe("100");
     }
@@ -199,12 +238,19 @@ test("CSV y PDF exportan el período completo con filtros, no solo la página vi
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
     await expect(page.locator("#bankrollPDF")).toBeVisible();
   } finally {
-    await page.goto("about:blank");
-    const cleanup = await request.post(`${endpoint}:commit`, {
-      headers, data: { writes: names.flatMap(name => [{ delete: `${name}/private/bankroll` }, { delete: name }]) }
-    });
-
-    expect(cleanup.ok(), "Eliminar exclusivamente fixtures temporales de esta prueba").toBeTruthy();
+    try {
+      await page.goto("about:blank");
+    } finally {
+      const cleanup = await request.post(`${endpoint}:commit`, {
+        headers, data: { writes: [
+          ...names.flatMap(name => [{ delete: `${name}/private/bankroll` }, { delete: name }]),
+          ...associatedDocuments.map(path => ({ delete: `${documentRoot}/${path}` }))
+        ] }
+      });
+      const deletedAccount = await request.post(`${authRoot}/accounts:delete?key=demo-key`, { data: { idToken } });
+      expect(cleanup.ok(), "Eliminar exclusivamente documentos temporales de informes").toBeTruthy();
+      expect(deletedAccount.ok(), "Eliminar exclusivamente la cuenta temporal de informes").toBeTruthy();
+    }
   }
 });
 

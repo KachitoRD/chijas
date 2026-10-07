@@ -184,6 +184,7 @@
     import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
     import { installAuthModal, installGoogleAccess, installPasswordRecovery } from "./auth-ui.js";
     import { installBusyButtons, showSkeleton } from "./ui-feedback.js";
+    import { getAccountPermissions } from "./permissions.js";
     installBusyButtons();
     installAuthModal({ dialog: document.getElementById("ownerAuth"), visibilityTarget: document.getElementById("creatorLogin"), title: "Administración de la plataforma" });
     showSkeleton(document.getElementById("loading"), { variant: "cards", label: "Comprobando acceso de creador" });
@@ -724,14 +725,15 @@
         $("adminEmail").textContent = user.email || "";
         $("logout").classList.remove("hidden");
         try {
-          const admin = await getDoc(doc(db, "platformAdmins", user.uid));
-          if (!admin.exists() || admin.data().enabled !== true) {
+          const permissions = await getAccountPermissions(user);
+          if (!permissions.isAdmin) {
             $("loading").classList.add("hidden");
             $("denied").classList.remove("hidden");
             $("switchCreatorAccount").classList.remove("hidden");
             $("deniedMessage").textContent = "La cuenta conectada no tiene permisos de creador. Cambia de cuenta e inicia con la cuenta administrativa separada.";
             return;
           }
+          $("settingsForm").classList.toggle("hidden", !permissions.isSuperAdmin);
           await loadOwnerDashboard();
         } catch (error) {
           console.error("No se pudo validar el acceso de creador:", error);

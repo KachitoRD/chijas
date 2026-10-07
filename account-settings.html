@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Configuración de perfil | Fijas en vivo</title>
+  <link rel="stylesheet" href="dist/styles.min.css">
+  <link rel="stylesheet" href="account-settings.css">
+</head>
+<body class="bg-zinc-950 text-zinc-100 antialiased">
+  <main class="account-settings">
+    <h1>Configuración de perfil</h1>
+    <p class="settings-intro">Tu identidad de espectador es la misma en todas las vistas. Esta configuración no modifica tu perfil editorial de tipster ni tus permisos.</p>
+    <p id="accountSettingsMessage" role="status" aria-live="polite">Cargando tu configuración…</p>
+    <form id="accountSettingsForm">
+      <fieldset id="accountSettingsFields" disabled>
+        <legend>Perfil de espectador</legend>
+        <div class="settings-profile-layout">
+          <div class="settings-avatar-preview">
+            <img id="accountAvatarPreview" alt="Previsualización del avatar" referrerpolicy="no-referrer" hidden>
+            <span id="accountAvatarInitial" aria-hidden="true">U</span>
+          </div>
+          <div class="settings-fields">
+            <label for="accountName">Nombre público<input id="accountName" name="displayName" maxlength="120" required autocomplete="nickname"></label>
+            <label for="accountAvatar">Avatar (URL HTTPS)<input id="accountAvatar" name="photoURL" type="url" maxlength="2048" placeholder="https://…" aria-describedby="accountAvatarHint"></label>
+            <p id="accountAvatarHint" class="settings-hint">Usa una imagen alojada por ti. No hay subida de archivos; déjalo vacío para usar tu inicial. El proveedor de la imagen recibe la solicitud al cargarla.</p>
+            <label for="accountBio">Biografía corta<textarea id="accountBio" name="bio" rows="3" maxlength="280" placeholder="Deportes que sigues, intereses…"></textarea></label>
+          </div>
+        </div>
+        <h2 class="settings-section-title">Preferencias de visualización</h2>
+        <div class="settings-fields">
+          <label for="accountTheme">Tema<select id="accountTheme" name="theme"><option value="emerald">Emerald Dark</option><option value="contrast">Noche · alto contraste</option></select></label>
+          <label class="settings-checkbox" for="accountNotifications"><input id="accountNotifications" name="notifications" type="checkbox" checked><span>Anunciar nuevos mensajes en la interfaz</span></label>
+          <p class="settings-hint">Controla los anuncios accesibles del chat demo. No activa correos, notificaciones push ni mensajes reales.</p>
+        </div>
+        <div class="settings-actions">
+          <button id="saveAccountSettings" type="submit">Guardar configuración</button>
+          <a href="index.html">Regresar al streaming</a>
+        </div>
+      </fieldset>
+    </form>
+    <button id="retryAccountSettings" type="button" hidden>Reintentar carga</button>
+  </main>
+  <script type="module">
+    import { mountAccountSettings } from "./account-settings.js";
+    const cleanup = mountAccountSettings(document.body);
+    addEventListener("pagehide", cleanup, { once: true });
+  </script>
+</body>
+</html>

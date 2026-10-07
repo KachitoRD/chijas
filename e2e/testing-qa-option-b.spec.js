@@ -5,7 +5,7 @@ test.describe("Testing & QA - Opción B", () => {
   // 1. LIGHTHOUSE PERFORMANCE AUDITS
   // ========================================
   test("Lighthouse audit on index.html", async ({ page, browser }) => {
-    await page.goto("http://localhost:5500/");
+    await page.goto(test.info().project.use.baseURL);
     
     // Wait for page to fully load
     await page.waitForLoadState("networkidle");
@@ -22,7 +22,7 @@ test.describe("Testing & QA - Opción B", () => {
   });
 
   test("Lighthouse audit on admin.html", async ({ page }) => {
-    await page.goto("http://localhost:5500/admin.html");
+    await page.goto(new URL("/admin.html", test.info().project.use.baseURL).href);
     await page.waitForLoadState("networkidle");
     
     const metrics = await page.evaluate(() => ({
@@ -35,7 +35,7 @@ test.describe("Testing & QA - Opción B", () => {
   });
 
   test("Lighthouse audit on owner.html", async ({ page }) => {
-    await page.goto("http://localhost:5500/owner.html");
+    await page.goto(new URL("/owner.html", test.info().project.use.baseURL).href);
     await page.waitForLoadState("networkidle");
     
     const metrics = await page.evaluate(() => ({
@@ -51,7 +51,7 @@ test.describe("Testing & QA - Opción B", () => {
   // 2. ACCESSIBILITY CHECKS (axe)
   // ========================================
   test("Accessibility audit on index.html", async ({ page }) => {
-    await page.goto("http://localhost:5500/");
+    await page.goto(test.info().project.use.baseURL);
     await page.waitForLoadState("networkidle");
     
     // Check for common a11y issues
@@ -89,7 +89,7 @@ test.describe("Testing & QA - Opción B", () => {
   });
 
   test("Accessibility audit on admin.html", async ({ page }) => {
-    await page.goto("http://localhost:5500/admin.html");
+    await page.goto(new URL("/admin.html", test.info().project.use.baseURL).href);
     await page.waitForLoadState("networkidle");
     
     const a11yIssues = await page.evaluate(() => {
@@ -114,7 +114,7 @@ test.describe("Testing & QA - Opción B", () => {
     });
     const page = await context.newPage();
     
-    await page.goto("http://localhost:5500/");
+    await page.goto(test.info().project.use.baseURL);
     await page.waitForLoadState("networkidle");
     
     // Check for horizontal overflow
@@ -137,7 +137,7 @@ test.describe("Testing & QA - Opción B", () => {
     });
     const page = await context.newPage();
     
-    await page.goto("http://localhost:5500/");
+    await page.goto(test.info().project.use.baseURL);
     await page.waitForLoadState("networkidle");
     
     const hasOverflow = await page.evaluate(() => {
@@ -158,7 +158,7 @@ test.describe("Testing & QA - Opción B", () => {
     });
     const page = await context.newPage();
     
-    await page.goto("http://localhost:5500/");
+    await page.goto(test.info().project.use.baseURL);
     await page.waitForLoadState("networkidle");
     
     const hasOverflow = await page.evaluate(() => {
@@ -178,7 +178,7 @@ test.describe("Testing & QA - Opción B", () => {
     });
     const page = await context.newPage();
     
-    await page.goto("http://localhost:5500/");
+    await page.goto(test.info().project.use.baseURL);
     await page.waitForLoadState("networkidle");
     
     const hasOverflow = await page.evaluate(() => {
@@ -196,7 +196,7 @@ test.describe("Testing & QA - Opción B", () => {
   // 4. TOUCH TARGET SIZE VERIFICATION
   // ========================================
   test("Touch targets are at least 48x48px", async ({ page }) => {
-    await page.goto("http://localhost:5500/");
+    await page.goto(test.info().project.use.baseURL);
     await page.waitForLoadState("networkidle");
     
     const smallTouchTargets = await page.evaluate(() => {
@@ -226,7 +226,7 @@ test.describe("Testing & QA - Opción B", () => {
   // 5. IMAGE OPTIMIZATION CHECK
   // ========================================
   test("Image optimization and loading", async ({ page }) => {
-    await page.goto("http://localhost:5500/");
+    await page.goto(test.info().project.use.baseURL);
     await page.waitForLoadState("networkidle");
     
     const imageStats = await page.evaluate(() => {
@@ -258,7 +258,7 @@ test.describe("Testing & QA - Opción B", () => {
       }
     });
     
-    await page.goto("http://localhost:5500/");
+    await page.goto(test.info().project.use.baseURL);
     await page.waitForLoadState("networkidle");
     await page.waitForTimeout(2000);
     
@@ -281,7 +281,7 @@ test.describe("Testing & QA - Opción B", () => {
       performanceMetrics.push(resource);
     });
     
-    await page.goto("http://localhost:5500/", { waitUntil: "networkidle" });
+    await page.goto(test.info().project.use.baseURL, { waitUntil: "networkidle" });
     
     const slowResources = performanceMetrics.filter((r) => r.timing?.total > 1000);
     console.log("⏱️ Slow resources (> 1s):", slowResources);

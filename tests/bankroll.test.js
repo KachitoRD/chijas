@@ -31,19 +31,19 @@ test("cierre anticipado total admite retorno cero, ganancia y pérdida", () => {
   assert.deepEqual(parseCashOutReturn("105.50", "USD"), { returnAmount: 105.5, returnMinorUnits: 10550 });
   for (const value of ["", "-1", "1.234", "Infinity"]) assert.throws(() => parseCashOutReturn(value, "PEN"));
   const bankroll = { stakeMinorUnits: 10000, currency: "PEN", returnMinorUnits: 10550 };
-  assert.equal(pickFinancialResult({ estado: "cash_out" }, bankroll).profit, 550);
-  assert.equal(pickFinancialResult({ estado: "cash_out" }, { ...bankroll, returnMinorUnits: 8000 }).profit, -2000);
-  assert.equal(pickFinancialResult({ estado: "cash_out" }, { ...bankroll, returnMinorUnits: 0 }).profit, -10000);
+  assert.equal(pickFinancialResult({ status: "cashed_out" }, bankroll).profit, 550);
+  assert.equal(pickFinancialResult({ status: "cashed_out" }, { ...bankroll, returnMinorUnits: 8000 }).profit, -2000);
+  assert.equal(pickFinancialResult({ status: "cashed_out" }, { ...bankroll, returnMinorUnits: 0 }).profit, -10000);
 });
 
 test("resultados y resumen no mezclan monedas ni ganancias pendientes", () => {
   const picks = [
-    { id: "a", estado: "ganada", cuota: 1.85 },
-    { id: "b", estado: "pendiente", cuota: 2 },
-    { id: "c", estado: "cash_out" },
-    { id: "d", estado: "perdida" },
-    { id: "e", estado: "anulada" },
-    { id: "f", estado: "pendiente" }
+    { id: "a", status: "won", odds: 1.85 },
+    { id: "b", status: "pending", odds: 2 },
+    { id: "c", status: "cashed_out" },
+    { id: "d", status: "lost" },
+    { id: "e", status: "void" },
+    { id: "f", status: "pending" }
   ];
   const records = new Map([
     ["a", { stakeMinorUnits: 1000, currency: "PEN" }],
@@ -56,7 +56,7 @@ test("resultados y resumen no mezclan monedas ni ganancias pendientes", () => {
     { currency: "PEN", count: 2, risk: 2000, returned: 1850, profit: 850, settledStake: 1000, yield: 85 },
     { currency: "USD", count: 3, risk: 0, returned: 2000, profit: -300, settledStake: 1500, yield: -20 }
   ]);
-  assert.throws(() => pickFinancialResult({ estado: "cash_out" }, { stakeMinorUnits: 100, currency: "EUR" }));
+  assert.throws(() => pickFinancialResult({ status: "cashed_out" }, { stakeMinorUnits: 100, currency: "EUR" }));
 });
 
 test("rango local incluye todo Hasta, cruza meses y rechaza fechas inválidas", () => {
@@ -74,17 +74,17 @@ test("rango local incluye todo Hasta, cruza meses y rechaza fechas inválidas", 
 
 test("combina estado, deporte y casa sin limitar los resultados a 50", () => {
   const picks = Array.from({ length: 125 }, (_, index) => ({
-    id: String(index), estado: "cash_out", deporte: "futbol", casa_apuestas: "betano"
+    id: String(index), status: "cashed_out", sport: "futbol", bookmaker: "betano"
   }));
   assert.equal(filterBankrollPicks(picks).length, 125);
-  assert.equal(filterBankrollPicks(picks, { status: "cash_out", sport: "futbol", bookmaker: "betano" }).length, 125);
-  assert.equal(filterBankrollPicks(picks, { status: "ganada" }).length, 0);
+  assert.equal(filterBankrollPicks(picks, { status: "cashed_out", sport: "futbol", bookmaker: "betano" }).length, 125);
+  assert.equal(filterBankrollPicks(picks, { status: "won" }).length, 0);
   assert.equal(filterBankrollPicks(picks, { sport: "tenis" }).length, 0);
   assert.equal(filterBankrollPicks(picks, { bookmaker: "bet365" }).length, 0);
 });
 
 test("Yield sin stake cerrado queda indefinido, no cero ficticio", () => {
-  const picks = [{ id: "pending", estado: "pendiente" }, { id: "void", estado: "anulada" }];
+  const picks = [{ id: "pending", status: "pending" }, { id: "void", status: "void" }];
   const records = new Map(picks.map(pick => [pick.id, { stakeMinorUnits: 1000, currency: "PEN" }]));
   const [total] = summarizeBankroll(picks, records);
   assert.equal(total.settledStake, 0);
@@ -92,19 +92,19 @@ test("Yield sin stake cerrado queda indefinido, no cero ficticio", () => {
   assert.equal(total.profit, 0);
   assert.equal(pickFinancialResult(picks[0], records.get("pending")).yield, null);
   assert.equal(pickFinancialResult(picks[1], records.get("void")).yield, null);
-  assert.equal(pickFinancialResult({ estado: "ganada", cuota: 1.85 }, records.get("pending")).yield, 85);
-  assert.equal(pickFinancialResult({ estado: "perdida" }, records.get("pending")).yield, -100);
-  assert.equal(pickFinancialResult({ estado: "cash_out" }, { ...records.get("pending"), returnMinorUnits: 1050 }).yield, 5);
+  assert.equal(pickFinancialResult({ status: "won", odds: 1.85 }, records.get("pending")).yield, 85);
+  assert.equal(pickFinancialResult({ status: "lost" }, records.get("pending")).yield, -100);
+  assert.equal(pickFinancialResult({ status: "cashed_out" }, { ...records.get("pending"), returnMinorUnits: 1050 }).yield, 5);
 });
 
 test("CSV exporta detalle completo, filtros, resumen y escapa fórmulas y comillas", () => {
   const picks = Array.from({ length: 125 }, (_, index) => ({
-    id: `csv-${index}`, estado: "ganada", cuota: 2, deporte: "futbol", casa_de_apuestas: "betano",
-    evento: '=HYPERLINK("bad")', seleccion: 'Texto, "citado"\nsegunda línea',
-    nota: " \t+SUM(1,2)", fecha_evento: new Date(2026, 9, 4)
+    id: `csv-${index}`, status: "won", odds: 2, sport: "futbol", bookmaker: "betano",
+    event: '=HYPERLINK("bad")', selection: 'Texto, "citado"\nsegunda línea',
+    analysis: " \t+SUM(1,2)", event_date: new Date(2026, 9, 4)
   }));
   const records = new Map(picks.map(pick => [pick.id, { stakeMinorUnits: 100, currency: "PEN" }]));
-  const filters = { from: "2026-10-01", through: "2026-10-04", status: "ganada", sport: "futbol", bookmaker: "betano" };
+  const filters = { from: "2026-10-01", through: "2026-10-04", status: "won", sport: "futbol", bookmaker: "betano" };
   const csv = bankrollCSV(picks, records, filters);
   assert.ok(csv.startsWith("\uFEFF"));
   assert.ok(csv.includes('"csv-124"'));
@@ -121,17 +121,17 @@ test("CSV exporta detalle completo, filtros, resumen y escapa fórmulas y comill
 
 test("CSV y PDF comparten filtros de fecha/estado/deporte/casa y métricas por moneda", () => {
   const filters = { from: "2026-10-01", through: "2026-10-04", status: "", sport: "tenis", bookmaker: "bet365" };
-  const base = { fecha_evento: new Date(2026, 9, 4, 23, 59), deporte: "tenis", casa_apuestas: "bet365", cuota: 2 };
+  const base = { event_date: new Date(2026, 9, 4, 23, 59), sport: "tenis", bookmaker: "bet365", odds: 2 };
   const picks = [
-    { ...base, id: "won", estado: "ganada" },
-    { ...base, id: "lost", estado: "perdida" },
-    { ...base, id: "cash", estado: "cash_out" },
-    { ...base, id: "pending", estado: "pendiente" },
-    { ...base, id: "void", estado: "anulada" },
-    { ...base, id: "no-money", estado: "ganada" },
-    { ...base, id: "date-out", estado: "ganada", fecha_evento: new Date(2026, 9, 5) },
-    { ...base, id: "sport-out", estado: "ganada", deporte: "futbol" },
-    { ...base, id: "house-out", estado: "ganada", casa_apuestas: "betano" }
+    { ...base, id: "won", status: "won" },
+    { ...base, id: "lost", status: "lost" },
+    { ...base, id: "cash", status: "cashed_out" },
+    { ...base, id: "pending", status: "pending" },
+    { ...base, id: "void", status: "void" },
+    { ...base, id: "no-money", status: "won" },
+    { ...base, id: "date-out", status: "won", event_date: new Date(2026, 9, 5) },
+    { ...base, id: "sport-out", status: "won", sport: "futbol" },
+    { ...base, id: "house-out", status: "won", bookmaker: "betano" }
   ];
   const records = new Map([
     ["won", { currency: "PEN", stakeMinorUnits: 1000 }],
@@ -148,7 +148,7 @@ test("CSV y PDF comparten filtros de fecha/estado/deporte/casa y métricas por m
   assert.deepEqual(report.totals.map(total => [total.currency, total.profit, total.yield]), [
     ["PEN", 0, 0], ["USD", 200, 20], ["EUR", 0, null]
   ]);
-  const cashOnly = { ...filters, status: "cash_out" };
+  const cashOnly = { ...filters, status: "cashed_out" };
   const csv = bankrollCSV(picks, records, cashOnly);
   assert.ok(csv.includes('"cash"'));
   for (const id of ["won", "lost", "pending", "void", "no-money", "date-out", "sport-out", "house-out"]) {

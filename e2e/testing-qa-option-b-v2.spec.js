@@ -9,7 +9,7 @@ test.describe("Testing & QA - Opción B (Simplified)", () => {
   // 1. BASIC LOAD TEST & METRICS
   // ========================================
   test("✅ Page loads successfully - index.html", async ({ page }) => {
-    const response = await page.goto("http://localhost:5500/", {
+    const response = await page.goto("/", {
       waitUntil: "domcontentloaded",
       timeout: 30000,
     });
@@ -22,7 +22,7 @@ test.describe("Testing & QA - Opción B (Simplified)", () => {
   });
 
   test("✅ Page loads successfully - admin.html", async ({ page }) => {
-    const response = await page.goto("http://localhost:5500/admin.html", {
+    const response = await page.goto("/admin.html", {
       waitUntil: "domcontentloaded",
     });
     
@@ -31,7 +31,7 @@ test.describe("Testing & QA - Opción B (Simplified)", () => {
   });
 
   test("✅ Page loads successfully - owner.html", async ({ page }) => {
-    const response = await page.goto("http://localhost:5500/owner.html", {
+    const response = await page.goto("/owner.html", {
       waitUntil: "domcontentloaded",
     });
     
@@ -43,9 +43,13 @@ test.describe("Testing & QA - Opción B (Simplified)", () => {
   // 2. PERFORMANCE METRICS
   // ========================================
   test("⏱️ Performance metrics - First Contentful Paint", async ({ page }) => {
-    page.goto("http://localhost:5500/", {
-      waitUntil: "domcontentloaded",
+    await page.goto("/", {
+      waitUntil: "load",
     });
+    test.skip(await page.evaluate(() => !PerformanceObserver.supportedEntryTypes.includes("paint")),
+      "Este motor no expone Paint Timing para medir FCP.");
+    await page.waitForFunction(() => performance.getEntriesByType("paint")
+      .some(entry => entry.name === "first-contentful-paint"));
     
     const metrics = await page.evaluate(() => {
       const nav = performance.getEntriesByType("navigation")[0];
@@ -54,13 +58,14 @@ test.describe("Testing & QA - Opción B (Simplified)", () => {
         .find((p) => p.name === "first-contentful-paint");
       
       return {
-        navigationStart: nav?.startTime || 0,
-        domContentLoaded: nav?.domContentLoadedEventEnd || 0,
-        fcpTime: fcp?.startTime || 0,
+        navigationStart: nav.startTime,
+        domContentLoaded: nav.domContentLoadedEventEnd,
+        fcpTime: fcp.startTime,
       };
     });
     
     console.log("⏱️ Performance Metrics:", metrics);
+    expect(metrics.fcpTime).toBeGreaterThan(0);
     expect(metrics.fcpTime).toBeLessThan(3000); // FCP < 3s
   });
 
@@ -68,7 +73,7 @@ test.describe("Testing & QA - Opción B (Simplified)", () => {
   // 3. ACCESSIBILITY BASIC CHECKS
   // ========================================
   test("♿ Accessibility - Heading structure (index.html)", async ({ page }) => {
-    await page.goto("http://localhost:5500/", {
+    await page.goto("/", {
       waitUntil: "domcontentloaded",
     });
     
@@ -81,7 +86,7 @@ test.describe("Testing & QA - Opción B (Simplified)", () => {
   });
 
   test("♿ Accessibility - Images have alt text", async ({ page }) => {
-    await page.goto("http://localhost:5500/", {
+    await page.goto("/", {
       waitUntil: "domcontentloaded",
     });
     
@@ -98,7 +103,7 @@ test.describe("Testing & QA - Opción B (Simplified)", () => {
   });
 
   test("♿ Accessibility - Contrast check (simplified)", async ({ page }) => {
-    await page.goto("http://localhost:5500/", {
+    await page.goto("/", {
       waitUntil: "domcontentloaded",
     });
     
@@ -115,7 +120,7 @@ test.describe("Testing & QA - Opción B (Simplified)", () => {
   }) => {
     await page.setViewportSize({ width: 375, height: 667 });
     
-    await page.goto("http://localhost:5500/", {
+    await page.goto("/", {
       waitUntil: "domcontentloaded",
     });
     
@@ -134,7 +139,7 @@ test.describe("Testing & QA - Opción B (Simplified)", () => {
   }) => {
     await page.setViewportSize({ width: 768, height: 1024 });
     
-    await page.goto("http://localhost:5500/", {
+    await page.goto("/", {
       waitUntil: "domcontentloaded",
     });
     
@@ -153,7 +158,7 @@ test.describe("Testing & QA - Opción B (Simplified)", () => {
   }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     
-    await page.goto("http://localhost:5500/", {
+    await page.goto("/", {
       waitUntil: "domcontentloaded",
     });
     
@@ -173,6 +178,8 @@ test.describe("Testing & QA - Opción B (Simplified)", () => {
   test("🔍 No critical console errors", async ({ page }) => {
     const errors = [];
     const warnings = [];
+    const diagnostics = [];
+    const started = performance.now();
     
     page.on("console", (msg) => {
       if (msg.type() === "error") {
@@ -181,9 +188,26 @@ test.describe("Testing & QA - Opción B (Simplified)", () => {
       if (msg.type() === "warning") {
         warnings.push(msg.text());
       }
+      if (["error", "warning"].includes(msg.type())) {
+        diagnostics.push({ ms: performance.now() - started, type: msg.type(), text: msg.text(), ...msg.location() });
+      }
+    });
+    page.on("pageerror", error => {
+      errors.push(error.message);
+      diagnostics.push({ ms: performance.now() - started, type: "pageerror", text: error.message, stack: error.stack });
+    });
+    page.on("response", response => {
+      if (response.status() < 400) return;
+      const url = new URL(response.url());
+      diagnostics.push({ ms: performance.now() - started, type: "http", status: response.status(), url: `${url.origin}${url.pathname}` });
+    });
+    page.on("requestfailed", request => {
+      const url = new URL(request.url());
+      diagnostics.push({ ms: performance.now() - started, type: "requestfailed", text: request.failure()?.errorText,
+        url: `${url.origin}${url.pathname}` });
     });
     
-    await page.goto("http://localhost:5500/", {
+    await page.goto("/", {
       waitUntil: "domcontentloaded",
     });
     
@@ -199,6 +223,7 @@ test.describe("Testing & QA - Opción B (Simplified)", () => {
     
     console.log(`✅ Console errors: ${criticalErrors.length}`);
     console.log(`✅ Console warnings: ${warnings.length}`);
+    if (criticalErrors.length) console.error("Diagnóstico de consola:", JSON.stringify(diagnostics, null, 2));
     
     expect(criticalErrors.length).toBe(0);
   });
@@ -207,7 +232,7 @@ test.describe("Testing & QA - Opción B (Simplified)", () => {
   // 6. TOUCH TARGET SIZE CHECK
   // ========================================
   test("👆 Touch targets - Check button/link sizes", async ({ page }) => {
-    await page.goto("http://localhost:5500/", {
+    await page.goto("/", {
       waitUntil: "domcontentloaded",
     });
     
@@ -246,7 +271,7 @@ test.describe("Testing & QA - Opción B (Simplified)", () => {
   // 7. CSS VARIABLES CHECK
   // ========================================
   test("🎨 CSS Variables - Are they defined?", async ({ page }) => {
-    await page.goto("http://localhost:5500/", {
+    await page.goto("/", {
       waitUntil: "domcontentloaded",
     });
     
@@ -268,7 +293,7 @@ test.describe("Testing & QA - Opción B (Simplified)", () => {
   // 8. LINKS & NAVIGATION WORK
   // ========================================
   test("🔗 Navigation links are accessible", async ({ page }) => {
-    await page.goto("http://localhost:5500/", {
+    await page.goto("/", {
       waitUntil: "domcontentloaded",
     });
     
@@ -282,7 +307,7 @@ test.describe("Testing & QA - Opción B (Simplified)", () => {
   // 9. SEARCH INPUT TEST
   // ========================================
   test("🔍 Search input is functional", async ({ page }) => {
-    await page.goto("http://localhost:5500/", {
+    await page.goto("/", {
       waitUntil: "domcontentloaded",
     });
     

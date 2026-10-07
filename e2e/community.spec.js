@@ -8,6 +8,10 @@ const authRoot = "http://127.0.0.1:9099";
 const root = `http://127.0.0.1:8080/v1/projects/${project}/databases/(default)/documents`;
 const headers = { Authorization: "Bearer owner" };
 let fixture;
+function traceCategory(phase) {
+  if (!fixture?.timing) return;
+  console.info(`[community timing] ${phase}: ${(performance.now() - fixture.timing).toFixed(1)} ms`);
+}
 
 function fields(data) {
   return Object.fromEntries(Object.entries(data).map(([key, value]) => [key,
@@ -25,32 +29,49 @@ async function seed(request, path, data) {
   expect(response.ok(), await response.text()).toBeTruthy();
 }
 
-async function seedTipster(request, id, index) {
+async function seedDocuments(request, documents) {
+  const writes = Object.entries(documents).map(([path, data]) => {
+    fixture.documents.add(path);
+    return { update: { name: `projects/${project}/databases/(default)/documents/${path}`, fields: fields(data) },
+      currentDocument: { exists: false } };
+  });
+  const response = await request.post(`${root}:commit`, { headers, data: { writes } });
+  expect(response.ok(), await response.text()).toBeTruthy();
+}
+
+function tipsterDocuments(id, index) {
   const username = `${fixture.prefix}-${index}`;
-  await seed(request, `perfiles/${id}`, {
+  return {
+  [`perfiles/${id}`]: {
     id, username, nombre_publico: `Comunidad ${index}`, bio: null, color_primario: "#34d399",
     tipster_status: "approved", is_online: false, last_active_at: null,
     created_at: new Date("2026-10-04T12:00:00Z"),
     ...(index === 0 ? {} : { followerCount: 0 })
-  });
-  await seed(request, `perfiles_social/${id}`, {
+  },
+  [`perfiles_social/${id}`]: {
     avatar_url: null, banner_url: null, kick_url: null, twitch_url: null,
     youtube_url: null, telegram_url: null, twitter_url: null, instagram_url: null
-  });
-  await seed(request, `usernames/${username}`, { uid: id });
-  await seed(request, `picks/${id}-pick`, {
-    user_id: id, deporte: "futbol", evento: `Evento comunidad ${index}`,
-    seleccion: "Más de 1.5 goles", prediccion: "Más de 1.5 goles", cuota: 1.85,
-    casa_de_apuestas: "betano", casa_apuestas: "betano", fecha_evento: new Date("2026-10-10T20:00:00Z"),
-    confianza: null, nota: null, destacada: false, show_on_stream: false, estado: "pendiente",
+  },
+  [`usernames/${username}`]: { uid: id },
+  [`picks/${id}-pick`]: {
+    user_id: id, sport: "futbol", event: `Evento comunidad ${index}`,
+    selection: "Más de 1.5 goles", odds: 1.85,
+    bookmaker: "betano", event_date: new Date("2026-10-10T20:00:00Z"),
+    confianza: null, analysis: null, destacada: false, show_on_stream: false, status: "pending",
     created_at: new Date(Date.UTC(2026, 9, 5, 12, index))
-  });
+  }
+  };
+}
+
+async function seedTipster(request, id, index) {
+  await seedDocuments(request, tipsterDocuments(id, index));
 }
 
 function trackUser(user) {
   fixture.users.set(user.uid, user.idToken);
   fixture.documents.add(`users/${user.uid}`);
   fixture.documents.add(`presencia/${user.uid}`);
+  fixture.documents.add(`viewerPresence/${user.uid}`);
   fixture.documents.add(`legalAcceptances/${user.uid}/versions/2026-10-03`);
   for (const id of fixture.ids) fixture.documents.add(`follows/${user.uid}_${id}`);
 }
@@ -89,30 +110,88 @@ async function readCount(request, id) {
 test.describe.configure({ mode: "serial" });
 test.beforeEach(async ({ request, page }) => {
   fixture = { prefix: `cm${randomUUID().replaceAll("-", "").slice(0, 12)}`, ids: [], documents: new Set(), users: new Map() };
+  if (process.env.COMMUNITY_TIMING === "1" && test.info().title.startsWith("categorías filtran")) fixture.timing = performance.now();
+  traceCategory("preparación iniciada");
+  const documents = {};
   for (let index = 0; index < 11; index++) {
     const id = `${fixture.prefix}-${index}`;
     fixture.ids.push(id);
-    await seedTipster(request, id, index);
+    Object.assign(documents, tipsterDocuments(id, index));
   }
+  await seedDocuments(request, documents);
   await page.route(/https:\/\/(firestore|identitytoolkit|securetoken)\.googleapis\.com\/.*/, route => route.abort());
   await mockGooglePopup(page, { subject: `${fixture.prefix}-popup`, email: `${fixture.prefix}-popup@example.test`, name: "Viewer Google" });
+  traceCategory("datos preparados; navegación iniciada");
   await page.goto("/");
+  traceCategory("navegación completada");
   await expect(page.locator("#viewerLogin")).toBeEnabled();
   await expect(page.locator(`#directoryList button[data-follow="${fixture.ids[0]}"]`)).toBeEnabled();
+  traceCategory("directorio listo");
 });
 
-test.afterEach(async ({ request }) => {
+test.afterEach(async ({ request, page }) => {
   if (!fixture) return;
-  for (const path of [...fixture.documents].sort((a, b) => b.split("/").length - a.split("/").length)) {
-    const response = await request.delete(`${root}/${path}`, { headers });
-    expect(response.ok() || response.status() === 404, `Limpiar ${path}`).toBeTruthy();
-  }
+  traceCategory("limpieza iniciada");
+  if (!page.isClosed()) await page.goto("about:blank");
+  const writes = [...fixture.documents].sort((a, b) => b.split("/").length - a.split("/").length)
+    .map(path => ({ delete: `projects/${project}/databases/(default)/documents/${path}` }));
+  const cleanup = await request.post(`${root}:commit`, { headers, data: { writes } });
+  expect(cleanup.ok(), "Eliminar exclusivamente documentos de la fixture de comunidad").toBeTruthy();
   for (const idToken of fixture.users.values()) {
     const response = await request.post(`${authRoot}/identitytoolkit.googleapis.com/v1/accounts:delete?key=demo-key`, {
       data: { idToken }
     });
     expect(response.ok(), await response.text()).toBeTruthy();
   }
+  traceCategory("limpieza completada");
+});
+
+test("categorías filtran pronósticos públicos en tiempo real y conservan el directorio", async ({ page, request }) => {
+  const cards = page.locator(`#publicPicks article[data-author^="${fixture.prefix}"]`);
+  traceCategory("esperando 11 tarjetas iniciales");
+  await expect(cards).toHaveCount(11);
+  traceCategory("11 tarjetas renderizadas");
+  await page.getByRole("button", { name: "Tenis", exact: true }).click();
+  traceCategory("clic Tenis emitido");
+  await expect(page.getByRole("button", { name: "Tenis", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(cards).toHaveCount(0);
+  traceCategory("categoría Tenis aplicada");
+  const response = await request.patch(`${root}/picks/${fixture.ids[0]}-pick?updateMask.fieldPaths=sport`, {
+    headers, data: { fields: { sport: { stringValue: "tenis" } } }
+  });
+  expect(response.ok()).toBeTruthy();
+  expect((await response.json()).fields.sport.stringValue).toBe("tenis");
+  traceCategory("PATCH sport=tenis confirmado");
+  await cards.first().waitFor({ state: "visible", timeout: 10000 });
+  traceCategory("tarjeta Tenis renderizada");
+  await expect(cards).toHaveCount(1);
+  await expect(page.locator(`#directoryList a[data-username^="${fixture.prefix}"]`)).toHaveCount(11);
+  for (const [sport, label] of [
+    ["baloncesto", "Baloncesto"], ["esports", "E-Sports"], ["beisbol", "Otros / Más deportes"]
+  ]) {
+    traceCategory(`PATCH sport=${sport} iniciado`);
+    const updated = await request.patch(`${root}/picks/${fixture.ids[0]}-pick?updateMask.fieldPaths=sport`, {
+      headers, data: { fields: { sport: { stringValue: sport } } }
+    });
+    expect(updated.ok()).toBeTruthy();
+    expect((await updated.json()).fields.sport.stringValue).toBe(sport);
+    traceCategory(`PATCH sport=${sport} confirmado`);
+    await page.getByRole("button", { name: label, exact: true }).click();
+    traceCategory(`clic ${label} emitido`);
+    await cards.first().waitFor({ state: "visible", timeout: 10000 });
+    traceCategory(`tarjeta ${label} renderizada`);
+    await expect(cards).toHaveCount(1);
+    await expect(page.getByRole("button", { name: label, exact: true })).toHaveAttribute("aria-pressed", "true");
+  }
+  await page.getByRole("button", { name: "Todos", exact: true }).click();
+  traceCategory("clic Todos emitido");
+  await expect(cards).toHaveCount(11);
+  for (const width of [390, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
+    await expect(page.locator("#channelSidebar")).toBeVisible();
+  }
+  traceCategory("validación completada");
 });
 
 test("conectados muestran avatar circular, nickname y un máximo de 20 sin desplegable", async ({ page, request }) => {
@@ -204,6 +283,7 @@ test("Google popup, consentimiento, persistencia y respuesta optimista sin dupli
   await page.screenshot({ path: testInfo.outputPath("community-mobile.png"), fullPage: true });
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.screenshot({ path: testInfo.outputPath("community-desktop.png"), fullPage: true });
+  await page.locator("#userMenuButton").click();
   await page.locator("#viewerLogout").click();
   await expect(page.locator("#viewerLogin")).toBeVisible();
   await page.locator("#followingTab").click();
@@ -229,9 +309,9 @@ test("feed con 11 creadores combina grupos, ordena, actualiza y excluye revocado
     await page.screenshot({ path: testInfo.outputPath(`following-feed-${width}.png`), animations: "disabled" });
   }
   await seed(request, `picks/${fixture.ids[10]}-pick`, {
-    user_id: fixture.ids[10], evento: "Evento actualizado", seleccion: "Nueva selección",
-    cuota: 2, casa_de_apuestas: "betano", fecha_evento: new Date("2026-10-10T20:00:00Z"),
-    created_at: new Date("2026-10-05T13:00:00Z"), estado: "ganada"
+    user_id: fixture.ids[10], event: "Evento actualizado", selection: "Nueva selección",
+    odds: 2, bookmaker: "betano", event_date: new Date("2026-10-10T20:00:00Z"),
+    created_at: new Date("2026-10-05T13:00:00Z"), status: "won"
   });
   await expect(page.locator("#followingPicks article").first()).toContainText("Evento actualizado");
   const revoked = await request.patch(`${root}/perfiles/${fixture.ids[10]}?updateMask.fieldPaths=tipster_status`, {

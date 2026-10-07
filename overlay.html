@@ -83,6 +83,7 @@
 
   <script type="module">
     import { firebaseApp, firebaseConfigured, firebaseDb } from "./firebase-config.js";
+    import { normalizePick } from "./pick-schema.js";
     import { collection, doc, getDoc, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
     const widget = document.getElementById("widget");
@@ -161,14 +162,12 @@
           entry = { article, sport, status, event, selection, odds, bookmaker };
           pickElements.set(pick.id, entry);
         }
-        entry.sport.textContent = pick.deporte || "";
-        entry.status.textContent = pick.estado === "cash_out" ? "Cierre anticipado"
-          : String(pick.estado || "pendiente").slice(0, 1).toUpperCase()
-            + String(pick.estado || "pendiente").slice(1);
-        entry.event.textContent = pick.evento || "";
-        entry.selection.textContent = pick.seleccion || pick.prediccion || "";
-        entry.odds.textContent = `Cuota ${Number(pick.cuota || 0).toFixed(2)}`;
-        entry.bookmaker.textContent = pick.casa_de_apuestas || pick.casa_apuestas || "";
+        entry.sport.textContent = pick.sport || "";
+        entry.status.textContent = { pending: "Pendiente", won: "Ganada", lost: "Perdida", void: "Anulada", cashed_out: "Cierre anticipado" }[pick.status];
+        entry.event.textContent = pick.event || "";
+        entry.selection.textContent = pick.selection || pick.selection || "";
+        entry.odds.textContent = `Cuota ${Number(pick.odds || 0).toFixed(2)}`;
+        entry.bookmaker.textContent = pick.bookmaker || pick.bookmaker || "";
         entry.bookmaker.className = "pick-bookmaker";
         if (pickList.children[index] !== entry.article) {
           pickList.insertBefore(entry.article, pickList.children[index] || null);
@@ -221,7 +220,14 @@
         );
         stopPicks = onSnapshot(picksQuery, snapshot => {
           widgetMessage.hidden = true;
-          const picks = snapshot.docs.map(item => ({ id: item.id, ...item.data() }));
+          let picks;
+          try {
+            picks = snapshot.docs.map(item => normalizePick({ id: item.id, ...item.data() }));
+          } catch (error) {
+            console.error("Pronóstico inválido en el widget:", error);
+            showError("No se pudo interpretar el pronóstico seleccionado.");
+            return;
+          }
           picks.sort((a, b) => (b.created_at?.toMillis?.() || 0) - (a.created_at?.toMillis?.() || 0));
           renderPicks(picks);
         }, error => {

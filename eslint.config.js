@@ -4,7 +4,7 @@ import globals from "globals";
 
 export default [
   {
-    ignores: [".agents/**", ".firebase/**", "node_modules/**", "playwright-report/**", "test-results/**", "docs/**", "archivo/**"],
+    ignores: [".agents/**", ".firebase/**", "node_modules/**", "playwright-report/**", "test-results/**", "reports/**", "docs/**", "archivo/**"],
   },
   {
     files: ["*.html"],

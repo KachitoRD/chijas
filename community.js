@@ -1,4 +1,5 @@
 import { firebaseAuth, firebaseDb } from "./firebase-config.js?v=2";
+import { normalizePick } from "./pick-schema.js";
 import { signInGoogle } from "./google-sign-in.js";
 import { collection, doc, increment, limit, onSnapshot, orderBy, query, runTransaction, serverTimestamp, where } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
@@ -17,6 +18,7 @@ export async function ensureViewer(user) {
       role: "viewer",
       displayName: (user.displayName || "").slice(0, 120),
       photoURL: user.photoURL || null,
+      email: user.email,
       created_at: serverTimestamp()
     });
   });
@@ -88,7 +90,13 @@ export function subscribeFollowingFeed(tipsterIds, onChange, onError) {
       orderBy("created_at", "desc"), limit(60)
     ), snapshot => {
       if (!active) return;
-      pages.set(index, snapshot.docs.map(item => ({ ...item.data(), id: item.id })));
+      try {
+        pages.set(index, snapshot.docs.map(item => normalizePick({ ...item.data(), id: item.id })));
+      } catch (error) {
+        stop();
+        onError(error);
+        return;
+      }
       if (pages.size !== chunks.length) return;
       const picks = [...new Map([...pages.values()].flat().map(pick => [pick.id, pick])).values()];
       picks.sort((a, b) => (b.created_at?.toMillis() || 0) - (a.created_at?.toMillis() || 0)

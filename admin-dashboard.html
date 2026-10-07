@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#09090b">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Administración | Fijas en vivo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="dist/styles.min.css">
+    <style>
+      .admin-table-scroll { max-width: 100%; min-width: 0; overflow-x: auto; }
+      .admin-application-table { width: 100%; min-width: 480px; font-size: 13px; border-collapse: collapse; }
+      .admin-application-table caption { text-align: left; color: #bbcec3; padding-block: 16px; }
+      .admin-application-table :is(th, td) { padding: 16px 12px; text-align: left; vertical-align: top; border-bottom: 1px solid rgb(110 231 183 / .12); overflow-wrap: anywhere; }
+      .admin-application-table .admin-actions { margin-top: 0; }
+    </style>
+    <link rel="stylesheet" href="emerald-surface.css">
+    <link rel="stylesheet" href="auth-styles.css">
+    <style>
+      :root { color-scheme: dark; }
+      :focus-visible { outline: 2px solid #6ee7b7; outline-offset: 3px; }
+      [hidden] { display: none !important; }
+      .admin-list > article { padding: 20px 0; border-bottom: 1px solid rgb(255 255 255 / .08); overflow-wrap: anywhere; }
+      .admin-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 16px; }
+      .admin-button { min-height: 44px; padding: 8px 16px; border: 1px solid #3f3f46; border-radius: 8px; font-weight: 600; }
+      .admin-button:hover { border-color: #6ee7b7; }
+      .admin-button:disabled { opacity: .5; cursor: not-allowed; }
+      .admin-field { display: grid; gap: 8px; min-width: 0; }
+      .admin-field input, .admin-field select, .admin-field textarea { width: 100%; min-height: 44px; padding: 10px 12px; border-radius: 8px; border: 1px solid #3f3f46; background: #111114; color: #f4f4f5; }
+      #admin-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 28px 0; }
+      #admin-tabs [aria-selected="true"] { border-color: #6ee7b7; color: #a7f3d0; }
+      .admin-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 24px; margin: 24px 0; }
+      .admin-metrics dd { margin-top: 8px; font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    </style>
+  </head>
+  <body class="min-h-screen bg-zinc-950 font-sans text-zinc-100 antialiased selection:bg-emerald-300 selection:text-emerald-950">
+    <div id="auth-loading" class="mx-auto max-w-7xl px-6 py-16 text-sm text-zinc-400" role="status" aria-live="polite">
+      Verificando tu sesión…
+    </div>
+    <section id="auth-message" class="mx-auto hidden max-w-xl px-6 py-16" role="alert" aria-live="assertive">
+      <h1 class="text-2xl font-bold tracking-tight">No se pudo abrir el panel</h1>
+      <p id="auth-message-text" class="mt-3 text-sm leading-6 text-zinc-300"></p>
+      <a class="mt-6 inline-flex min-h-11 items-center rounded-lg bg-emerald-300 px-4 font-semibold text-emerald-950 hover:bg-emerald-200" href="index.html">Volver al inicio</a>
+    </section>
+    <section id="signed-out" class="mx-auto hidden max-w-xl px-6 py-16">
+      <h1 class="text-2xl font-bold tracking-tight">Inicia sesión para continuar</h1>
+      <p class="mt-3 text-sm leading-6 text-zinc-300">Inicia sesión con una cuenta administrativa habilitada y con el correo verificado.</p>
+      <a class="mt-6 inline-flex min-h-11 items-center rounded-lg bg-emerald-300 px-4 font-semibold text-emerald-950 hover:bg-emerald-200" href="index.html">Ir al inicio de sesión</a>
+    </section>
+
+    <div id="dashboard" class="hidden">
+      <!-- Auth confirma identidad; Firestore Rules deben autorizar cada operación administrativa. -->
+      <header class="border-b border-white/10 bg-zinc-950/90">
+        <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-5">
+          <a class="text-lg font-bold tracking-tight" href="index.html">Fijas <span class="font-medium text-zinc-400">en vivo</span></a>
+          <div class="flex min-w-0 flex-wrap items-center gap-4">
+            <p class="min-w-0 break-all text-sm text-zinc-300">Sesión: <span id="user-email" class="font-semibold text-zinc-100"></span></p>
+            <button id="sign-out" class="min-h-10 rounded-lg border border-white/15 px-3 text-sm font-semibold hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-300">Cerrar sesión</button>
+          </div>
+        </div>
+      </header>
+
+      <main class="mx-auto max-w-7xl px-6 py-10">
+        <div class="mb-10 max-w-2xl">
+          <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">Panel de administración</h1>
+          <p id="admin-role" class="mt-3 text-sm leading-6 text-zinc-300"></p>
+        </div>
+        <p id="admin-message" role="status" aria-live="polite" class="mb-5 text-sm text-emerald-200"></p>
+        <nav id="admin-tabs" role="tablist" aria-label="Administración">
+          <button id="metrics-tab" class="admin-button" role="tab" aria-controls="metrics-panel" aria-selected="false" data-tab="metrics">Métricas</button>
+          <button id="finance-tab" class="admin-button" role="tab" aria-controls="finance-panel" aria-selected="false" data-tab="finance">Finanzas</button>
+          <button id="operations-tab" class="admin-button" role="tab" aria-controls="operations-panel" aria-selected="false" data-tab="operations">Tipsters</button>
+          <button id="profiles-tab" class="admin-button" role="tab" aria-controls="profiles-panel" aria-selected="false" data-tab="profiles">Cambios de perfil</button>
+          <button id="viewers-tab" class="admin-button" role="tab" aria-controls="viewers-panel" aria-selected="false" data-tab="viewers">Viewers</button>
+          <button id="governance-tab" class="admin-button" role="tab" aria-controls="governance-panel" aria-selected="false" data-tab="governance">Gobierno maestro</button>
+        </nav>
+        <section id="metrics-panel" role="tabpanel" aria-labelledby="metrics-tab" hidden>
+          <h2 class="text-xl font-semibold">Actividad global</h2>
+          <p class="mt-3 text-sm text-zinc-400">Win Rate = ganadas / (ganadas + perdidas). No incluye pendientes, anuladas ni cash-out. Presencia estimada: actividad visible en los últimos 90 segundos.</p>
+          <dl class="admin-metrics">
+            <div><dt>Total de usuarios registrados</dt><dd id="total-users">Cargando…</dd></div>
+            <div><dt>Volumen de pronósticos</dt><dd id="total-picks">Cargando…</dd></div>
+            <div><dt>Tipsters aprobados</dt><dd id="active-tipsters">Cargando…</dd></div>
+            <div><dt>Tipsters conectados</dt><dd id="online-tipsters">Cargando…</dd></div>
+            <div><dt>Viewers conectados</dt><dd id="online-viewers">Cargando…</dd></div>
+            <div><dt>Win Rate global</dt><dd id="win-rate">Cargando…</dd></div>
+            <div><dt>GMV monetario</dt><dd id="gmv">No disponible</dd></div>
+          </dl>
+          <p class="text-xs text-zinc-400">Usuarios = documentos de cuenta base viewer, incluidos tipsters y administradores. No es un conteo de Firebase Auth. Requiere permiso de consulta de viewers; sin ese permiso no se exponen datos personales.</p>
+        </section>
+        <section id="finance-panel" role="tabpanel" aria-labelledby="finance-tab" hidden>
+          <h2 class="text-xl font-semibold">Comisiones por creador</h2>
+          <p class="mt-3 text-sm text-zinc-400">La comisión configura un porcentaje, no genera cobros. Sin fuente monetaria, ingresos brutos y netos no están disponibles. El bankroll del tipster permanece privado.</p>
+          <div id="finance-list" class="admin-list" aria-live="polite"></div>
+        </section>
+        <section id="operations-panel" role="tabpanel" aria-labelledby="operations-tab" hidden>
+          <h2 class="text-xl font-semibold">Solicitudes de tipster</h2>
+          <div id="applications" class="admin-list" aria-live="polite"></div>
+          <h2 class="mt-10 text-xl font-semibold">Permisos de publicación</h2>
+          <div id="tipsters" class="admin-list" aria-live="polite"></div>
+        </section>
+        <section id="profiles-panel" role="tabpanel" aria-labelledby="profiles-tab" hidden>
+          <h2 class="text-xl font-semibold">Cambios de perfil pendientes</h2>
+          <div id="profileRequests" class="admin-list" aria-live="polite"></div>
+        </section>
+        <section id="viewers-panel" role="tabpanel" aria-labelledby="viewers-tab" hidden>
+          <h2 class="text-xl font-semibold">Moderación de viewers</h2>
+          <label class="admin-field mt-5" for="viewerSearch">Buscar por UID o correo<input id="viewerSearch" type="search" autocomplete="off"></label>
+          <p class="mt-3 text-sm text-zinc-400">Suspender bloquea acciones protegidas de la aplicación, no deshabilita Firebase Auth ni impide leer la vitrina pública. Las cuentas antiguas sin correo guardado se buscan por UID.</p>
+          <div id="viewers-list" class="admin-list" aria-live="polite"></div>
+          <section class="mt-10" aria-labelledby="communityModerationTitle">
+            <h3 id="communityModerationTitle" class="text-lg font-semibold">Moderación de comunidad</h3>
+            <p id="communityModerationStatus" class="mt-3 text-sm leading-6 text-zinc-300">Moderación persistente de chat y reportes: pendiente. El chat es una demo local; pausar y enviar mensajes solo afecta este navegador. No hay bandeja de reportes ni mensajes guardados en Firestore.</p>
+          </section>
+        </section>
+        <section id="governance-panel" role="tabpanel" aria-labelledby="governance-tab" hidden>
+          <h2 class="text-xl font-semibold">Límites globales</h2>
+          <p class="mt-3 text-sm text-zinc-400">Valores orientativos; no constituyen cuotas de consumo ni límites de facturación.</p>
+          <form id="settingsForm" class="mt-5 grid gap-4">
+            <label class="admin-field" for="tipsterLimit">Límite mensual tipsters<input id="tipsterLimit" type="number" min="1" max="500" step="1" required></label>
+            <label class="admin-field" for="viewerLimit">Límite mensual viewers<input id="viewerLimit" type="number" min="0" max="500" step="1" required></label>
+            <button class="admin-button justify-self-start" type="submit">Guardar límites</button>
+          </form>
+          <h2 class="mt-10 text-xl font-semibold">Matriz de permisos administrativos</h2>
+          <p class="mt-3 text-sm text-zinc-400">Gestiona otras cuentas por UID, individualmente o hasta 25 a la vez. No puedes modificar tu propia ACL. Un super_admin tiene todos los permisos; un admin recibe solo los seleccionados.</p>
+          <form id="roleForm" class="mt-5 grid gap-4">
+            <label class="admin-field" for="adminUid">UID (uno por línea)<textarea id="adminUid" rows="3" required></textarea></label>
+            <label class="admin-field" for="adminRole">Rol<select id="adminRole"><option value="admin">Admin operativo</option><option value="super_admin">Super Admin</option></select></label>
+            <fieldset class="grid gap-3"><legend class="mb-3 font-semibold">Permisos operativos</legend>
+              <label><input type="checkbox" name="permission" value="tipsters" checked> Aprobar y gestionar tipsters</label>
+              <label><input type="checkbox" name="permission" value="profiles" checked> Revisar cambios de perfil</label>
+              <label><input type="checkbox" name="permission" value="viewers" checked> Moderar viewers</label>
+              <label><input type="checkbox" name="permission" value="kpis" checked> Consultar KPIs</label>
+            </fieldset>
+            <label><input id="adminEnabled" type="checkbox" checked> Acceso habilitado</label>
+            <button type="submit" class="admin-button justify-self-start">Guardar permisos</button>
+          </form>
+          <div class="admin-actions">
+            <button id="select-admins" class="admin-button">Seleccionar todos</button>
+            <button id="revoke-admins" class="admin-button">Revocar seleccionados</button>
+          </div>
+          <div id="admins-list" class="admin-list" aria-live="polite"></div>
+        </section>
+      </main>
+    </div>
+
+    <script type="module">
+      import { mountAdminView } from "./admin-dashboard.js";
+      const cleanup = mountAdminView(document.body);
+      addEventListener("pagehide", cleanup, { once: true });
+    </script>
+  </body>
+</html>
