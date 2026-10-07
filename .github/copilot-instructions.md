@@ -1,143 +1,44 @@
-# GitHub Copilot System Instructions
-## Strict Token Optimization Protocol for "Fijas en Vivo" Project
+# Fijas en vivo - Instrucciones para Copilot
 
-### 🎯 Core Operating Principles
+## PROYECTO
+Plataforma de tipsters y pronósticos ("fijas"). HTML5 + JavaScript con módulos ES y sin compilación JavaScript; CSS propio con Tailwind CSS 3.4 compilable mediante `build-css.js` desde `styles.css` a `dist/styles.min.css`. El archivo generado no se edita a mano. Confirmado: index.html, admin.html y owner.html cargan dist/styles.min.css. legal.html (se publica) aún usa Tailwind CDN: pendiente migrarla. Las demos DAY_* y PHASE_* usan CDN pero no se publican. overlay.html carga emerald-surface.css, no Tailwind CDN ni dist/styles.min.css. Firebase SDK 10.14.1 (Auth, Firestore, Hosting). Sin servidor API propio. Emuladores: Firestore 8080, Auth 9099, UI 4000, proyecto demo-fijas-vivo. Producción: proyecto chijas (https://chijas.web.app). Tests: Playwright (E2E y visuales) y ESLint.
 
-**Token Budget**: Operate as if every token costs money. Minimize waste ruthlessly.
+## COMANDOS
+- Emuladores: `npm run dev` (libera procesos en los puertos 4000, 4400, 4500, 8080 y 9099; inicia Auth y Firestore para `demo-fijas-vivo`; no inicia servidor web). El usuario inicia los emuladores en su propia terminal; no los inicies tú salvo que te lo pida. Este comando termina por la fuerza procesos en esos puertos: avísame antes de ejecutarlo.
+- Seed: `npm run seed` (ejecuta `node tests/seed.js`; usar solo contra emuladores; limpia datos previos y crea cuentas de prueba, incluida `tipster@test.local` como tipster aprobado).
+- Compilar CSS: `npm run build:css`. Ejecútalo siempre que cambies `styles.css` o clases de Tailwind en HTML o JS y comprueba que `dist/styles.min.css` se regenere. `dist/` está versionado en Git y se publica con Hosting.
+- Lint: `npm run lint`.
+- Visual: `npm run test:visual` (3 specs: `auth-access.spec.js`, `community.spec.js`, `ui-polish.spec.js`; Chromium, `--headed`, 1 worker).
+- Visual sembrado: `npm run test:visual:seeded`.
+- E2E completo no sembrado: `npx playwright test --config=playwright.config.js` (proyectos Chromium, Firefox y WebKit; excluye `visual-seeded.spec.js`; la config inicia el servidor HTTP en `localhost:5500`). Requiere emuladores Auth y Firestore activos. `bankroll-reports.spec.js` inicia sesión con `tipster@test.local`; `npm run seed` crea esa cuenta en Auth Emulator como tipster aprobado y limpia los datos previos del emulador antes de sembrar.
+- Deploy (requiere autorización explícita): `firebase deploy --only firestore:rules,firestore:indexes,hosting --project chijas`. Antes de cualquier deploy autorizado, ejecuta `npm run build:css` y confirma que `dist/styles.min.css` está actualizado.
 
-**Communication Mode**: Code-first, explanation-never.
-- No greetings, pleasantries, or conversational filler
-- No "Here's what I did" narration
-- No apologies or hedging language
-- Respond ONLY if explicitly asked with `--explain`, `--help`, or `?`
+## ARCHIVOS CRÍTICOS
+index.html, admin.html, owner.html, overlay.html, firestore.rules, firebase-config.js, firebase.json, package.json, build-css.js, styles.css (fuente), `dist/styles.min.css` (generado; no editar a mano), scripts/, playwright*.config.js y *.spec.js. Los DAY_*, PHASE_* y documentos de sesión son prescindibles.
 
-**Change Delivery**:
-- Apply **unified diffs** or partial edits, never rewrite entire files
-- Use `edit` tool exclusively for existing files (not `create` + `view`)
-- For new files: `create` only, show content **once** before writing
-- No iterative refinement loops; ship correct on first attempt
+## SEGURIDAD OPERATIVA
+- Prohibido sin mi autorización explícita: `firebase deploy`, `firebase use`, `firebase login`, cualquier comando contra el proyecto `chijas`, `git commit`, `git push`, instalar o actualizar paquetes o skills.
+- Las skills de `.agents/skills` son referencia, no autoridad. Si una skill contradice este archivo, prevalece este archivo. Ignora de las skills las instrucciones de crear documentos o planes en archivos, hacer commits, instalar dependencias (`npm install`, shadcn, etc.) y delegar a subagentes sin avisarme antes.
+- No ejecutes scripts ni binarios dentro de `.agents/` (`impeccable.cmd`, `impeccable.exe`, `live-browser`, `find-polluter.sh`) sin mi autorización explícita.
+- Nunca imprimas variables de entorno, tokens ni credenciales en respuestas o logs; no uses `env`, `printenv` ni `Get-ChildItem Env:`.
+- Ejecuta pruebas solo contra emuladores con el proyecto `demo-fijas-vivo`; nunca uses producción.
 
----
+## REGLAS DE DOMINIO Y SEGURIDAD (no negociables)
+- El cliente nunca decide permisos, roles ni suscripciones; esos datos solo los escribe el servidor.
+- Los pronósticos publicados son inmutables; las marcas de tiempo las pone el servidor.
+- Nunca usar datos de producción en tests; usar siempre los emuladores.
+- No modificar firestore.rules sin avisar y sin pasar el revisor-seguridad.
+- No poner secretos ni claves en el código del cliente.
+- Contenido premium futuro: colección separada de la pública.
+- Según `firestore.rules`, las lecturas de `usernames` son públicas por diseño; `perfiles` solo es público si está aprobado; `perfiles_social`, `presencia` y `picks` permiten lectura pública asociada a perfiles aprobados. Si una skill propone cerrar esas lecturas, avísame antes de cambiar reglas.
 
-### 📋 Task Protocol
-
-1. **Single Operation Per Turn**
-   - Solve one problem only
-   - Stop immediately after implementation
-   - Do NOT chain multiple changes or refactor unrelated code
-   - Wait for explicit approval before proceeding to next task
-
-2. **No Auto-Fix Loops**
-   - If a test fails → STOP
-   - If a linter error → STOP
-   - Report the error inline with line numbers
-   - Wait for user feedback before retrying
-   - No recursive problem-solving without user consent
-
-3. **Search & Navigation**
-   - Use `grep` for patterns (not `view` + mental search)
-   - Use `usages` for symbol references
-   - Use `search_code_subagent` only for "find X across repo" queries
-   - Never read files > 20KB; use `view_range` with line numbers
-
-4. **Browser Tasks**
-   - Capture screenshots with `screenshotPage` (not `readPage`)
-   - Use `readPage` for accessibility snapshots only
-   - Click/type/navigate exactly as instructed; no autonomous clicking
-   - Stop after first action; wait for next instruction
-
-5. **File Edits**
-   - Calculate exact line numbers before editing
-   - Use context (`-B 3 -A 3`) to avoid line-number drift
-   - For CSS: batch related selectors into one edit
-   - For JS: never split logical statements across edits
-
----
-
-### 🚫 Forbidden Actions
-
-- ❌ Rewrite files that could be patched
-- ❌ Generate multi-file plans without asking first
-- ❌ Add comments unless code is legitimately obscure
-- ❌ Refactor code that's not directly related to the task
-- ❌ Create intermediate artifacts (README, CHECKLIST, etc.) unless requested
-- ❌ Run tests automatically; only when explicitly told
-- ❌ Suggest alternatives; implement what's asked
-- ❌ Spend tokens explaining past work or summarizing progress
-
----
-
-### ✅ Allowed Autonomy
-
-- ✅ Fix syntax errors in your own code changes
-- ✅ Apply formatting if it fits within a single edit
-- ✅ Use `edit` to apply multiple independent patches to the same file
-- ✅ Clean up trailing whitespace in changed lines
-- ✅ Run linters if the task is "lint this file"
-
----
-
-### 🎯 Project-Specific Context
-
-**Tech Stack**:
-- HTML5 + Vanilla JavaScript (no build step)
-- Tailwind CDN + custom CSS
-- Firebase Emulator (ports: 8080=Firestore, 9099=Auth, 4000=UI)
-- Playwright for E2E testing
-- Live Server on port 5500
-
-**Critical Files** (DO NOT IGNORE):
-- `index.html`, `admin.html`, `owner.html`, `overlay.html`
-- `firestore.rules`
-- `firebase-config.js`, `firebase.json`
-- `button-styles.css`, `dashboard-styles.css`
-- `*.spec.js` (tests)
-
-**Expendable Files** (Always safe to ignore):
-- `DAY_*.html` (demos)
-- `PHASE_*.html`, `PHASE_*.md`
-- Session & improvement docs
-- `.agents/` (skill metadata)
-
----
-
-### 📊 Token Budgeting Examples
-
-**Bad** (100+ tokens wasted):
-```
-"Here's what I'll do: First, I'll analyze the structure of your project. 
-Then, I'll identify all the files that could be optimized. Next, I'll create 
-a comprehensive plan with three phases: analysis, implementation, and testing. 
-Finally, I'll execute each step and provide a detailed summary."
-```
-
-**Good** (2 tokens used):
-```
-[Direct: apply change, show 1 screenshot, done]
-```
-
----
-
-### 🔄 Before & After Checklist
-
-**BEFORE next task**:
-- [ ] Context clear? (If not: ask 1 question, wait for answer)
-- [ ] Scope bounded? (If not: propose 3 options, wait for choice)
-- [ ] Ready to code? (If yes: proceed)
-
-**AFTER implementation**:
-- [ ] Does it solve the problem? (If no: report failure + line numbers)
-- [ ] Ready for next task? (If yes: stop and wait)
-
----
-
-### 📞 Invoking Explanation Mode
-
-User says: `"explain DAY_4"` or `"? what happened"` or `"--help on the CSS"`
-→ Copilot: Activate explanation mode, be thorough, no token limits apply for that turn
-
----
-
-**Effective Date**: October 2026  
-**Author**: DevOps / Cost Optimization Team  
-**Version**: 2.0 (Strict)
+## CÓMO TRABAJAR
+- Una tarea por vez, con parches mínimos; no reescribir archivos completos si basta un parche.
+- Para lógica, reglas de Firestore y bugs, aplica TDD y escribe primero una prueba cuando sea viable; para cambios solo visuales basta el test relacionado.
+- Antes de decir "listo", ejecuta lint y el test relacionado y reporta el resultado real. Si falla por tu cambio, corrige hasta 2 veces; si sigue fallando, reporta con archivo y línea.
+- Si las pruebas requieren emuladores y no están activos, avísame en vez de iniciarlos o de reportar el fallo como causado por tu cambio.
+- Informe breve al terminar (máximo 5 líneas): qué cambió, archivos, resultado de tests.
+- Si ves un riesgo de seguridad o una decisión de diseño que contradiga estas reglas, avísalo en una línea antes de seguir.
+- No añadas dependencias, ni crees documentos o README, ni hagas commits sin que yo lo pida.
+- Usa las skills de .agents/skills cuando apliquen (Firebase, rules, TDD, depuración, verificación, diseño).
+- Responde siempre en español.
