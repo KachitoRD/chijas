@@ -92,6 +92,10 @@
     }
     .pick-action-popup button:focus-visible, .pick-action-trigger:focus-visible, .pick-action-popup summary:focus-visible { outline: 2px solid #6ee7b7; outline-offset: 2px; }
     .dashboard-table tbody tr:last-child td { border-bottom: 0; }
+    @media (max-width: 640px) {
+      .dashboard-table .pick-description h3 { font-weight: 700; line-height: 1.4; letter-spacing: .005em; }
+      .dashboard-table .pick-description.text-zinc-300 { color: #e4e4e7; font-weight: 500; line-height: 1.5; }
+    }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
       .pick-action-popup[data-pointer-motion] { transform: none !important; }
@@ -1006,6 +1010,15 @@
       );
       await loadProfileRequest();
     }
+    function pickEventDate(pick) {
+      return pick.fecha_evento?.toDate?.() ?? (pick.fecha_evento ? new Date(pick.fecha_evento) : null);
+    }
+    function pickLockReason(pick, eventDate = pickEventDate(pick)) {
+      if (String(pick.estado || "pendiente").toLowerCase() !== "pendiente") return "pronóstico calificado";
+      return eventDate && Number.isFinite(eventDate.getTime()) && eventDate.getTime() <= Date.now()
+        ? "evento iniciado"
+        : "";
+    }
     function renderPicks() {
       renderBankrollSummary();
       const filteredPicks = bankrollSelection();
@@ -1047,7 +1060,9 @@
       for (const pick of filteredPicks.slice(bankrollPage * 50, (bankrollPage + 1) * 50)) {
         const status = String(pick.estado || "pendiente").toLowerCase();
         const color = pickColors[status] || pickColors.pendiente;
-        const timestamp = pick.fecha_evento?.toDate?.() ?? (pick.fecha_evento ? new Date(pick.fecha_evento) : null);
+        const timestamp = pickEventDate(pick);
+        const lockReason = pickLockReason(pick, timestamp);
+        const pickLocked = Boolean(lockReason);
         const date = timestamp && Number.isFinite(timestamp.getTime()) ? new Intl.DateTimeFormat(navigator.language || "es", { dateStyle: "medium", timeStyle: "short" }).format(timestamp) : "";
         const row = body.insertRow();
         const details = row.insertCell();
@@ -1058,6 +1073,13 @@
         event.className = "font-semibold";
         event.textContent = `${pick.destacada ? "Destacada · " : ""}${pick.evento || ""}`;
         headline.append(event);
+        if (pickLocked) {
+          const lockBadge = document.createElement("span");
+          lockBadge.className = "pick-lock-badge rounded-full border border-amber-300/20 bg-amber-300/[.07] px-2 py-1 text-[11px] font-semibold text-amber-100";
+          lockBadge.textContent = `Bloqueado: ${lockReason}`;
+          lockBadge.setAttribute("role", "status");
+          headline.append(lockBadge);
+        }
         details.append(headline);
         const selection = row.insertCell();
         selection.className = "pick-description text-zinc-300";
@@ -1169,6 +1191,7 @@
         streamInput.setAttribute("aria-label", `Mostrar ${pick.evento || ""} en el widget`);
         streamInput.className = "h-4 w-4 accent-emerald-300";
         streamInput.checked = pick.show_on_stream === true;
+        streamInput.disabled = pickLocked;
         const streamText = document.createElement("span");
         streamText.textContent = "En stream";
         streamLabel.append(streamInput, streamText);
@@ -1180,6 +1203,7 @@
         editButton.dataset.id = pick.id;
         editButton.className = "control min-h-9 rounded-lg border border-white/10 px-3 text-xs font-semibold text-zinc-300 hover:bg-white/[.05]";
         editButton.textContent = "Editar";
+        editButton.disabled = pickLocked;
 
         const statusLabel = document.createElement("label");
         statusLabel.className = "label";
@@ -1190,6 +1214,7 @@
         statusSelect.dataset.action = "status";
         statusSelect.dataset.id = pick.id;
         statusSelect.className = "control min-h-9 rounded-lg border border-white/10 bg-[#09090b] px-2.5 text-xs font-semibold text-zinc-300";
+        statusSelect.disabled = pickLocked;
         for (const [value, label] of [["pendiente", "Pendiente"], ["ganada", "Ganada"], ["perdida", "Perdida"], ["anulada", "Anulada"], ["cash_out", "Cierre anticipado"]]) {
           const option = document.createElement("option");
           option.value = value;
@@ -1204,6 +1229,7 @@
         deleteButton.dataset.id = pick.id;
         deleteButton.className = "control min-h-9 rounded-lg border border-white/10 px-3 text-xs font-semibold text-zinc-400 hover:border-rose-300/20 hover:text-rose-200";
         deleteButton.textContent = "Eliminar";
+        deleteButton.disabled = pickLocked;
         const statusPanel = document.createElement("details");
         const statusSummary = document.createElement("summary");
         statusSummary.textContent = "Cambiar estado / Anular";
@@ -1232,6 +1258,7 @@
           input.step = "0.01";
           input.required = true;
           input.inputMode = "decimal";
+          input.disabled = pickLocked;
           if (status === "cash_out") input.value = financial.returnAmount;
           const group = document.createElement("div");
           group.className = "min-w-0 flex-1";
@@ -1239,6 +1266,7 @@
           const submit = document.createElement("button");
           submit.className = "control min-h-11 rounded-lg border border-white/10 px-3 text-sm font-semibold";
           submit.textContent = status === "cash_out" ? "Actualizar retorno privado" : "Registrar cierre anticipado";
+          submit.disabled = pickLocked;
           cashOutForm.append(group, submit);
           cashOutPanel.append(cashOutForm);
           controls.append(cashOutPanel);
@@ -1454,6 +1482,11 @@
       $("stakeCurrency").append(option);
     }
     async function beginEdit(pick) {
+      const lockReason = pickLockReason(pick);
+      if (lockReason) {
+        message("pickMessage", `Este pronóstico está bloqueado: ${lockReason}.`);
+        return;
+      }
       editingPickId = pick.id;
       $("sport").value = pick.deporte || "";
       $("odds").value = pick.cuota || "";
@@ -1497,6 +1530,14 @@
     async function savePick(event) {
       event.preventDefault();
       if (!currentUser) return;
+      if (editingPickId) {
+        const pick = currentPicks.find(item => item.id === editingPickId);
+        const lockReason = pick && pickLockReason(pick);
+        if (lockReason) {
+          message("pickMessage", `Este pronóstico está bloqueado: ${lockReason}.`);
+          return;
+        }
+      }
       const wasEditing = Boolean(editingPickId);
       const editedPickId = editingPickId;
       const button = $("savePickButton");
@@ -1823,6 +1864,12 @@
       if (!checkbox || !currentUser) return;
       const pick = currentPicks.find(item => item.id === checkbox.dataset.id);
       if (!pick) return;
+      const lockReason = pickLockReason(pick);
+      if (lockReason) {
+        checkbox.checked = !checkbox.checked;
+        message("pickMessage", `Este pronóstico está bloqueado: ${lockReason}.`);
+        return;
+      }
       const showOnStream = checkbox.checked;
       checkbox.disabled = true;
       try {
@@ -1844,6 +1891,11 @@
       if (!button || !currentUser) return;
       const pick = currentPicks.find(item => item.id === button.dataset.id);
       if (!pick) return;
+      const lockReason = pickLockReason(pick);
+      if (lockReason) {
+        message("pickMessage", `Este pronóstico está bloqueado: ${lockReason}.`);
+        return;
+      }
       if (button.dataset.action === "edit") {
         button.closest("[popover]")?.hidePopover();
         await beginEdit(pick);
@@ -1879,6 +1931,13 @@
     $("myPicks").addEventListener("change", async event => {
       const select = event.target.closest("select[data-action='status']");
       if (!select || !currentUser) return;
+      const pick = currentPicks.find(item => item.id === select.dataset.id);
+      const lockReason = pick && pickLockReason(pick);
+      if (lockReason) {
+        select.value = pick.estado || "pendiente";
+        message("pickMessage", `Este pronóstico está bloqueado: ${lockReason}.`);
+        return;
+      }
       select.disabled = true;
       try {
         const nextStatus = select.value;
@@ -1904,6 +1963,12 @@
       const form = event.target.closest("form[data-cash-out-id]");
       if (!form || !currentUser) return;
       event.preventDefault();
+      const pick = currentPicks.find(item => item.id === form.dataset.cashOutId);
+      const lockReason = pick && pickLockReason(pick);
+      if (lockReason) {
+        message("pickMessage", `Este pronóstico está bloqueado: ${lockReason}.`);
+        return;
+      }
       const button = form.querySelector("button");
       const value = form.elements.namedItem("returnAmount").value;
       button.disabled = true;

@@ -658,6 +658,10 @@ service cloud.firestore {
     // Published picks are readable only when the owning tipster is approved.
     // Writes require the authenticated owner to have current approval.
     match /picks/{pickId} {
+      function pickIsEditable(data) {
+        return data.fecha_evento > request.time
+          && data.estado == "pendiente";
+      }
       function consistentCashOut() {
         let privatePath = /databases/$(database)/documents/picks/$(pickId)/private/bankroll;
         return request.resource.data.estado == "cash_out"
@@ -680,7 +684,11 @@ service cloud.firestore {
         && resource.data.user_id == request.auth.uid
         && request.resource.data.user_id == request.auth.uid
         && validPick(request.resource.data, request.auth.uid)
+        && pickIsEditable(resource.data)
+        && request.resource.data.fecha_evento > request.time
         && request.resource.data.created_at == resource.data.created_at
+        && (request.resource.data.estado == resource.data.estado
+          || request.resource.data.diff(resource.data).affectedKeys().hasOnly(["estado"]))
         && consistentCashOut()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           "deporte", "evento", "seleccion", "prediccion", "cuota",
@@ -691,9 +699,15 @@ service cloud.firestore {
         && acceptedCurrentTerms(request.auth.uid)
         && profileIsApproved(request.auth.uid)
         && resource.data.user_id == request.auth.uid
+        && pickIsEditable(resource.data)
         && !existsAfter(/databases/$(database)/documents/picks/$(pickId)/private/bankroll);
 
       match /private/{privateId} {
+        function parentPickIsEditable() {
+          let pick = get(/databases/$(database)/documents/picks/$(pickId)).data;
+          return pick.fecha_evento > request.time
+            && pick.estado == "pendiente";
+        }
         function ownsPick() {
           return request.auth != null
             && get(/databases/$(database)/documents/picks/$(pickId)).data.user_id == request.auth.uid;
@@ -733,6 +747,11 @@ service cloud.firestore {
           && ownsPick()
           && canSaveBankroll()
           && validBankroll()
+          && parentPickIsEditable()
+          && (getAfter(/databases/$(database)/documents/picks/$(pickId)).data.estado
+              == get(/databases/$(database)/documents/picks/$(pickId)).data.estado
+            || (request.resource.data.stakeAmount == resource.data.stakeAmount
+              && request.resource.data.stakeMinorUnits == resource.data.stakeMinorUnits))
           && request.resource.data.created_at == resource.data.created_at;
         allow delete: if privateId == "bankroll"
           && ownsPick()
@@ -740,7 +759,8 @@ service cloud.firestore {
           && acceptedCurrentTerms(request.auth.uid)
           && profileIsApproved(request.auth.uid)
           && (!existsAfter(/databases/$(database)/documents/picks/$(pickId))
-            || getAfter(/databases/$(database)/documents/picks/$(pickId)).data.estado != "cash_out");
+            || (parentPickIsEditable()
+              && getAfter(/databases/$(database)/documents/picks/$(pickId)).data.estado != "cash_out"));
       }
     }
   }
