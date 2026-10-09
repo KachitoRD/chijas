@@ -58,6 +58,8 @@ test("revisar y cancelar conserva borrador sin publicar; confirmar publica una s
     await expect(row).toHaveCount(1);
     id = await row.locator('input[data-action="stream"]').getAttribute("data-id");
     await expect(page.locator("#event")).toHaveValue("");
+    await expect(row).toContainText(/S\/\s*10[.,]00/, { timeout: 30000 });
+    await expect(page.locator("#bankrollSummary")).toHaveAttribute("aria-busy", "false");
     await row.locator(".pick-action-trigger").click();
     await row.getByRole("button", { name: "Editar", exact: true }).click();
     await expect(page.locator("#savePickButton")).toBeEnabled();
