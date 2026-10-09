@@ -10,31 +10,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="dist/styles.min.css">
-    <style>
-      .admin-table-scroll { max-width: 100%; min-width: 0; overflow-x: auto; }
-      .admin-application-table { width: 100%; min-width: 480px; font-size: 13px; border-collapse: collapse; }
-      .admin-application-table caption { text-align: left; color: #bbcec3; padding-block: 16px; }
-      .admin-application-table :is(th, td) { padding: 16px 12px; text-align: left; vertical-align: top; border-bottom: 1px solid rgb(110 231 183 / .12); overflow-wrap: anywhere; }
-      .admin-application-table .admin-actions { margin-top: 0; }
-    </style>
+    <link rel="stylesheet" href="admin-view.css">
     <link rel="stylesheet" href="emerald-surface.css">
     <link rel="stylesheet" href="auth-styles.css">
-    <style>
-      :root { color-scheme: dark; }
-      :focus-visible { outline: 2px solid #6ee7b7; outline-offset: 3px; }
-      [hidden] { display: none !important; }
-      .admin-list > article { padding: 20px 0; border-bottom: 1px solid rgb(255 255 255 / .08); overflow-wrap: anywhere; }
-      .admin-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 16px; }
-      .admin-button { min-height: 44px; padding: 8px 16px; border: 1px solid #3f3f46; border-radius: 8px; font-weight: 600; }
-      .admin-button:hover { border-color: #6ee7b7; }
-      .admin-button:disabled { opacity: .5; cursor: not-allowed; }
-      .admin-field { display: grid; gap: 8px; min-width: 0; }
-      .admin-field input, .admin-field select, .admin-field textarea { width: 100%; min-height: 44px; padding: 10px 12px; border-radius: 8px; border: 1px solid #3f3f46; background: #111114; color: #f4f4f5; }
-      #admin-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 28px 0; }
-      #admin-tabs [aria-selected="true"] { border-color: #6ee7b7; color: #a7f3d0; }
-      .admin-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 24px; margin: 24px 0; }
-      .admin-metrics dd { margin-top: 8px; font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
-    </style>
   </head>
   <body class="min-h-screen bg-zinc-950 font-sans text-zinc-100 antialiased selection:bg-emerald-300 selection:text-emerald-950">
     <div id="auth-loading" class="mx-auto max-w-7xl px-6 py-16 text-sm text-zinc-400" role="status" aria-live="polite">
@@ -51,33 +29,111 @@
       <a class="mt-6 inline-flex min-h-11 items-center rounded-lg bg-emerald-300 px-4 font-semibold text-emerald-950 hover:bg-emerald-200" href="index.html">Ir al inicio de sesión</a>
     </section>
 
-    <div id="dashboard" class="hidden">
+    <div id="dashboard" class="admin-app hidden">
       <!-- Auth confirma identidad; Firestore Rules deben autorizar cada operación administrativa. -->
-      <header class="border-b border-white/10 bg-zinc-950/90">
-        <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-5">
-          <a class="text-lg font-bold tracking-tight" href="index.html">Fijas <span class="font-medium text-zinc-400">en vivo</span></a>
-          <div class="flex min-w-0 flex-wrap items-center gap-4">
-            <p class="min-w-0 break-all text-sm text-zinc-300">Sesión: <span id="user-email" class="font-semibold text-zinc-100"></span></p>
-            <button id="sign-out" class="min-h-10 rounded-lg border border-white/15 px-3 text-sm font-semibold hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-300">Cerrar sesión</button>
-          </div>
+      <header class="admin-topbar">
+        <a class="admin-brand" href="index.html">Fijas <span>en vivo</span></a>
+        <div class="admin-session">
+          <span class="admin-session-role" id="admin-role"></span>
+          <p class="admin-session-email">Sesión: <span id="user-email"></span></p>
+          <button id="sign-out" class="admin-button" type="button">Cerrar sesión</button>
         </div>
       </header>
 
-      <main class="mx-auto max-w-7xl px-6 py-10">
-        <div class="mb-10 max-w-2xl">
-          <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">Panel de administración</h1>
-          <p id="admin-role" class="mt-3 text-sm leading-6 text-zinc-300"></p>
-        </div>
-        <p id="admin-message" role="status" aria-live="polite" class="mb-5 text-sm text-emerald-200"></p>
-        <nav id="admin-tabs" role="tablist" aria-label="Administración">
-          <button id="metrics-tab" class="admin-button" role="tab" aria-controls="metrics-panel" aria-selected="false" data-tab="metrics">Métricas</button>
-          <button id="finance-tab" class="admin-button" role="tab" aria-controls="finance-panel" aria-selected="false" data-tab="finance">Finanzas</button>
-          <button id="operations-tab" class="admin-button" role="tab" aria-controls="operations-panel" aria-selected="false" data-tab="operations">Tipsters</button>
-          <button id="profiles-tab" class="admin-button" role="tab" aria-controls="profiles-panel" aria-selected="false" data-tab="profiles">Cambios de perfil</button>
-          <button id="viewers-tab" class="admin-button" role="tab" aria-controls="viewers-panel" aria-selected="false" data-tab="viewers">Viewers</button>
-          <button id="governance-tab" class="admin-button" role="tab" aria-controls="governance-panel" aria-selected="false" data-tab="governance">Gobierno maestro</button>
-        </nav>
-        <section id="metrics-panel" role="tabpanel" aria-labelledby="metrics-tab" hidden>
+      <div id="admin-shell" class="admin-shell">
+        <aside id="admin-sidebar" class="admin-sidebar" aria-label="Navegación administrativa">
+          <div class="admin-sidebar-heading">
+            <span class="admin-sidebar-mark" aria-hidden="true">F</span>
+            <div><strong>Centro de control</strong><span>Administración</span></div>
+          </div>
+          <nav id="admin-tabs" class="admin-nav" role="tablist" aria-label="Administración">
+            <div class="admin-nav-group" role="presentation">
+              <span class="admin-nav-heading" aria-hidden="true">Vista general</span>
+              <button id="metrics-tab" class="admin-nav-button" role="tab" aria-controls="metrics-panel" aria-selected="false" data-tab="metrics"><svg class="admin-nav-icon" aria-hidden="true" viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="12" y="3" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="3" y="12" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="12" y="12" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>Inicio</button>
+            </div>
+            <div class="admin-nav-group" role="presentation">
+              <span class="admin-nav-heading" aria-hidden="true">Operación</span>
+              <button id="operations-tab" class="admin-nav-button" role="tab" aria-controls="operations-panel" aria-selected="false" data-tab="operations"><svg class="admin-nav-icon" aria-hidden="true" viewBox="0 0 20 20" fill="none"><circle cx="7" cy="7" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 17c.4-2.6 2-4 4.5-4s4.1 1.4 4.5 4M13 5.5a3 3 0 0 1 0 5.8m1.5 2c1.8.5 2.8 1.7 3 3.7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Tipsters<span id="tipster-pending-count" class="admin-nav-count" aria-label="solicitudes pendientes">0</span></button>
+              <button id="profiles-tab" class="admin-nav-button" role="tab" aria-controls="profiles-panel" aria-selected="false" data-tab="profiles"><svg class="admin-nav-icon" aria-hidden="true" viewBox="0 0 20 20" fill="none"><path d="m10 2.5 6.5 4v7L10 17.5l-6.5-4v-7l6.5-4Z" stroke="currentColor" stroke-width="1.5"/><path d="m3.8 6.8 6.2 3.8 6.2-3.8M10 10.6v6.6" stroke="currentColor" stroke-width="1.5"/></svg>Perfiles<span id="profile-pending-count" class="admin-nav-count" aria-label="cambios pendientes">0</span></button>
+            </div>
+            <div class="admin-nav-group" role="presentation">
+              <span class="admin-nav-heading" aria-hidden="true">Cuentas</span>
+              <button id="viewers-tab" class="admin-nav-button" role="tab" aria-controls="viewers-panel" aria-selected="false" data-tab="viewers"><svg class="admin-nav-icon" aria-hidden="true" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="3.2" stroke="currentColor" stroke-width="1.5"/><path d="M3.5 17c.5-3.2 2.7-4.8 6.5-4.8s6 1.6 6.5 4.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Viewers</button>
+            </div>
+            <div class="admin-nav-group" role="presentation">
+              <span class="admin-nav-heading" aria-hidden="true">Comunidad</span>
+              <button id="community-tab" class="admin-nav-button" role="tab" aria-controls="community-panel" aria-selected="false" data-tab="community"><svg class="admin-nav-icon" aria-hidden="true" viewBox="0 0 20 20" fill="none"><path d="M3 4.5h14v9H9l-4 3v-3H3z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M6.5 8h7M6.5 10.5h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Mural</button>
+            </div>
+            <div class="admin-nav-group" role="presentation">
+              <span class="admin-nav-heading" aria-hidden="true">Control y finanzas</span>
+              <button id="finance-tab" class="admin-nav-button" role="tab" aria-controls="finance-panel" aria-selected="false" data-tab="finance"><svg class="admin-nav-icon" aria-hidden="true" viewBox="0 0 20 20" fill="none"><path d="M4 15.5 8 11l3 2.5 5-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M12.5 7.5H16v3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Finanzas</button>
+              <button id="governance-tab" class="admin-nav-button" role="tab" aria-controls="governance-panel" aria-selected="false" data-tab="governance"><svg class="admin-nav-icon" aria-hidden="true" viewBox="0 0 20 20" fill="none"><path d="M10 2.5 16 5v4.2c0 4.1-2.5 6.8-6 8.3-3.5-1.5-6-4.2-6-8.3V5l6-2.5Z" stroke="currentColor" stroke-width="1.5"/><path d="m7.5 9.8 1.7 1.7 3.5-3.7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Gobierno maestro</button>
+            </div>
+          </nav>
+          <p class="admin-sidebar-foot">Los cambios quedan sujetos a Firestore Rules y los permisos actuales.</p>
+        </aside>
+
+        <main class="admin-workspace">
+          <div class="admin-page-heading">
+            <div>
+              <h1 id="admin-page-title">Resumen ejecutivo</h1>
+              <p id="admin-page-description">Una vista operativa de la actividad de la plataforma.</p>
+            </div>
+            <span id="admin-live-status" class="admin-live-status" data-state="connecting" aria-live="polite">
+              <span class="admin-live-indicator" aria-hidden="true"></span>
+              <span id="admin-live-label">Conectando datos</span>
+              <time id="admin-data-updated">Sin actualización</time>
+            </span>
+          </div>
+          <section id="executive-kpis" class="admin-executive-kpis" aria-label="Indicadores ejecutivos">
+            <article class="admin-kpi">
+              <span class="admin-kpi-label">Stake público declarado</span>
+              <strong id="executive-volume">Cargando…</strong>
+              <span class="admin-kpi-note">Unidades en el periodo seleccionado</span>
+            </article>
+            <article class="admin-kpi">
+              <span class="admin-kpi-label">Revenue / GGR real</span>
+              <strong id="executive-revenue">No disponible</strong>
+              <span class="admin-kpi-note">No existe una fuente contable de pagos</span>
+            </article>
+            <article class="admin-kpi">
+              <span class="admin-kpi-label">Viewers conectados</span>
+              <strong id="executive-viewers">Cargando…</strong>
+              <span class="admin-kpi-note">Presencia reciente</span>
+            </article>
+            <article class="admin-kpi admin-kpi-attention">
+              <span class="admin-kpi-label">Solicitudes pendientes</span>
+              <strong id="executive-alerts">Cargando…</strong>
+              <span id="executive-alerts-note" class="admin-kpi-note">Solicitudes de tipster y perfil</span>
+            </article>
+          </section>
+          <p id="executive-scope-note" class="admin-scope-note">Las unidades públicas describen picks; no son dinero, GGR ni flujo de caja.</p>
+          <div class="admin-feedback-row">
+            <p id="admin-message" role="status" aria-live="polite" class="admin-message"></p>
+            <button id="retry-data" type="button" class="admin-button" hidden>Reintentar carga</button>
+          </div>
+        <section id="metrics-panel" class="admin-panel" role="tabpanel" aria-labelledby="metrics-tab" hidden>
+          <section class="admin-review-inbox" aria-labelledby="reviewInboxTitle">
+            <div class="admin-inbox-heading">
+              <div><h2 id="reviewInboxTitle">Bandeja de revisión</h2><p>Solicitudes pendientes, ordenadas por antigüedad para facilitar su atención.</p></div>
+              <span id="review-queue-total" class="admin-inbox-total">Cargando…</span>
+            </div>
+            <div class="admin-review-filters">
+              <label class="admin-field" for="reviewTypeFilter">Tipo de solicitud
+                <select id="reviewTypeFilter"><option value="all">Todas</option><option value="tipster">Tipsters</option><option value="profile">Cambios de perfil</option></select>
+              </label>
+              <label class="admin-field" for="reviewAgeFilter">Antigüedad
+                <select id="reviewAgeFilter"><option value="all">Cualquier fecha</option><option value="last24h">Últimas 24 horas</option><option value="last7d">Últimos 7 días</option><option value="older7d">Más de 7 días</option></select>
+              </label>
+              <label class="admin-field" for="reviewSort">Orden
+                <select id="reviewSort"><option value="oldest">Más antiguas primero</option><option value="newest">Más recientes primero</option></select>
+              </label>
+              <label class="admin-field" for="reviewSearch">Buscar solicitudes
+                <input id="reviewSearch" type="search" autocomplete="off" placeholder="Nombre, usuario o UID">
+              </label>
+            </div>
+            <div id="review-queue" class="admin-review-list" aria-live="polite"><p class="admin-state">Cargando solicitudes…</p></div>
+          </section>
           <h2 class="text-xl font-semibold">Actividad global</h2>
           <p class="mt-3 text-sm text-zinc-400">Win Rate = ganadas / (ganadas + perdidas). No incluye pendientes, anuladas ni cash-out. Presencia estimada: actividad visible en los últimos 90 segundos.</p>
           <dl class="admin-metrics">
@@ -87,37 +143,184 @@
             <div><dt>Tipsters conectados</dt><dd id="online-tipsters">Cargando…</dd></div>
             <div><dt>Viewers conectados</dt><dd id="online-viewers">Cargando…</dd></div>
             <div><dt>Win Rate global</dt><dd id="win-rate">Cargando…</dd></div>
-            <div><dt>GMV monetario</dt><dd id="gmv">No disponible</dd></div>
           </dl>
           <p class="text-xs text-zinc-400">Usuarios = documentos de cuenta base viewer, incluidos tipsters y administradores. No es un conteo de Firebase Auth. Requiere permiso de consulta de viewers; sin ese permiso no se exponen datos personales.</p>
-        </section>
-        <section id="finance-panel" role="tabpanel" aria-labelledby="finance-tab" hidden>
-          <h2 class="text-xl font-semibold">Comisiones por creador</h2>
-          <p class="mt-3 text-sm text-zinc-400">La comisión configura un porcentaje, no genera cobros. Sin fuente monetaria, ingresos brutos y netos no están disponibles. El bankroll del tipster permanece privado.</p>
-          <div id="finance-list" class="admin-list" aria-live="polite"></div>
-        </section>
-        <section id="operations-panel" role="tabpanel" aria-labelledby="operations-tab" hidden>
-          <h2 class="text-xl font-semibold">Solicitudes de tipster</h2>
-          <div id="applications" class="admin-list" aria-live="polite"></div>
-          <h2 class="mt-10 text-xl font-semibold">Permisos de publicación</h2>
-          <div id="tipsters" class="admin-list" aria-live="polite"></div>
-        </section>
-        <section id="profiles-panel" role="tabpanel" aria-labelledby="profiles-tab" hidden>
-          <h2 class="text-xl font-semibold">Cambios de perfil pendientes</h2>
-          <div id="profileRequests" class="admin-list" aria-live="polite"></div>
-        </section>
-        <section id="viewers-panel" role="tabpanel" aria-labelledby="viewers-tab" hidden>
-          <h2 class="text-xl font-semibold">Moderación de viewers</h2>
-          <label class="admin-field mt-5" for="viewerSearch">Buscar por UID o correo<input id="viewerSearch" type="search" autocomplete="off"></label>
-          <p class="mt-3 text-sm text-zinc-400">Suspender bloquea acciones protegidas de la aplicación, no deshabilita Firebase Auth ni impide leer la vitrina pública. Las cuentas antiguas sin correo guardado se buscan por UID.</p>
-          <div id="viewers-list" class="admin-list" aria-live="polite"></div>
-          <section class="mt-10" aria-labelledby="communityModerationTitle">
-            <h3 id="communityModerationTitle" class="text-lg font-semibold">Moderación de comunidad</h3>
-            <p id="communityModerationStatus" class="mt-3 text-sm leading-6 text-zinc-300">Moderación persistente de chat y reportes: pendiente. El chat es una demo local; pausar y enviar mensajes solo afecta este navegador. No hay bandeja de reportes ni mensajes guardados en Firestore.</p>
+          <section class="mt-10" aria-labelledby="financial-overview-title">
+            <h2 id="financial-overview-title" class="text-xl font-semibold">Actividad de picks por periodo</h2>
+            <p class="mt-3 max-w-3xl text-sm leading-6 text-zinc-400">Importes expresados únicamente en unidades públicas declaradas en cada pick. Las escalas pueden variar entre tipsters: estos agregados no son dinero, volumen apostado verificable, GGR, ingreso, saldo ni liquidación.</p>
+            <div class="admin-financial-filters">
+              <label class="admin-field" for="financePeriod">Periodo de publicación
+                <select id="financePeriod">
+                  <option value="7">Últimos 7 días</option>
+                  <option value="30" selected>Últimos 30 días</option>
+                  <option value="90">Últimos 90 días</option>
+                  <option value="all">Todo el historial fechado</option>
+                  <option value="custom">Rango personalizado</option>
+                </select>
+              </label>
+              <div id="financeCustomRange" class="admin-financial-filters" hidden>
+                <label class="admin-field" for="financeFrom">Desde
+                  <input id="financeFrom" type="date">
+                </label>
+                <label class="admin-field" for="financeThrough">Hasta (inclusive)
+                  <input id="financeThrough" type="date">
+                </label>
+              </div>
+            </div>
+            <p id="financial-filter-error" class="mt-3 text-sm text-rose-200" role="alert" hidden></p>
+            <dl class="admin-metrics">
+              <div><dt>Stake de picks publicados (u)</dt><dd id="stake-units">Cargando…</dd></div>
+              <div><dt>Resultado estimado de picks cerrados (u)</dt><dd id="net-result-units">Cargando…</dd></div>
+              <div><dt>Picks del periodo</dt><dd id="period-pick-count">Cargando…</dd></div>
+              <div><dt>Picks cerrados</dt><dd id="settled-pick-count">Cargando…</dd></div>
+            </dl>
+            <div id="finance-chart" class="admin-financial-chart" aria-live="polite">
+              <p class="text-sm text-zinc-400">Cargando actividad…</p>
+            </div>
+            <p id="financial-scope-note" class="mt-3 text-xs leading-5 text-zinc-400"></p>
           </section>
         </section>
-        <section id="governance-panel" role="tabpanel" aria-labelledby="governance-tab" hidden>
-          <h2 class="text-xl font-semibold">Límites globales</h2>
+        <section id="finance-panel" class="admin-panel" role="tabpanel" aria-labelledby="finance-tab" hidden>
+          <div class="admin-finance-heading">
+            <div class="admin-panel-heading"><h2>Centro financiero</h2><p>Prepara la política de reparto y revisa el estado de monetización de la plataforma.</p></div>
+            <span class="admin-status-pill admin-status-pill-muted">Monetización inactiva</span>
+          </div>
+          <section id="finance-readiness" class="admin-finance-readiness" aria-label="Estado de monetización">
+            <span class="admin-readiness-indicator" aria-hidden="true"></span>
+            <div><strong>Configuración disponible · operaciones financieras desactivadas</strong>
+              <p>No hay proveedor de pagos ni ledger contable conectado. Los porcentajes que configures aquí son parámetros futuros: no representan cobros, devengos ni pagos.</p>
+            </div>
+          </section>
+          <dl class="admin-finance-summary" aria-label="Resumen de configuración de revenue share">
+            <div><dt>Tipsters aprobados</dt><dd id="finance-approved-count">Cargando…</dd></div>
+            <div><dt>Porcentajes configurados</dt><dd id="finance-configured-rates">Cargando…</dd></div>
+            <div><dt>Comisión media configurada</dt><dd id="finance-average-rate">Cargando…</dd></div>
+          </dl>
+          <section class="admin-finance-section" aria-labelledby="revenueShareHeading">
+            <div class="admin-inbox-heading">
+              <div><h3 id="revenueShareHeading">Revenue share por tipster</h3><p>La comisión de plataforma se configura por tipster. El porcentaje restante corresponde al creador cuando el modelo se active.</p></div>
+            </div>
+            <div class="admin-finance-filters">
+              <label class="admin-field" for="financeSearch">Buscar tipster
+                <input id="financeSearch" type="search" autocomplete="off" placeholder="Nombre, usuario o UID">
+              </label>
+              <label class="admin-field" for="financeRateFilter">Configuración
+                <select id="financeRateFilter"><option value="all">Todos</option><option value="configured">Configurado</option><option value="missing">Sin configurar</option></select>
+              </label>
+              <label class="admin-field" for="financeSort">Ordenar por
+                <select id="financeSort"><option value="name">Nombre (A–Z)</option><option value="rate-high">Mayor comisión</option><option value="rate-low">Menor comisión</option></select>
+              </label>
+              <button id="finance-clear-filters" class="admin-button" type="button">Limpiar filtros</button>
+            </div>
+          <div id="finance-list" class="admin-list" aria-live="polite"></div>
+          </section>
+          <section class="admin-finance-section" aria-labelledby="settlementHeading">
+            <div class="admin-inbox-heading">
+              <div><h3 id="settlementHeading">Ciclos y liquidaciones</h3><p>Vista preparada para conciliación y seguimiento de pagos a tipsters.</p></div>
+              <span class="admin-status-pill admin-status-pill-muted">Pendiente de integración</span>
+            </div>
+            <p id="settlement-readiness" class="admin-info-banner">Sin proveedor de pagos ni ledger. No se calculan saldos ni se registran liquidaciones en esta fase.</p>
+            <div class="admin-finance-controls">
+              <label class="admin-field" for="settlement-cycle">Frecuencia del ciclo
+                <select id="settlement-cycle" disabled aria-describedby="settlement-readiness"><option>Seleccionar frecuencia</option><option>Quincenal</option><option>Mensual</option></select>
+              </label>
+              <label class="admin-field" for="settlement-period">Periodo
+                <input id="settlement-period" type="month" disabled aria-describedby="settlement-readiness">
+              </label>
+              <label class="admin-field" for="settlement-status">Estado
+                <select id="settlement-status" disabled aria-describedby="settlement-readiness"><option>Todos los estados</option><option>Pendiente</option><option>Procesando</option><option>Pagado</option></select>
+              </label>
+              <button id="settlement-process" class="admin-button" type="button" disabled aria-describedby="settlement-readiness" title="No disponible: falta integrar proveedor de pagos y ledger.">Iniciar cierre</button>
+            </div>
+            <div class="admin-table-scroll">
+              <table class="admin-finance-table">
+                <caption>Historial de liquidaciones · fuente contable no conectada</caption>
+                <thead><tr><th scope="col">Periodo</th><th scope="col">Tipster</th><th scope="col">Base cobrada</th><th scope="col">Parte creador</th><th scope="col">Estado</th></tr></thead>
+                <tbody id="settlement-history"><tr><td colspan="5">No hay liquidaciones registradas.</td></tr></tbody>
+              </table>
+            </div>
+          </section>
+          <section class="admin-finance-section" aria-labelledby="premiumProductsHeading">
+            <div class="admin-inbox-heading">
+              <div><h3 id="premiumProductsHeading">Suscripciones y contenido premium</h3><p>Preparación para membresías de picks y acceso a comunidades privadas.</p></div>
+              <span class="admin-status-pill admin-status-pill-muted">No activo</span>
+            </div>
+            <div class="admin-premium-readiness">
+              <p id="premium-product-status"><strong>Aún no disponible.</strong> Suscripciones, compras PPV y acceso VIP requieren proveedor de pagos, catálogo de productos y permisos de lectura premium en backend/Firestore.</p>
+              <ul><li>Suscripciones y membresías VIP</li><li>Acceso PPV a picks premium</li><li>Salas y chats privados</li></ul>
+              <p>Trust Score no habilita monetización automáticamente: sus criterios deben definirse y publicarse antes de usarse como política.</p>
+              <button id="premium-product-action" class="admin-button" type="button" disabled aria-describedby="premium-product-status" title="No disponible: las funciones premium requieren pagos y permisos de backend.">Configurar productos premium</button>
+            </div>
+          </section>
+        </section>
+        <section id="operations-panel" class="admin-panel" role="tabpanel" aria-labelledby="operations-tab" hidden>
+          <div class="admin-panel-heading"><h2>Gestión de tipsters</h2><p>Revisa solicitudes y controla el permiso de publicación.</p></div>
+          <div class="admin-subsection"><h3>Solicitudes pendientes</h3>
+          <div id="applications" class="admin-list" aria-live="polite"></div>
+          </div>
+          <div class="admin-subsection"><div class="admin-panel-heading"><h3>Directorio de tipsters</h3><p>Filtra usando picks públicos accesibles para tu permiso.</p></div>
+          <div class="admin-tipster-filters">
+            <label class="admin-field" for="tipsterSearch">Buscar tipster
+              <input id="tipsterSearch" type="search" autocomplete="off" placeholder="Nombre, usuario o UID">
+            </label>
+            <label class="admin-field" for="tipsterStatusFilter">Estado
+              <select id="tipsterStatusFilter" data-tipster-filter="status"><option value="all">Todos</option><option value="approved">Aprobados</option><option value="revoked">Revocados</option></select>
+            </label>
+            <label class="admin-field" for="tipsterVolumeFilter">Volumen de picks
+              <select id="tipsterVolumeFilter" data-tipster-filter="volume"><option value="all">Cualquier volumen</option><option value="1">1 o más</option><option value="10">10 o más</option></select>
+            </label>
+            <label class="admin-field" for="tipsterPerformanceFilter">Resultado
+              <select id="tipsterPerformanceFilter" data-tipster-filter="performance"><option value="all">Todos</option><option value="positive">Positivo</option><option value="negative">Negativo</option><option value="neutral">Sin resultado neto</option></select>
+            </label>
+            <label class="admin-field" for="tipsterSort">Ordenar por
+              <select id="tipsterSort" data-tipster-filter="sort"><option value="name">Nombre (A–Z)</option><option value="volume">Mayor volumen</option><option value="result">Mejor resultado</option></select>
+            </label>
+          </div>
+          <div id="tipsters" class="admin-list" aria-live="polite"></div>
+          </div>
+          <p class="admin-info-banner">No hay acciones de suspensión por riesgo ni auditoría financiera: no existe un registro verificable que las respalde. Revocar publicación solo cambia el estado editorial del tipster.</p>
+        </section>
+        <section id="profiles-panel" class="admin-panel" role="tabpanel" aria-labelledby="profiles-tab" hidden>
+          <div class="admin-panel-heading"><h2>Cambios de perfil pendientes</h2><p>Compara los valores actuales y propuestos antes de decidir.</p></div>
+          <div id="profileRequests" class="admin-list" aria-live="polite"></div>
+        </section>
+        <section id="viewers-panel" class="admin-panel" role="tabpanel" aria-labelledby="viewers-tab" hidden>
+          <div class="admin-panel-heading"><h2>Directorio de cuentas</h2><p>Busca y filtra las cuentas base viewer por nombre, correo, estado o actividad.</p></div>
+          <div class="admin-viewer-filters">
+            <label class="admin-field" for="viewerSearch">Buscar cuenta
+              <input id="viewerSearch" type="search" autocomplete="off" placeholder="Nombre público, correo o UID">
+            </label>
+            <label class="admin-field" for="viewerStatusFilter">Estado de cuenta
+              <select id="viewerStatusFilter"><option value="all">Todos</option><option value="active">Activos</option><option value="suspended">Suspendidos</option></select>
+            </label>
+            <label class="admin-field" for="viewerPresenceFilter">Actividad reciente
+              <select id="viewerPresenceFilter"><option value="all">Todos</option><option value="online">Conectados</option><option value="offline">Desconectados</option></select>
+            </label>
+            <label class="admin-field" for="viewerSort">Ordenar por registro
+              <select id="viewerSort"><option value="name">Nombre (A–Z)</option><option value="newest">Más recientes</option><option value="oldest">Más antiguos</option></select>
+            </label>
+            <button id="viewer-clear-filters" class="admin-button" type="button">Limpiar filtros</button>
+          </div>
+          <p id="viewer-result-count" class="admin-result-count" aria-live="polite"></p>
+          <p class="mt-3 text-sm text-zinc-400">La suspensión bloquea el acceso a funciones protegidas de la aplicación; no deshabilita Firebase Auth ni impide leer la vitrina pública. Las cuentas sin correo guardado se pueden encontrar por UID.</p>
+          <div id="viewers-list" class="admin-list" aria-live="polite"></div>
+        </section>
+        <section id="community-panel" class="admin-panel" role="tabpanel" aria-labelledby="community-tab" hidden>
+          <div class="admin-panel-heading"><h2>Moderación del mural</h2><p>Configura términos para el filtro de la interfaz y gestiona esta capacidad con permisos de mínimo privilegio.</p></div>
+          <div class="admin-info-banner">
+            Esta lista se aplica antes del envío desde la interfaz; Firestore Rules no ejecuta filtros de palabras dinámicos. Un cliente modificado podría omitirla. Las reglas sí exigen cuenta verificada, bloquean enlaces conocidos y limitan a un comentario cada 10 segundos por cuenta.
+          </div>
+          <form id="communityModerationForm" class="mt-6 grid gap-4">
+            <label class="admin-field" for="communityBlockedTerms">Palabras o frases bloqueadas
+              <textarea id="communityBlockedTerms" rows="8" maxlength="2000" placeholder="Una palabra o frase por línea"></textarea>
+            </label>
+            <p class="text-sm text-zinc-400">Hasta 40 términos, máximo 40 caracteres cada uno. La comparación ignora mayúsculas y minúsculas. No incluyas datos personales.</p>
+            <button type="submit" class="admin-button justify-self-start">Guardar filtro</button>
+          </form>
+        </section>
+        <section id="governance-panel" class="admin-panel" role="tabpanel" aria-labelledby="governance-tab" hidden>
+          <div class="admin-panel-heading"><h2>Gobierno maestro</h2><p>Configuración global y permisos administrativos.</p></div>
+          <h3 class="mt-8 text-lg font-semibold">Límites globales</h3>
           <p class="mt-3 text-sm text-zinc-400">Valores orientativos; no constituyen cuotas de consumo ni límites de facturación.</p>
           <form id="settingsForm" class="mt-5 grid gap-4">
             <label class="admin-field" for="tipsterLimit">Límite mensual tipsters<input id="tipsterLimit" type="number" min="1" max="500" step="1" required></label>
@@ -134,6 +337,7 @@
               <label><input type="checkbox" name="permission" value="profiles" checked> Revisar cambios de perfil</label>
               <label><input type="checkbox" name="permission" value="viewers" checked> Moderar viewers</label>
               <label><input type="checkbox" name="permission" value="kpis" checked> Consultar KPIs</label>
+              <label><input type="checkbox" name="permission" value="community"> Moderar mural y editar filtro comunitario</label>
             </fieldset>
             <label><input id="adminEnabled" type="checkbox" checked> Acceso habilitado</label>
             <button type="submit" class="admin-button justify-self-start">Guardar permisos</button>
@@ -144,7 +348,8 @@
           </div>
           <div id="admins-list" class="admin-list" aria-live="polite"></div>
         </section>
-      </main>
+        </main>
+      </div>
     </div>
 
     <script type="module">

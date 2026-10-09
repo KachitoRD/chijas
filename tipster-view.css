@@ -4,6 +4,7 @@
       color-scheme: dark;
       --ease-out: cubic-bezier(.23, 1, .32, 1);
     }
+
     ::selection { color: #052e23; background: #6ee7b7; }
     :focus-visible { outline: 2px solid #6ee7b7; outline-offset: 3px; }
     button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
@@ -43,6 +44,75 @@
       .pick-action-popup[data-pointer-motion]:popover-open { opacity: 0; transform: scale(.97); }
       .bankroll-filter-panel[data-pointer-motion][open]::details-content { opacity: 0; }
     }
+
+}
+
+:is(#dashboardView[data-view="tipster"], #dashboard) {
+      .pick-selection-line { display: flex; align-items: flex-start; gap: 6px; }
+      .pick-selection-line > span { min-width: 0; }
+      .pick-note-trigger { display: inline-grid; place-items: center; flex: 0 0 auto; width: 28px; min-width: 28px; height: 28px; min-height: 28px; padding: 0; margin-top: -4px; border: 1px solid transparent; border-radius: 7px; color: #a7f3d0; background: transparent; }
+      .pick-note-trigger:hover, .pick-note-trigger[aria-expanded="true"] { border-color: rgb(110 231 183 / .22); background: rgb(110 231 183 / .08); }
+      .pick-note-popup { width: min(340px, calc(100vw - 24px)); }
+      .pick-lock-badge { display: inline-grid; place-items: center; flex: 0 0 auto; width: 28px; min-width: 28px; height: 28px; min-height: 28px; padding: 0; border: 1px solid rgb(110 231 183 / .2); border-radius: 7px; color: #a7f3d0; background: rgb(110 231 183 / .06); }
+      .pick-lock-badge[data-locked="true"] { color: #fde68a; border-color: rgb(252 211 77 / .22); background: rgb(252 211 77 / .07); }
+      .pick-lock-badge:hover { background: rgb(110 231 183 / .12); }
+      .pick-lock-badge[data-locked="true"]:hover { background: rgb(252 211 77 / .13); }
+      .pick-lock-badge:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+      .pick-lock-tooltip { width: min(260px, calc(100vw - 24px)); margin: 0; font-size: 12px; line-height: 1.6; color: #e4eee9; }
+      .dashboard-table .pick-stream-cell { text-align: center; min-width: 90px; }
+      .pick-stream-control { display: inline-grid; place-items: center; width: 32px; min-height: 32px; border-radius: 8px; cursor: pointer; }
+      .pick-stream-control:has(input:disabled) { cursor: not-allowed; }
+      .pick-stream-control:hover:not(:has(input:disabled)) { background: rgb(110 231 183 / .08); }
+      .pick-stream-checkbox { width: 18px; height: 18px; margin: 0; accent-color: #6ee7b7; cursor: inherit; }
+      .pick-stream-checkbox:disabled { opacity: .5; }
+      .pick-stream-status { display: block; margin-top: 3px; color: #a1b9ae; font-size: 10px; line-height: 1.4; }
+      .pick-stream-status[hidden] { display: none; }
+      @media (pointer: coarse) {
+        .pick-note-trigger { width: 44px; min-width: 44px; height: 44px; min-height: 44px; margin-top: -8px; }
+        .pick-stream-control { width: 44px; min-height: 44px; }
+        .pick-lock-badge { width: 44px; min-width: 44px; height: 44px; min-height: 44px; }
+      }
+}
+
+    :is(#dashboardView[data-view="tipster"], #dashboard) {
+      #tipsterTabs { overflow-x: auto; }
+      #tipsterTabs button { flex-shrink: 0; }
+      .pick-history-controls { display: grid; gap: 12px; margin-bottom: 18px; }
+      .pick-history-search { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px; align-items: center; }
+      .pick-history-search label { grid-column: 1 / -1; margin: 0; }
+      .pick-history-search input { min-width: 0; }
+      .pick-history-search button, .pick-history-modes button { min-height: 44px; padding: 8px 12px; border: 1px solid rgb(110 231 183 / .18); border-radius: 8px; color: #c3d8ce; font-size: 12px; }
+      .pick-history-search button[hidden] { display: none; }
+      .pick-history-modes { display: flex; flex-wrap: wrap; gap: 6px; }
+      .pick-history-modes button:hover { background: rgb(110 231 183 / .06); }
+      .pick-history-modes button[aria-pressed="true"] { background: #16392d; border-color: #6ee7b7; color: #d1fae5; }
+      .monetization-preparation { max-width: 760px; margin: auto; padding: 24px; border: 1px solid rgb(110 231 183 / .15); border-radius: 14px; background: #0e1b17; }
+      .monetization-preparation p { margin-top: 12px; color: #b2c6bc; font-size: 13px; line-height: 1.65; }
+      .monetization-preparation dl { margin: 20px 0; }
+      .monetization-preparation dl > div { padding: 14px 0; border-top: 1px solid rgb(110 231 183 / .12); }
+      .monetization-preparation dt { font-size: 13px; font-weight: 600; }
+      .monetization-preparation dd { margin-top: 5px; color: #b2c6bc; font-size: 13px; line-height: 1.6; }
+      .monetization-preparation button { padding: 10px 14px; border: 1px solid rgb(110 231 183 / .18); border-radius: 8px; color: #b2c6bc; cursor: not-allowed; }
+      .pick-review-dialog { width: min(560px, calc(100vw - 24px)); max-height: calc(100dvh - 32px); margin: auto; overflow-y: auto; padding: 24px; color: #e8f3ed; background: #0e1b17; border: 1px solid #35594a; border-radius: 14px; box-shadow: 0 20px 60px rgb(0 0 0 / .35); }
+      .pick-review-dialog::backdrop { background: rgb(0 0 0 / .7); }
+      .pick-review-dialog h2 { font-size: 18px; font-weight: 700; }
+      .pick-review-dialog > p { margin-top: 10px; color: #b2c6bc; font-size: 13px; line-height: 1.6; }
+      .pick-review-dialog dl { margin: 18px 0; }
+      .pick-review-dialog dl > div { display: grid; grid-template-columns: minmax(100px, 1fr) minmax(0, 2fr); gap: 12px; padding: 10px 0; border-bottom: 1px solid rgb(110 231 183 / .12); font-size: 13px; }
+      .pick-review-dialog dt { color: #b2c6bc; }
+      .pick-review-dialog dd { white-space: pre-wrap; overflow-wrap: anywhere; }
+      .pick-review-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
+      .pick-review-actions button { min-height: 44px; padding: 10px 14px; border: 1px solid #35594a; border-radius: 8px; font-size: 13px; font-weight: 600; }
+      #confirmPickPublication { background: #6ee7b7; color: #052e23; }
+      .pick-review-actions button:focus-visible { outline: 2px solid #6ee7b7; outline-offset: 3px; }
+      @media (max-width: 640px) {
+        .pick-history-search { grid-template-columns: minmax(0, 1fr); }
+        .pick-review-dialog { padding: 18px; }
+        .pick-review-dialog dl > div { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+        .pick-review-actions button { flex: 1; }
+      }
+    }
+#dashboardView[data-view="tipster"] {
     @media (pointer: coarse) {
       .pick-action-popup button, .pick-action-popup select, .pick-action-popup summary, #bankrollFilters .input { min-height: 44px; font-size: 16px; }
     }

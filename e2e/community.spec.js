@@ -29,11 +29,12 @@ async function seed(request, path, data) {
   expect(response.ok(), await response.text()).toBeTruthy();
 }
 
-async function seedDocuments(request, documents) {
+async function seedDocuments(request, documents, { createOnly = true } = {}) {
   const writes = Object.entries(documents).map(([path, data]) => {
     fixture.documents.add(path);
-    return { update: { name: `projects/${project}/databases/(default)/documents/${path}`, fields: fields(data) },
-      currentDocument: { exists: false } };
+    const write = { update: { name: `projects/${project}/databases/(default)/documents/${path}`, fields: fields(data) } };
+    if (createOnly) write.currentDocument = { exists: false };
+    return write;
   });
   const response = await request.post(`${root}:commit`, { headers, data: { writes } });
   expect(response.ok(), await response.text()).toBeTruthy();
@@ -73,6 +74,7 @@ function trackUser(user) {
   fixture.documents.add(`presencia/${user.uid}`);
   fixture.documents.add(`viewerPresence/${user.uid}`);
   fixture.documents.add(`legalAcceptances/${user.uid}/versions/2026-10-03`);
+  fixture.documents.add(`commentRateLimits/${user.uid}`);
   for (const id of fixture.ids) fixture.documents.add(`follows/${user.uid}_${id}`);
 }
 
@@ -137,6 +139,14 @@ test.afterEach(async ({ request, page }) => {
     .map(path => ({ delete: `projects/${project}/databases/(default)/documents/${path}` }));
   const cleanup = await request.post(`${root}:commit`, { headers, data: { writes } });
   expect(cleanup.ok(), "Eliminar exclusivamente documentos de la fixture de comunidad").toBeTruthy();
+  if (fixture.restoreCommunitySettings) {
+    const { exists: existed, fields: savedFields } = fixture.restoreCommunitySettings;
+    const path = `${root}/platformSettings/communityModeration`;
+    const restored = existed
+      ? await request.patch(path, { headers, data: { fields: savedFields } })
+      : await request.delete(path, { headers });
+    expect(restored.ok(), "Restaurar la configuración comunitaria previa").toBeTruthy();
+  }
   for (const idToken of fixture.users.values()) {
     const response = await request.post(`${authRoot}/identitytoolkit.googleapis.com/v1/accounts:delete?key=demo-key`, {
       data: { idToken }
@@ -144,6 +154,39 @@ test.afterEach(async ({ request, page }) => {
     expect(response.ok(), await response.text()).toBeTruthy();
   }
   traceCategory("limpieza completada");
+});
+
+test("directorio adapta cada fila al espacio y concentra el enlace del perfil en su identidad", async ({ page }) => {
+  await page.setViewportSize({ width: 640, height: 800 });
+  const username = `${fixture.prefix}-0`;
+  const tipsterId = fixture.ids[0];
+  const profileLink = page.locator(`#directoryList a[data-username="${username}"]`);
+  const followButton = page.locator(`#directoryList button[data-follow="${tipsterId}"]`);
+
+  await expect(profileLink).toBeVisible();
+  await expect(profileLink).toHaveAttribute("href", `?u=${username}`);
+  await expect(profileLink).toContainText(`Comunidad 0`);
+  await expect(followButton).toBeVisible();
+  await expect(page.locator("#directoryList").getByText("Ver perfil", { exact: true })).toHaveCount(0);
+  expect(await page.locator("#directoryList").evaluate(element => getComputedStyle(element).gridTemplateColumns.split(" ").length)).toBe(1);
+
+  const geometry = await profileLink.evaluate(element => {
+    const row = element.closest(".directory-card");
+    const identity = element.getBoundingClientRect();
+    const follow = row.querySelector("[data-follow]").getBoundingClientRect();
+    return { row: row.getBoundingClientRect(), identity, follow };
+  });
+  expect(geometry.identity.right).toBeLessThanOrEqual(geometry.follow.left);
+  expect(geometry.follow.right).toBeLessThanOrEqual(geometry.row.right);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.locator("#directoryList").evaluate(element => getComputedStyle(element).gridTemplateColumns.split(" ").length)).toBe(1);
+  await expect(followButton).toBeVisible();
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  expect(await page.locator("#directoryList").evaluate(element => getComputedStyle(element).gridTemplateColumns.split(" ").length)).toBe(2);
+  await expect(profileLink).toBeVisible();
+  await expect(followButton).toBeVisible();
 });
 
 test("categorías filtran pronósticos públicos en tiempo real y conservan el directorio", async ({ page, request }) => {
@@ -194,47 +237,278 @@ test("categorías filtran pronósticos públicos en tiempo real y conservan el d
   traceCategory("validación completada");
 });
 
+test("el mural abre el hilo del pick seleccionado", async ({ page }) => {
+  const pick = page.locator(`#publicPicks article[data-author="${fixture.ids[0]}"]`);
+  await expect(pick).toBeVisible();
+  await pick.getByRole("button", { name: "Comentar" }).click();
+  await expect(page.locator("#muralContext")).toContainText("Evento comunidad 0");
+  await expect(page.locator("#communityMural")).toBeVisible();
+});
+
+test("solo la ACL comunitaria puede editar la blacklist dinámica", async ({ page, request }) => {
+  const user = await signInGoogle(page, "community-admin");
+  await acceptTerms(request, user);
+  const settingPath = `${root}/platformSettings/communityModeration`;
+  const previousSetting = await request.get(settingPath, { headers });
+  expect([200, 404]).toContain(previousSetting.status());
+  fixture.restoreCommunitySettings = previousSetting.ok()
+    ? { exists: true, fields: (await previousSetting.json()).fields }
+    : { exists: false, fields: null };
+  const adminPath = `platformAdmins/${user.uid}`;
+  fixture.documents.add(adminPath);
+  const admin = await request.patch(`${root}/${adminPath.split("/").map(encodeURIComponent).join("/")}`, {
+    headers,
+    data: { fields: {
+      enabled: { booleanValue: true },
+      role: { stringValue: "admin" },
+      permissions: { arrayValue: { values: [{ stringValue: "community" }] } },
+      updated_at: { timestampValue: new Date().toISOString() },
+      updated_by: { stringValue: user.uid }
+    } }
+  });
+  expect(admin.ok(), await admin.text()).toBeTruthy();
+  await page.goto("/admin-dashboard.html");
+  await expect(page.locator("#dashboard")).toBeVisible();
+  await expect(page.locator("#community-tab")).toBeVisible();
+  await page.locator("#community-tab").click();
+  await expect(page.locator("#community-panel")).toBeVisible();
+  await page.locator("#communityBlockedTerms").fill("telegram\nwhatsapp");
+  await page.getByRole("button", { name: "Guardar filtro" }).click();
+  await expect(page.locator("#admin-message")).toContainText("Filtro guardado");
+  const saved = await request.get(settingPath, { headers });
+  expect(saved.ok(), await saved.text()).toBeTruthy();
+  expect((await saved.json()).fields.blockedTerms.stringValue).toBe("telegram\nwhatsapp");
+  await page.goto("/");
+  const card = page.locator(`#publicPicks article[data-author="${fixture.ids[0]}"]`);
+  await card.getByRole("button", { name: "Comentar" }).click();
+  await page.locator("#muralInput").fill("Hablemos por whatsapp");
+  await expect(page.locator("#muralSend")).toBeEnabled();
+  await page.locator("#muralSend").click();
+  await expect(page.locator("#muralNotice")).toContainText("término bloqueado");
+  await expect(page.locator("#muralEntries .mural-entry")).toHaveCount(0);
+});
+
+test("las reglas permiten comentar con términos aceptados y bloquean el flood", async ({ page, request }) => {
+  const user = await signInGoogle(page, "mural");
+  await acceptTerms(request, user);
+  const pickId = `${fixture.ids[0]}-pick`;
+  const commentId = await page.evaluate(async pickId => {
+    const { firebaseAuth, firebaseDb } = await import("/firebase-config.js?v=2");
+    const { collection, doc, serverTimestamp, writeBatch } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
+    const comment = doc(collection(firebaseDb, "picks", pickId, "comments"));
+    const rate = doc(firebaseDb, "commentRateLimits", firebaseAuth.currentUser.uid);
+    const batch = writeBatch(firebaseDb);
+    batch.set(comment, {
+      authorUid: firebaseAuth.currentUser.uid,
+      authorName: firebaseAuth.currentUser.displayName || "Miembro",
+      text: "Buen análisis, gracias por compartirlo.",
+      created_at: serverTimestamp()
+    });
+    batch.set(rate, { last_at: serverTimestamp(), last_pick_id: pickId, last_comment_id: comment.id });
+    await batch.commit();
+    return comment.id;
+  }, pickId);
+  fixture.documents.add(`picks/${pickId}/comments/${commentId}`);
+  fixture.documents.add(`commentRateLimits/${user.uid}`);
+  const secondComment = await page.evaluate(async pickId => {
+    const { firebaseAuth, firebaseDb } = await import("/firebase-config.js?v=2");
+    const { collection, doc, serverTimestamp, writeBatch } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
+    const comment = doc(collection(firebaseDb, "picks", pickId, "comments"));
+    const rate = doc(firebaseDb, "commentRateLimits", firebaseAuth.currentUser.uid);
+    const batch = writeBatch(firebaseDb);
+    batch.set(comment, {
+      authorUid: firebaseAuth.currentUser.uid,
+      authorName: firebaseAuth.currentUser.displayName || "Miembro",
+      text: "Segundo comentario demasiado rápido.",
+      created_at: serverTimestamp()
+    });
+    batch.set(rate, { last_at: serverTimestamp(), last_pick_id: pickId, last_comment_id: comment.id });
+    try {
+      await batch.commit();
+      return "allowed";
+    } catch (error) {
+      return error.code;
+    }
+  }, pickId);
+  expect(secondComment).toBe("permission-denied");
+});
+
+test("Firestore rechaza enlaces aunque se omita la validación de la interfaz", async ({ page, request }) => {
+  const user = await signInGoogle(page, "mural-link");
+  await acceptTerms(request, user);
+  const result = await page.evaluate(async pickId => {
+    const { firebaseAuth, firebaseDb } = await import("/firebase-config.js?v=2");
+    const { collection, doc, serverTimestamp, writeBatch } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
+    const comment = doc(collection(firebaseDb, "picks", pickId, "comments"));
+    const rate = doc(firebaseDb, "commentRateLimits", firebaseAuth.currentUser.uid);
+    const batch = writeBatch(firebaseDb);
+    batch.set(comment, {
+      authorUid: firebaseAuth.currentUser.uid,
+      authorName: firebaseAuth.currentUser.displayName || "Miembro",
+      text: "Oferta externa\nhttps://example.test/promo",
+      created_at: serverTimestamp()
+    });
+    batch.set(rate, {
+      last_at: serverTimestamp(), last_pick_id: pickId, last_comment_id: comment.id
+    });
+    try {
+      await batch.commit();
+      return { result: "allowed", commentId: comment.id };
+    } catch (error) {
+      return { result: error.code, commentId: comment.id };
+    }
+  }, `${fixture.ids[0]}-pick`);
+  fixture.documents.add(`picks/${fixture.ids[0]}-pick/comments/${result.commentId}`);
+  expect(result.result).toBe("permission-denied");
+});
+
+test("Firestore rechaza comentarios vacíos aunque se omita la interfaz", async ({ page, request }) => {
+  const user = await signInGoogle(page, "mural-empty");
+  await acceptTerms(request, user);
+  const attempt = await page.evaluate(async pickId => {
+    const { firebaseAuth, firebaseDb } = await import("/firebase-config.js?v=2");
+    const { collection, doc, serverTimestamp, writeBatch } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
+    const comment = doc(collection(firebaseDb, "picks", pickId, "comments"));
+    const rate = doc(firebaseDb, "commentRateLimits", firebaseAuth.currentUser.uid);
+    const batch = writeBatch(firebaseDb);
+    batch.set(comment, {
+      authorUid: firebaseAuth.currentUser.uid,
+      authorName: firebaseAuth.currentUser.displayName || "Miembro",
+      text: " \n\t ",
+      created_at: serverTimestamp()
+    });
+    batch.set(rate, {
+      last_at: serverTimestamp(), last_pick_id: pickId, last_comment_id: comment.id
+    });
+    try {
+      await batch.commit();
+      return { result: "allowed", commentId: comment.id };
+    } catch (error) {
+      return { result: error.code, commentId: comment.id };
+    }
+  }, `${fixture.ids[0]}-pick`);
+  fixture.documents.add(`picks/${fixture.ids[0]}-pick/comments/${attempt.commentId}`);
+  expect(attempt.result).toBe("permission-denied");
+});
+
+test("las tarjetas abren su mural y los comentarios se muestran como texto seguro", async ({ page, request }) => {
+  const pickId = `${fixture.ids[0]}-pick`;
+  await seed(request, `picks/${pickId}/comments/qa-comment`, {
+    authorUid: "public-viewer",
+    authorName: "Miembro de prueba",
+    text: '<img src=x onerror="alert(1)"> comentario visible',
+    created_at: new Date()
+  });
+
+  const card = page.locator(`#publicPicks article[data-author="${fixture.ids[0]}"]`);
+  await card.getByRole("button", { name: "Comentar" }).click();
+  await expect(page.locator("#muralContext")).toContainText("Evento comunidad 0");
+  await expect(page.locator("#muralEntries")).toContainText("Miembro de prueba");
+  await expect(page.locator("#muralEntries")).toContainText('<img src=x onerror="alert(1)"> comentario visible');
+  await expect(page.locator("#muralEntries img")).toHaveCount(0);
+  await expect(page.locator("#muralEntries .mural-comment-badge")).toHaveText("Correo verificado");
+});
+
+test("un viewer verificado acepta términos, publica y queda limitado por intervalo", async ({ page }) => {
+  const user = await signInGoogle(page, "mural-ui");
+  const card = page.locator(`#publicPicks article[data-author="${fixture.ids[0]}"]`);
+  await card.getByRole("button", { name: "Comentar" }).click();
+  await expect(page.locator("#muralSignIn")).toHaveText("Aceptar términos");
+  await page.locator("#muralSignIn").click();
+  await expect(page.locator("#viewerConsent")).toBeVisible();
+  await page.locator("#viewerAge").check();
+  await page.locator("#viewerTerms").check();
+  await page.locator("#viewerConsentSave").click();
+  await expect(page.locator("#viewerConsent")).toBeHidden();
+  await expect(page.locator("#muralSend")).toBeEnabled();
+  await page.locator("#muralInput").fill("Buen análisis, revisaré el resultado.");
+  await page.locator("#muralSend").click();
+  await expect(page.locator("#muralEntries")).toContainText("Buen análisis, revisaré el resultado.");
+  await expect(page.locator("#muralEntries")).toContainText("Viewer mural-ui");
+  await expect(page.locator("#muralSend")).toBeDisabled();
+  await expect(page.locator("#muralNotice")).toContainText("otro comentario en");
+});
+
+test("el permiso comunitario habilita silenciar y eliminar comentarios desde el hilo", async ({ page, request }) => {
+  const pickId = `${fixture.ids[0]}-pick`;
+  await seed(request, `picks/${pickId}/comments/moderation-comment`, {
+    authorUid: "public-viewer",
+    authorName: "Miembro a moderar",
+    text: "Comentario sujeto a moderación.",
+    created_at: new Date()
+  });
+  fixture.documents.add(`picks/${pickId}/commentMutes/public-viewer`);
+  const user = await signInGoogle(page, "community-moderator");
+  const adminPath = `platformAdmins/${user.uid}`;
+  fixture.documents.add(adminPath);
+  const admin = await request.patch(`${root}/${adminPath}`, {
+    headers,
+    data: { fields: {
+      enabled: { booleanValue: true },
+      role: { stringValue: "admin" },
+      permissions: { arrayValue: { values: [{ stringValue: "community" }] } },
+      updated_at: { timestampValue: new Date().toISOString() },
+      updated_by: { stringValue: user.uid }
+    } }
+  });
+  expect(admin.ok(), await admin.text()).toBeTruthy();
+  const card = page.locator(`#publicPicks article[data-author="${fixture.ids[0]}"]`);
+  await card.getByRole("button", { name: "Comentar" }).click();
+  const comment = page.locator("#muralEntries .mural-entry");
+  await expect(comment).toContainText("Comentario sujeto a moderación.");
+  await comment.getByRole("button", { name: "Silenciar Miembro a moderar" }).click();
+  await expect(comment.getByRole("button", { name: "Retirar silencio a Miembro a moderar" })).toBeVisible();
+  page.once("dialog", dialog => dialog.accept());
+  await comment.getByRole("button", { name: "Eliminar comentario de Miembro a moderar" }).click();
+  await expect(page.locator("#muralEntries .mural-entry")).toHaveCount(0);
+});
+
 test("conectados muestran avatar circular, nickname y un máximo de 20 sin desplegable", async ({ page, request }) => {
-      test.setTimeout(90_000);
-      const ownCards = page.locator(`#onlineGrid a[data-username^="${fixture.prefix}"]`);
-      await expect(page.locator("#onlineGrid")).toHaveAttribute("aria-busy", "false");
-      await expect(ownCards).toHaveCount(0);
-      for (let index = fixture.ids.length; index < 21; index++) {
-        const id = `${fixture.prefix}-${index}`;
-        fixture.ids.push(id);
-        await seedTipster(request, id, index);
-      }
-      for (const [index, id] of fixture.ids.entries()) {
-        await seed(request, `perfiles/${id}`, {
-          id, username: `${fixture.prefix}-${index}`,
-          nombre_publico: `AAA QA ${String(index).padStart(2, "0")}`,
-          tipster_status: "approved", followerCount: 0,
-          bio: null, color_primario: "#34d399", is_online: false, last_active_at: null, created_at: new Date()
-        });
-      }
-      await seed(request, `presencia/${fixture.ids[0]}`, { is_online: true, last_active_at: new Date() });
-      await expect(ownCards).toHaveCount(1);
-      await expect(ownCards.first()).toContainText(`@${fixture.prefix}-0`);
-      await expect(ownCards.first().locator(".online-avatar")).toHaveCSS("border-radius", "50%");
-      await expect(ownCards.first().locator(".online-status")).toHaveAttribute("aria-label", "Conectado en la plataforma");
-      for (const id of fixture.ids.slice(1)) {
-        await seed(request, `presencia/${id}`, { is_online: true, last_active_at: new Date() });
-      }
-      await expect(page.locator("#onlineGrid .online-card")).toHaveCount(20);
-      await expect(ownCards).toHaveCount(20);
-      expect(await page.locator("#onlineGrid").evaluate(element => !!element.closest("details"))).toBe(false);
-      const id = fixture.ids[0];
-      await seed(request, `perfiles_social/${id}`, {
-        avatar_url: "data:image/png;base64,invalid", banner_url: null, kick_url: null, twitch_url: null,
-        youtube_url: null, telegram_url: null, twitter_url: null, instagram_url: null
-      });
-      await page.reload();
-      await expect(ownCards).toHaveCount(20);
-      for (const width of [390, 1280]) {
-        await page.setViewportSize({ width, height: 900 });
-        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
-        await expect(ownCards.first().locator(".online-avatar-fallback")).toBeVisible();
-      }
+  const ownCards = page.locator(`#onlineGrid a[data-username^="${fixture.prefix}"]`);
+  await expect(page.locator("#onlineGrid")).toHaveAttribute("aria-busy", "false");
+  await expect(ownCards).toHaveCount(0);
+  const fixtureDocuments = {};
+  for (let index = fixture.ids.length; index < 21; index++) {
+    const id = `${fixture.prefix}-${index}`;
+    fixture.ids.push(id);
+    Object.assign(fixtureDocuments, tipsterDocuments(id, index));
+  }
+  for (const [index, id] of fixture.ids.entries()) {
+    fixtureDocuments[`perfiles/${id}`] = {
+      id, username: `${fixture.prefix}-${index}`,
+      nombre_publico: `AAA QA ${String(index).padStart(2, "0")}`,
+      tipster_status: "approved", followerCount: 0,
+      bio: null, color_primario: "#34d399", is_online: false, last_active_at: null, created_at: new Date()
+    };
+    fixtureDocuments[`presencia/${id}`] = { is_online: false, last_active_at: null };
+  }
+  await seedDocuments(request, fixtureDocuments, { createOnly: false });
+
+  await seed(request, `presencia/${fixture.ids[0]}`, { is_online: true, last_active_at: new Date() });
+  await expect(ownCards).toHaveCount(1);
+  await expect(ownCards.first()).toContainText(`@${fixture.prefix}-0`);
+  await expect(ownCards.first().locator(".online-avatar")).toHaveCSS("border-radius", "50%");
+  await expect(ownCards.first().locator(".online-status")).toHaveAttribute("aria-label", "Conectado en la plataforma");
+
+  const onlineDocuments = Object.fromEntries(fixture.ids.slice(1).map(id => [
+    `presencia/${id}`, { is_online: true, last_active_at: new Date() }
+  ]));
+  await seedDocuments(request, onlineDocuments, { createOnly: false });
+  await expect(page.locator("#onlineGrid .online-card")).toHaveCount(20);
+  await expect(ownCards).toHaveCount(20);
+  expect(await page.locator("#onlineGrid").evaluate(element => !!element.closest("details"))).toBe(false);
+  const id = fixture.ids[0];
+  await seed(request, `perfiles_social/${id}`, {
+    avatar_url: "data:image/png;base64,invalid", banner_url: null, kick_url: null, twitch_url: null,
+    youtube_url: null, telegram_url: null, twitter_url: null, instagram_url: null
+  });
+  await page.reload();
+  await expect(ownCards).toHaveCount(20);
+  for (const width of [390, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
+    await expect(ownCards.first().locator(".online-avatar-fallback")).toBeVisible();
+  }
 });
 
 test("Google popup, consentimiento, persistencia y respuesta optimista sin duplicar follows", async ({ page, request }, testInfo) => {

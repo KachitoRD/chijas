@@ -26,6 +26,37 @@ export async function writeVisualDocument(request, path, data) {
   return checked(await request.patch(`${firestoreRoot}/${path}?${mask}`, { headers, data: { fields } }));
 }
 
+export async function deleteVisualDocument(request, path) {
+  const response = await request.delete(`${firestoreRoot}/${path}`, { headers });
+  if (!response.ok() && response.status() !== 404) await checked(response);
+}
+
+export async function findVisualPickIds(request, uid, event) {
+  const rows = await checked(await request.post(`${firestoreRoot}:runQuery`, {
+    headers, data: { structuredQuery: {
+      from: [{ collectionId: "picks" }],
+      where: { fieldFilter: { field: { fieldPath: "user_id" }, op: "EQUAL", value: { stringValue: uid } } }
+    } }
+  }));
+  return rows.filter(row => row.document?.fields.event?.stringValue === event)
+    .map(row => row.document.name.split("/").at(-1));
+}
+
+export async function includeVisualUpcomingPicks(page) {
+  const range = await page.evaluate(() => [-1, 1].map(offset => {
+    const date = new Date();
+    date.setDate(date.getDate() + offset);
+    return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
+  }));
+  if (!await page.locator("#bankrollPeriod").isVisible()) {
+    await page.locator("#bankrollFilterPanel > summary").click();
+  }
+  await page.locator("#bankrollPeriod").selectOption("custom");
+  await page.locator("#bankrollFrom").fill(range[0]);
+  await page.locator("#bankrollThrough").fill(range[1]);
+  await page.locator("#bankrollReload").click();
+}
+
 export async function seedVisualAccounts(request) {
   // Fixed loopback URLs and demo project prevent accidental production provisioning.
   const accounts = {};

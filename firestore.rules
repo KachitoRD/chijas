@@ -48,8 +48,8 @@ service cloud.firestore {
         && data.enabled is bool
         && data.role in ["super_admin", "admin"]
         && data.permissions is list
-        && data.permissions.size() <= 4
-        && data.permissions.hasOnly(["tipsters", "profiles", "viewers", "kpis"])
+        && data.permissions.size() <= 5
+        && data.permissions.hasOnly(["tipsters", "profiles", "viewers", "kpis", "community"])
         && data.updated_at == request.time
         && data.updated_by == request.auth.uid;
     }
@@ -71,6 +71,82 @@ service cloud.firestore {
     function profileIsApproved(userId) {
       return exists(/databases/$(database)/documents/perfiles/$(userId))
         && get(/databases/$(database)/documents/perfiles/$(userId)).data.tipster_status == "approved";
+    }
+
+    function pickExists(pickId) {
+      return exists(/databases/$(database)/documents/picks/$(pickId));
+    }
+
+    function canReadMural(pickId) {
+      let pick = get(/databases/$(database)/documents/picks/$(pickId)).data;
+      return pickExists(pickId)
+        && ((pick.user_id is string && profileIsApproved(pick.user_id))
+          || hasAdminPermission("community"));
+    }
+
+    function canModerateMural(pickId) {
+      let pick = get(/databases/$(database)/documents/picks/$(pickId)).data;
+      return verifiedUser() && pickExists(pickId)
+        && (pick.user_id == request.auth.uid || hasAdminPermission("community"));
+    }
+
+    function commentHasNoExternalLinks(text) {
+      return !text.matches("(?i)[\\s\\S]*https?://[\\s\\S]*")
+        && !text.matches("(?i)[\\s\\S]*www\\.[\\s\\S]*")
+        && !text.matches("(?i)[\\s\\S]*\\b[a-z0-9-]+\\.[a-z]{2,}(/[^ ]*)?[\\s\\S]*")
+        && !text.matches("(?i)[\\s\\S]*(t\\.me|telegram\\.me|wa\\.me|whatsapp\\.com|chat\\.whatsapp\\.com)[\\s\\S]*");
+    }
+
+    function muralAuthorName() {
+      let name = request.auth.token.get("name", "");
+      return name is string && name.size() > 0 ? name : "Miembro";
+    }
+
+    function validMuralComment(data, userId) {
+      return data.keys().hasOnly(["authorUid", "authorName", "text", "created_at"])
+        && data.keys().hasAll(["authorUid", "authorName", "text", "created_at"])
+        && data.authorUid == userId
+        && data.authorName is string
+        && data.authorName.size() > 0 && data.authorName.size() <= 120
+        && data.authorName == muralAuthorName()
+        && data.text is string
+        && data.text.size() > 0 && data.text.size() <= 500
+        && data.text.matches("[\\s\\S]*\\S[\\s\\S]*")
+        && commentHasNoExternalLinks(data.text)
+        && data.created_at == request.time;
+    }
+
+    function validCommentRateLimit(data, userId) {
+      let commentPath = /databases/$(database)/documents/picks/$(data.last_pick_id)/comments/$(data.last_comment_id);
+      return data.keys().hasOnly(["last_at", "last_pick_id", "last_comment_id"])
+        && data.keys().hasAll(["last_at", "last_pick_id", "last_comment_id"])
+        && data.last_at == request.time
+        && data.last_pick_id is string && data.last_pick_id.size() > 0 && data.last_pick_id.size() <= 128
+        && data.last_comment_id is string && data.last_comment_id.size() > 0 && data.last_comment_id.size() <= 128
+        && existsAfter(commentPath)
+        && getAfter(commentPath).data.authorUid == userId
+        && getAfter(commentPath).data.created_at == request.time;
+    }
+
+    function validMuralMute(pickId, mutedUid, data) {
+      let sourcePath = /databases/$(database)/documents/picks/$(pickId)/comments/$(data.source_comment_id);
+      return data.keys().hasOnly(["muted_uid", "source_comment_id", "created_by", "created_at"])
+        && data.keys().hasAll(["muted_uid", "source_comment_id", "created_by", "created_at"])
+        && data.muted_uid == mutedUid && mutedUid != request.auth.uid
+        && data.source_comment_id is string && data.source_comment_id.size() > 0 && data.source_comment_id.size() <= 128
+        && data.created_by == request.auth.uid
+        && data.created_at == request.time
+        && exists(sourcePath)
+        && get(sourcePath).data.authorUid == mutedUid;
+    }
+
+    function validCommunityModerationSettings(data) {
+      return data.keys().hasOnly(["blockedTerms", "updated_at", "updated_by"])
+        && data.keys().hasAll(["blockedTerms", "updated_at", "updated_by"])
+        && data.blockedTerms is string
+        && data.blockedTerms.size() <= 2000
+        && data.updated_at == request.time
+        && data.updated_by == request.auth.uid;
     }
 
     function followerCount(data) {
@@ -426,7 +502,61 @@ service cloud.firestore {
         && request.resource.data.viewerMonthlyPickLimit >= 0
         && request.resource.data.viewerMonthlyPickLimit <= 500
         && request.resource.data.updated_at == request.time
-        && request.resource.data.updated_by == request.auth.uid;
+        && request.resource.data.updated_by == request.auth.uid
+        || hasAdminPermission("community")
+          && settingId == "communityModeration"
+          && validCommunityModerationSettings(request.resource.data);
+      allow delete: if false;
+    }
+
+    // Comments and mutes are scoped to a published pick; rate state is per verified account.
+    match /picks/{pickId}/comments/{commentId} {
+      function validCommentRateLink(userId) {
+        let ratePath = /databases/$(database)/documents/commentRateLimits/$(userId);
+        return existsAfter(ratePath)
+          && getAfter(ratePath).data.last_at == request.time
+          && getAfter(ratePath).data.last_pick_id == pickId
+          && getAfter(ratePath).data.last_comment_id == commentId;
+      }
+      function validCommentAuthorAccount(userId) {
+        let userPath = /databases/$(database)/documents/users/$(userId);
+        return exists(userPath)
+          && get(userPath).data.role == "viewer"
+          && get(userPath).data.get("status", "active") == "active";
+      }
+      allow read: if canReadMural(pickId);
+      allow create: if verifiedUser()
+        && request.auth.token.email_verified == true
+        && acceptedCurrentTerms(request.auth.uid)
+        && validCommentAuthorAccount(request.auth.uid)
+        && profileIsApproved(get(/databases/$(database)/documents/picks/$(pickId)).data.user_id)
+        && !exists(/databases/$(database)/documents/picks/$(pickId)/commentMutes/$(request.auth.uid))
+        && validMuralComment(request.resource.data, request.auth.uid)
+        && validCommentRateLink(request.auth.uid);
+      allow update: if false;
+      allow delete: if verifiedUser()
+        && (resource.data.authorUid == request.auth.uid || canModerateMural(pickId));
+    }
+
+    match /picks/{pickId}/commentMutes/{mutedUid} {
+      allow read: if signedInAs(mutedUid) || canModerateMural(pickId);
+      allow create: if canModerateMural(pickId)
+        && validMuralMute(pickId, mutedUid, request.resource.data);
+      allow update: if false;
+      allow delete: if canModerateMural(pickId);
+    }
+
+    match /commentRateLimits/{userId} {
+      function rateLimitIntervalElapsed() {
+        return resource.data.last_at is timestamp
+          && request.time >= resource.data.last_at + duration.value(10, "s");
+      }
+      allow read: if signedInAs(userId);
+      allow create: if signedInAs(userId)
+        && validCommentRateLimit(request.resource.data, userId);
+      allow update: if signedInAs(userId)
+        && rateLimitIntervalElapsed()
+        && validCommentRateLimit(request.resource.data, userId);
       allow delete: if false;
     }
 
@@ -545,6 +675,30 @@ service cloud.firestore {
           )
         ));
       allow delete: if false;
+    }
+
+    // Public presentation only: visible (bool) and server-owned updated_at (timestamp).
+    // The profile path owns the selection; the pick terms and result remain untouched.
+    match /perfiles/{profileId}/obsSelections/{pickId} {
+      function canManageSelection() {
+        return signedInAs(profileId)
+          && acceptedCurrentTerms(profileId)
+          && profileIsApproved(profileId);
+      }
+      function validSelection() {
+        let data = request.resource.data;
+        let pickPath = /databases/$(database)/documents/picks/$(pickId);
+        return data.keys().hasAll(["visible", "updated_at"])
+          && data.keys().hasOnly(["visible", "updated_at"])
+          && data.visible is bool
+          && data.updated_at is timestamp
+          && data.updated_at == request.time
+          && existsAfter(pickPath)
+          && getAfter(pickPath).data.user_id == profileId;
+      }
+      allow read: if profileIsApproved(profileId);
+      allow create, update: if canManageSelection() && validSelection();
+      allow delete: if canManageSelection();
     }
 
     match /users/{userId} {
@@ -806,7 +960,9 @@ service cloud.firestore {
           : !existsAfter(privatePath)
             || !getAfter(privatePath).data.keys().hasAny(["returnAmount", "returnMinorUnits"]);
       }
-      allow read: if (resource.data.user_id is string && profileIsApproved(resource.data.user_id))
+      // Deleted query results carry no resource; existing picks still require approval.
+      allow read: if resource == null
+        || (resource.data.user_id is string && profileIsApproved(resource.data.user_id))
         || hasAdminPermission("kpis");
       allow create: if verifiedUser()
         && acceptedCurrentTerms(request.auth.uid)

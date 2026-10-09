@@ -102,6 +102,39 @@ for (const name of ["super", "admin"]) {
     await expect(page.locator("#dashboardView #dashboard")).toBeVisible();
     if (name === "super") await expect(page.locator("#dashboardView #governance-tab")).toBeVisible();
     else await expect(page.locator("#dashboardView #governance-tab")).toBeHidden();
+    const layout = await page.locator("#dashboardView #admin-shell").evaluate(element => ({
+      display: getComputedStyle(element).display,
+      contentWidth: Math.round(element.querySelector(".admin-workspace").getBoundingClientRect().width),
+      titleHeight: Math.round(element.querySelector("#admin-page-title").getBoundingClientRect().height)
+    }));
+    expect(layout.display).toBe("block");
+    expect(layout.contentWidth).toBeGreaterThan(400);
+    expect(layout.titleHeight).toBeLessThan(40);
+    for (const width of [1280, 768, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      const responsive = await page.locator("#dashboardView").evaluate(element => ({
+        width: document.documentElement.scrollWidth,
+        viewport: innerWidth,
+        shellDisplay: getComputedStyle(element.querySelector("#admin-shell")).display,
+        workspaceWidth: element.querySelector(".admin-workspace").getBoundingClientRect().width
+      }));
+      expect(responsive.width).toBeLessThanOrEqual(responsive.viewport);
+      expect(responsive.shellDisplay).toBe("block");
+      expect(responsive.workspaceWidth).toBeGreaterThan(280);
+    }
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.locator("#dashboardView #viewers-tab").click();
+    const ownViewer = page.locator(`#dashboardView [data-viewer="${accounts[name].uid}"] button[data-action="moderate-viewer"]`);
+    await expect(ownViewer).toBeDisabled();
+    await expect(ownViewer).toHaveAttribute("aria-describedby", "viewer-self-moderation-note");
+    await expect(page.locator("#dashboardView #viewer-self-moderation-note")).toHaveText("No puedes suspender tu propia cuenta.");
+    if (name === "super") {
+      await page.locator("#dashboardView #governance-tab").click();
+      const ownAdmin = page.locator(`#dashboardView [data-admin-row="${accounts[name].uid}"] button[data-action="edit-admin"]`);
+      await expect(ownAdmin).toBeDisabled();
+      await expect(ownAdmin).toHaveAttribute("aria-describedby", "admin-self-acl-note");
+      await expect(page.locator("#dashboardView #admin-self-acl-note")).toBeVisible();
+    }
     await expect(page.locator("#viewerMain")).toBeHidden();
     await expect(page.locator("#dashboardView iframe")).toHaveCount(0);
     await page.locator("#returnStreaming").click();
@@ -112,6 +145,12 @@ for (const name of ["super", "admin"]) {
     await page.locator("#userMenuButton").click();
     await page.locator("#userAdminLink").click();
     await expect(page.locator("#dashboardView #dashboard")).toBeVisible();
+    if (name === "super") {
+      await page.locator("#dashboardView #finance-tab").click();
+      await expect(page.locator("#dashboardView #settlement-process")).toBeDisabled();
+      await expect(page.locator("#dashboardView #settlement-process")).toHaveAttribute("aria-describedby", "settlement-readiness");
+      await expect(page.locator("#dashboardView #premium-product-action")).toHaveAttribute("aria-describedby", "premium-product-status");
+    } else await expect(page.locator("#dashboardView #finance-tab")).toBeHidden();
     expect((await request.patch(`${root}/platformAdmins/${accounts[name].uid}?updateMask.fieldPaths=enabled`, {
       headers, data: { fields: { enabled: { booleanValue: false } } }
     })).ok()).toBeTruthy();
@@ -204,8 +243,17 @@ test("SPA tipster monta picks, bankroll y OBS con la sesión común", async ({ p
     await signInWithEmailAndPassword(firebaseAuth, account.email, account.password);
   }, accounts.applicant);
   await page.locator("#userMenuButton").click();
+  const cropperRequests = [];
+  page.on("request", request => {
+    if (request.url().includes("cdnjs.cloudflare.com/ajax/libs/cropperjs/")) cropperRequests.push(request.url());
+  });
+  await page.route("https://cdnjs.cloudflare.com/ajax/libs/cropperjs/**", async route => {
+    await new Promise(resolve => setTimeout(resolve, 6000));
+    await route.continue();
+  });
   await page.locator("#userTipsterLink").click();
   await expect(page.locator("#dashboardView #dashboard")).toBeVisible();
+  expect(cropperRequests).toEqual([]);
   await expect(page.locator("#dashboardView #pickForm")).toBeVisible();
   await expect(page.locator("#tipsterActivePicks")).toHaveText("1");
   await expect(page.locator("#tipsterWinRate")).toHaveText("50.00 %");
@@ -213,6 +261,17 @@ test("SPA tipster monta picks, bankroll y OBS con la sesión común", async ({ p
   await expect(page.locator("#myPicks")).not.toContainText("Evento fuera del período");
   await expect(page.locator("#dashboardView #bankrollSummary")).toBeAttached();
   await expect(page.locator("#dashboardView #widgetPreviewFrame")).toBeAttached();
+  await page.locator("#profileTab").click();
+  await page.locator("#avatarFile").setInputFiles({
+    name: "avatar.png",
+    mimeType: "image/png",
+    buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=", "base64")
+  });
+  await expect(page.locator("#profileMessage")).toContainText("Cargando el editor de imágenes…");
+  await expect.poll(() => page.evaluate(() => typeof window.Cropper), { timeout: 15000 }).toBe("function");
+  await expect(page.locator("#cropModal")).toBeVisible();
+  await expect(page.locator("#cropModal .cropper-container")).toBeVisible();
+  await page.locator("#cancelCrop").click();
   await page.locator("#returnStreaming").click();
   await expect(page.locator("#viewerMain")).toBeVisible();
   await expect(page.locator("#tipsterAuth")).toHaveCount(0);
@@ -279,6 +338,7 @@ test("fijas canónicas y legacy liquidan cashout sin publicar bankroll ni reabri
   await page.locator("#note").fill("Análisis público detallado.");
   await page.locator("#eventDate").fill(new Date(Date.now() + 3600000).toLocaleString("sv-SE").replace(" ", "T").slice(0, 16));
   await page.locator("#savePickButton").click();
+  await page.locator("#confirmPickPublication").click();
   await expect(page.locator("#pickMessage")).toHaveText("Pronóstico publicado.");
   const created = await page.evaluate(async () => {
     const { firebaseDb, firebaseAuth } = await import("/firebase-config.js?v=2");
@@ -529,7 +589,7 @@ test("aprobación, métricas públicas y takeRate persistente sin inventar ingre
   paths.add(`usernames/${prefix}`);
   await page.locator("#finance-tab").click();
   const finance = page.locator(`[data-finance="${accounts.applicant.uid}"]`);
-  await expect(finance).toContainText("No disponible");
+  await expect(page.locator("#finance-readiness")).toContainText("ledger contable");
   await finance.locator('input[name="takeRate"]').fill("12.5");
   await finance.locator("button").click();
   await expect(page.locator("#admin-message")).toContainText("Comisión guardada");
@@ -537,7 +597,8 @@ test("aprobación, métricas públicas y takeRate persistente sin inventar ingre
   const saved = await request.get(`${root}/tipsterFinance/${accounts.applicant.uid}`, { headers });
   expect(Number((await saved.json()).fields.takeRate.doubleValue)).toBe(12.5);
   await page.locator("#metrics-tab").click();
-  await expect(page.locator("#gmv")).toHaveText("No disponible");
+  await expect(page.locator("#stake-units")).toContainText("u");
+  await expect(page.getByText(/no son dinero, volumen apostado verificable/)).toBeVisible();
   await expect(page.locator("#total-picks")).not.toHaveText("Cargando…");
   const before = Number(await page.locator("#total-picks").textContent());
   await seed(request, `picks/${prefix}-win`, {
@@ -553,6 +614,250 @@ test("aprobación, métricas públicas y takeRate persistente sin inventar ingre
     await page.setViewportSize({ width, height: 900 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
   }
+});
+
+test("dashboard ejecutivo conserva KPIs, acceso por pestañas y adaptabilidad", async ({ page }) => {
+  await signIn(page, "super");
+  await expect(page.locator("#admin-shell")).toBeVisible();
+  await expect(page.locator("#admin-sidebar")).toBeVisible();
+  await expect(page.locator("#admin-page-title")).toHaveText("Resumen ejecutivo");
+  await expect(page.locator("#admin-live-status")).toContainText("Actualizado");
+  await expect(page.getByText("Operación", { exact: true })).toBeVisible();
+  await expect(page.getByText("Cuentas", { exact: true })).toBeVisible();
+  await expect(page.getByText("Control y finanzas", { exact: true })).toBeVisible();
+  await expect(page.locator("#executive-kpis")).toBeVisible();
+  await expect(page.locator("#executive-volume")).not.toHaveText("Cargando…");
+  await expect(page.locator("#executive-revenue")).toContainText("No disponible");
+  await page.locator("#finance-tab").click();
+  await expect(page.locator("#finance-panel")).toBeVisible();
+  await expect(page.locator("#admin-page-title")).toHaveText("Configuración financiera");
+  await expect(page.locator("#executive-kpis")).toBeHidden();
+  await expect(page.locator("#executive-scope-note")).toBeHidden();
+  await expect(page.locator("#metrics-panel")).toBeHidden();
+  await page.locator("#metrics-tab").click();
+  await expect(page.locator("#metrics-panel")).toBeVisible();
+  await expect(page.locator("#admin-page-title")).toHaveText("Resumen ejecutivo");
+  await expect(page.locator("#executive-kpis")).toBeVisible();
+  await expect(page.locator("#review-queue")).toBeVisible();
+
+  for (const width of [1024, 768, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
+    const shell = await page.locator("#admin-shell").evaluate(element => ({
+      display: getComputedStyle(element).display,
+      columns: getComputedStyle(element).gridTemplateColumns
+    }));
+    expect(shell.display).toBe(width <= 700 ? "block" : "grid");
+    if (width > 700) expect(shell.columns.split(" ").length).toBe(2);
+  }
+});
+
+test("centro financiero configura el reparto y mantiene inactivos los módulos sin backend de monetización", async ({ page, request }) => {
+  const uid = accounts.applicant.uid;
+  await seed(request, `perfiles/${uid}`, {
+    id: uid, username: prefix, nombre_publico: "Creador Monetización", bio: null,
+    tipster_status: "approved", followerCount: 0, color_primario: "#34d399",
+    is_online: false, last_active_at: null, created_at: new Date()
+  });
+  await seed(request, `tipsterFinance/${uid}`, {
+    takeRate: 30, updated_at: new Date(), updated_by: accounts.super.uid
+  });
+
+  await signIn(page, "super");
+  await page.locator("#finance-tab").click();
+  await expect(page.locator("#finance-readiness")).toContainText("Configuración disponible");
+  await expect(page.locator("#finance-configured-rates")).toHaveText(/\d+ de \d+/);
+
+  const row = page.locator(`[data-finance="${uid}"]`);
+  await expect(row).toContainText("Plataforma 30 %");
+  await expect(row).toContainText("Tipster 70 %");
+  await row.locator('input[name="takeRate"]').fill("18");
+  await expect(row.locator("[data-share-preview]")).toContainText("Plataforma 18 % · Tipster 82 %");
+  const unchangedRate = await request.get(`${root}/tipsterFinance/${uid}`, { headers });
+  expect(Number((await unchangedRate.json()).fields.takeRate.doubleValue)).toBe(30);
+  await page.locator("#financeSearch").fill("Creador Monetización");
+  await page.locator("#financeRateFilter").selectOption("configured");
+  await expect(row).toBeVisible();
+  await page.locator("#financeRateFilter").selectOption("missing");
+  await expect(row).toBeHidden();
+  await page.locator("#financeRateFilter").selectOption("configured");
+  await page.reload();
+  await page.locator("#finance-tab").click();
+  await expect(page.locator("#financeSearch")).toHaveValue("Creador Monetización");
+  await expect(page.locator("#financeRateFilter")).toHaveValue("configured");
+  await expect(page.locator(`[data-finance="${uid}"]`)).toBeVisible();
+  await page.locator("#finance-clear-filters").click();
+  await expect(page.locator("#financeSearch")).toHaveValue("");
+  await expect(page.locator("#financeRateFilter")).toHaveValue("all");
+  await expect(page.locator("#financeSort")).toHaveValue("name");
+  for (const width of [1024, 768, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
+    expect(await page.locator(".admin-finance-filters").evaluate(element => element.scrollWidth <= element.clientWidth)).toBeTruthy();
+  }
+
+  await expect(page.locator("#settlement-readiness")).toContainText("Sin proveedor de pagos ni ledger");
+  await expect(page.locator("#settlement-cycle")).toBeDisabled();
+  await expect(page.locator("#settlement-process")).toBeDisabled();
+  await expect(page.locator("#premium-product-status")).toContainText("Aún no disponible");
+  await expect(page.locator("#premium-product-action")).toBeDisabled();
+  await expect(page.locator("#settlement-history")).toContainText("No hay liquidaciones registradas");
+});
+
+test("directorio viewer filtra estado y busca por nombre público de cuenta", async ({ page, request }) => {
+  await seed(request, `users/${accounts.viewer.uid}`, {
+    uid: accounts.viewer.uid, role: "viewer", displayName: "Viewer Activo Fixture",
+    email: accounts.viewer.email, status: "active", created_at: new Date("2026-10-01T12:00:00Z")
+  });
+  await seed(request, `users/${accounts.applicant.uid}`, {
+    uid: accounts.applicant.uid, role: "viewer", displayName: "Viewer Suspendido Fixture",
+    email: accounts.applicant.email, status: "suspended", created_at: new Date("2026-10-05T12:00:00Z")
+  });
+  for (const name of ["super", "admin"]) {
+    await seed(request, `users/${accounts[name].uid}`, {
+      uid: accounts[name].uid, role: "viewer", displayName: name,
+      email: accounts[name].email, status: "active", created_at: new Date("2026-09-01T12:00:00Z")
+    });
+  }
+
+  await signIn(page, "super");
+  await page.locator("#viewers-tab").click();
+  await expect(page.locator("#viewers-list table")).toBeVisible();
+  await expect(page.locator("#viewerStatusFilter")).toBeVisible();
+  await page.locator("#viewerSearch").fill("Viewer Suspendido Fixture");
+  const suspended = page.locator(`[data-viewer="${accounts.applicant.uid}"]`);
+  await expect(suspended).toContainText("Suspendido");
+  await expect(page.locator("#viewers-list tbody tr")).toHaveCount(1);
+
+  await page.locator("#viewerStatusFilter").selectOption("active");
+  await expect(page.locator("#viewers-list tbody [data-viewer]")).toHaveCount(0);
+  await expect(page.locator("#viewers-list tbody")).toContainText("Ninguna cuenta coincide");
+  await page.locator("#viewerSearch").fill("");
+  await page.locator("#viewerStatusFilter").selectOption("all");
+  await page.locator("#viewerSort").selectOption("newest");
+  const rows = page.locator("#viewers-list tbody tr[data-viewer]");
+  const dates = await rows.evaluateAll(items => items.map(item => item.dataset.createdAt));
+  expect(dates).toEqual([...dates].sort((left, right) => right.localeCompare(left)));
+  await page.reload();
+  await page.locator("#viewers-tab").click();
+  await expect(page.locator("#viewerSort")).toHaveValue("newest");
+  const restoredDates = await page.locator("#viewers-list tbody tr[data-viewer]").evaluateAll(items => items.map(item => item.dataset.createdAt));
+  expect(restoredDates).toEqual([...restoredDates].sort((left, right) => right.localeCompare(left)));
+  await page.locator("#viewer-clear-filters").click();
+  await expect(page.locator("#viewerSearch")).toHaveValue("");
+  await expect(page.locator("#viewerStatusFilter")).toHaveValue("all");
+  await expect(page.locator("#viewerSort")).toHaveValue("name");
+  for (const width of [1024, 768, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
+    expect(await page.locator(".admin-viewer-filters").evaluate(element => element.scrollWidth <= element.clientWidth)).toBeTruthy();
+    if (width === 390) {
+      const buttonBox = await page.locator(`[data-viewer="${accounts.applicant.uid}"] button`).boundingBox();
+      expect(buttonBox.x).toBeGreaterThanOrEqual(0);
+      expect(buttonBox.x + buttonBox.width).toBeLessThanOrEqual(width);
+    }
+  }
+});
+
+test("la portada unifica colas pendientes y permite filtrar y abrir la tarea correcta", async ({ page, request }) => {
+  const requestId = `${prefix}-profile-review`;
+  const oldDate = new Date(Date.now() - 10 * 86400000);
+  await seed(request, `perfilSolicitudes/${requestId}`, {
+    uid: accounts.applicant.uid, estado: "pendiente", motivoRechazo: null,
+    created_at: oldDate, revisado_at: null, revisado_por: null
+  });
+  await seed(request, `perfilSolicitudesPendientes/${accounts.applicant.uid}`, {
+    uid: accounts.applicant.uid, solicitud_id: requestId, created_at: oldDate
+  });
+
+  await signIn(page, "super");
+  await expect(page.locator("#metrics-tab")).toHaveAttribute("aria-selected", "true");
+  const queue = page.locator("#review-queue");
+  const applicantReview = queue.locator(`[data-review-item="${accounts.applicant.uid}"]`);
+  const profileReview = queue.locator(`[data-review-item="${requestId}"]`);
+  await expect(applicantReview).toContainText("Creador Core");
+  await expect(profileReview).toContainText("Solicitud de perfil");
+
+  await page.locator("#reviewAgeFilter").selectOption("older7d");
+  await expect(profileReview).toBeVisible();
+  await expect(queue.locator("[data-review-kind=tipster]")).toHaveCount(0);
+  await page.locator("#reviewSearch").fill("Creador Core");
+  await expect(queue.locator("[data-review-kind=profile]")).toHaveCount(0);
+
+  await page.locator("#reviewAgeFilter").selectOption("all");
+  await page.locator("#reviewSearch").fill("Creador Core");
+  await applicantReview.locator("[data-action=go-to-review]").click();
+  await expect(page.locator("#operations-panel")).toBeVisible();
+  await expect(page.locator(`[data-application="${accounts.applicant.uid}"]`)).toBeVisible();
+});
+
+test("gestión de tipsters filtra perfiles aprobados por estado, volumen y rendimiento", async ({ page, request }) => {
+  const uid = accounts.applicant.uid;
+  await seed(request, `perfiles/${uid}`, {
+    id: uid, username: prefix, nombre_publico: "Creador Ejecutivo", bio: null,
+    tipster_status: "approved", followerCount: 0, color_primario: "#34d399",
+    is_online: false, last_active_at: null, created_at: new Date()
+  });
+  for (const [suffix, status, stake] of [["win", "won", 2], ["loss", "lost", 1]]) {
+    await seed(request, `picks/${prefix}-filter-${suffix}`, {
+      user_id: uid, created_at: new Date(), event_date: new Date(Date.now() + 86400000),
+      sport: "futbol", event: `${suffix} fixture`, league: "Liga", market: "Resultado",
+      selection: "Local", odds: 2, stake, bookmaker: "otra", analysis: "",
+      status, confianza: null, destacada: false, show_on_stream: false
+    });
+  }
+
+  await signIn(page, "super");
+  await page.locator("#operations-tab").click();
+  const row = page.locator(`[data-tipster-row="${uid}"]`);
+  await expect(row).toBeVisible();
+  await page.locator("#tipsterStatusFilter").selectOption("approved");
+  await page.locator("#tipsterSearch").fill("Creador Ejecutivo");
+  await page.locator("#tipsterVolumeFilter").selectOption("10");
+  await expect(row).toBeHidden();
+  await page.locator("#tipsterVolumeFilter").selectOption("1");
+  await page.locator("#tipsterPerformanceFilter").selectOption("positive");
+  await expect(row).toBeVisible();
+  await page.locator("#tipsterPerformanceFilter").selectOption("negative");
+  await expect(row).toBeHidden();
+  await page.locator("#tipsterStatusFilter").selectOption("revoked");
+  await page.locator("#tipsterPerformanceFilter").selectOption("all");
+  await expect(row).toBeHidden();
+  await page.locator("#tipsterStatusFilter").selectOption("approved");
+  await page.locator("#tipsterSearch").fill("Creador Ejecutivo");
+  await page.locator("#tipsterVolumeFilter").selectOption("10");
+  await page.reload();
+  await expect(page.locator("#tipsterSearch")).toHaveValue("Creador Ejecutivo");
+  await expect(page.locator("#tipsterVolumeFilter")).toHaveValue("10");
+});
+
+test("el informe global filtra volumen y resultado en unidades por fecha de publicación", async ({ page, request }) => {
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  yesterday.setHours(0, 0, 0, 0);
+  const todayEnd = new Date(today);
+  todayEnd.setHours(23, 59, 59, 999);
+  const outsidePeriod = new Date(today);
+  outsidePeriod.setDate(outsidePeriod.getDate() - 45);
+  for (const [suffix, data] of [
+    ["finance-won", { created_at: yesterday, status: "won", stake: 2, odds: 2 }],
+    ["finance-lost", { created_at: todayEnd, status: "lost", stake: 1, odds: 1.8 }],
+    ["finance-outside", { created_at: outsidePeriod, status: "won", stake: 100, odds: 2 }]
+  ]) {
+    await seed(request, `picks/${prefix}-${suffix}`, {
+      user_id: accounts.applicant.uid, event: suffix, ...data
+    });
+  }
+
+  await signIn(page, "super");
+  await page.locator("#financePeriod").selectOption("custom");
+  await page.locator("#financeFrom").fill(yesterday.toLocaleDateString("sv-SE"));
+  await page.locator("#financeThrough").fill(today.toLocaleDateString("sv-SE"));
+  await expect(page.locator("#stake-units")).toHaveText("3.00 u");
+  await expect(page.locator("#net-result-units")).toHaveText("1.00 u");
+  await expect(page.locator("#finance-chart svg")).toHaveAttribute("role", "img");
+  await expect(page.getByText(/no son dinero, volumen apostado verificable/)).toBeVisible();
 });
 
 test("cambios de perfil conservan la reserva de username y registran rechazo", async ({ page, request }) => {

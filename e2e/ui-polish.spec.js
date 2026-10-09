@@ -60,6 +60,37 @@ for (const surface of [
   });
 }
 
+test("login viewer prioriza el acceso y distribuye acciones sin desperdiciar espacio", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/");
+  const loginTrigger = page.locator("#viewerLogin");
+  await expect(loginTrigger).toBeEnabled();
+  await loginTrigger.hover();
+  expect(await loginTrigger.evaluate(element => getComputedStyle(element).transform)).not.toBe("none");
+  await page.locator("#viewerLogin").click();
+  const dialog = page.locator("#viewerAuth");
+  const actions = dialog.locator(".auth-actions");
+
+  await expect(dialog).toBeVisible();
+  expect(await dialog.evaluate(element => element.getBoundingClientRect().width)).toBeLessThanOrEqual(400);
+  await expect(dialog).toHaveCSS("padding-top", "24px");
+  await expect(actions).toHaveCSS("display", "grid");
+  await expect(dialog.locator("#viewerAuthCancel")).toHaveCSS("position", "absolute");
+  await expect(dialog.locator("#viewerAuthSubmit")).toBeVisible();
+  await expect(dialog.locator("#viewerAuthGoogle")).toBeVisible();
+  await expect(dialog.locator("#viewerAuthReset")).toBeVisible();
+  await expect(dialog.locator("#viewerAuthToggle")).toBeVisible();
+
+  await page.setViewportSize({ width: 390, height: 640 });
+  const bounds = await dialog.evaluate(element => {
+    const rect = element.getBoundingClientRect();
+    return { left: rect.left, right: rect.right, bottom: rect.bottom };
+  });
+  expect(bounds.left).toBeGreaterThanOrEqual(0);
+  expect(bounds.right).toBeLessThanOrEqual(390);
+  expect(bounds.bottom).toBeLessThanOrEqual(640);
+});
+
 test("skeletons y feedback asíncrono se detienen con reduced motion y al finalizar", async ({ page }) => {
   await page.goto("/");
   await page.locator("#viewerLogin").click();

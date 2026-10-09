@@ -2,6 +2,7 @@ import { firebaseDb } from "./firebase-config.js?v=2";
 import { doc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 export const operationalPermissions = ["tipsters", "profiles", "viewers", "kpis"];
+export const adminPermissionOptions = [...operationalPermissions, "community"];
 
 function resolvePermissions(user, admin, profile, account) {
   const suspended = account?.status !== undefined && account.status !== "active";
@@ -17,11 +18,13 @@ function resolvePermissions(user, admin, profile, account) {
     isAdmin,
     isSuperAdmin: isAdmin && adminRole === "super_admin",
     permissions: isAdmin
-      ? adminRole === "super_admin" ? [...operationalPermissions]
+      ? adminRole === "super_admin" ? [...adminPermissionOptions]
         : Object.hasOwn(admin, "permissions")
-          ? Array.isArray(admin.permissions) ? admin.permissions.filter(key => operationalPermissions.includes(key)) : []
+          ? Array.isArray(admin.permissions) ? admin.permissions.filter(key => adminPermissionOptions.includes(key)) : []
           : [...operationalPermissions]
       : [],
+    canModerateCommunity: isAdmin && (adminRole === "super_admin"
+      || (Array.isArray(admin?.permissions) && admin.permissions.includes("community"))),
     suspended,
     canPublish,
     tipsterStatus

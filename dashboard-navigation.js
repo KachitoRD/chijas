@@ -9,7 +9,7 @@ const content = $("dashboardViewContent");
 const definitions = {
   settings: { title: "Configuración de perfil", template: "account-settings.html", styles: ["account-settings.css"], module: "./account-settings.js", mount: "mountAccountSettings" },
   admin: { title: "Panel de Administración", template: "admin-dashboard.html", styles: ["admin-view.css"], module: "./admin-dashboard.js", mount: "mountAdminView" },
-  tipster: { title: "Panel de Tipster", template: "tipster-dashboard.html", styles: ["button-styles.css", "tipster-view.css", "https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css"], module: "./tipster-view.js", mount: "mountTipsterView" }
+  tipster: { title: "Panel de Tipster", template: "tipster-dashboard.html", styles: ["button-styles.css", "tipster-view.css"], module: "./tipster-view.js", mount: "mountTipsterView" }
 };
 let permissions = null, user = null, stopPermissions = null, cleanup = null;
 let stopSettings = null;
@@ -46,6 +46,7 @@ function showFeed() {
   $("dashboardView").hidden = true;
   $("viewerMain").hidden = false;
   layout.classList.remove("showing-dashboard");
+  window.dispatchEvent(new CustomEvent("fijas:dashboard", { detail: { open: false } }));
 }
 function asset(url, script = false) {
   if (assets.has(url)) return assets.get(url);
@@ -87,6 +88,7 @@ async function navigate(view, { updateHistory = true, reload = false } = {}) {
   $("dashboardView").hidden = false;
   $("dashboardView").dataset.view = view;
   layout.classList.add("showing-dashboard");
+  window.dispatchEvent(new CustomEvent("fijas:dashboard", { detail: { open: true, view } }));
   $("nativeDashboardTitle").textContent = definitions[view].title;
   const status = document.createElement("p");
   status.className = "native-dashboard-status";
@@ -101,9 +103,6 @@ async function navigate(view, { updateHistory = true, reload = false } = {}) {
     if (!response.ok) throw new Error(`No se pudo cargar el panel (${response.status}).`);
     const html = await response.text();
     await Promise.all(definition.styles.map(url => asset(url)));
-    if (view === "tipster" && typeof window.Cropper !== "function") {
-      await asset("https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js", true);
-    }
     const module = await import(definition.module);
     if (generation !== current || firebaseAuth.currentUser?.uid !== uid || !allowed(view)) return;
     // Templates are repository-owned HTML; scripts are never evaluated as part of navigation.
@@ -168,7 +167,7 @@ function applySettings(settings = {}) {
     avatar.replaceChildren(img);
   }
   document.body.dataset.viewerTheme = settings.theme || "emerald";
-  $("chatMessages").setAttribute("aria-live", settings.notifications === false ? "off" : "polite");
+  $("muralEntries").setAttribute("aria-live", settings.notifications === false ? "off" : "polite");
 }
 $("userMenu").addEventListener("toggle", event => {
   const open = event.newState === "open";

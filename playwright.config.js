@@ -5,7 +5,7 @@ import { join } from 'node:path';
 
 export default defineConfig({
   testDir: './e2e',
-  testIgnore: /visual-seeded\.spec\.js/,
+  testIgnore: /(?:visual-seeded|obs-control|tipster-workspace)\.spec\.js/,
   outputDir: join(tmpdir(), 'fijas-en-vivo-playwright', createHash('sha256').update(process.cwd()).digest('hex').slice(0, 16)),
   fullyParallel: true,
   forbidOnly: !!process.env.CI,

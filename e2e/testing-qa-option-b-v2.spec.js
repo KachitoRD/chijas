@@ -278,9 +278,9 @@ test.describe("Testing & QA - Opción B (Simplified)", () => {
     const cssVars = await page.evaluate(() => {
       const root = getComputedStyle(document.documentElement);
       const colors = {
-        primary: root.getPropertyValue("--emerald-500").trim(),
-        secondary: root.getPropertyValue("--emerald-600").trim(),
-        text: root.getPropertyValue("--text-primary").trim(),
+        primary: root.getPropertyValue("--color-primary").trim(),
+        secondary: root.getPropertyValue("--color-primary-light").trim(),
+        text: root.getPropertyValue("--color-text-primary").trim(),
       };
       return colors;
     });

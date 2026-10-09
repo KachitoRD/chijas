@@ -4,9 +4,45 @@ import { installAuthModal, installGoogleAccess, installPasswordRecovery } from "
 import { installBusyButtons, showSkeleton } from "./ui-feedback.js";
 import { getAccountPermissions, watchAccountPermissions } from "./permissions.js";
 import { normalizePick, canonicalPick, summarizePerformance } from "./pick-schema.js";
+import { filterTipsterHistory } from "./tipster-workspace.js";
 import { firebaseAuth, firebaseConfigured, firebaseConfigError, firebaseDb } from "./firebase-config.js?v=2";
 import { createUserWithEmailAndPassword, onAuthStateChanged as observeAuth, sendEmailVerification, signInWithEmailAndPassword, signOut, updateProfile } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import { collection, doc, getDoc, getDocs, onSnapshot as observeSnapshot, orderBy, query, runTransaction, serverTimestamp, setDoc, where, limit, startAfter, endAt } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+const cropperStyleUrl = "https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css";
+const cropperScriptUrl = "https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js";
+let cropperAssetsPromise = null;
+
+function loadCropperAsset(tagName, url, attribute) {
+  const existing = document.querySelector(`${tagName}[${attribute}="${url}"]`);
+  if (existing) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const element = document.createElement(tagName);
+    if (tagName === "link") element.rel = "stylesheet";
+    element[attribute] = url;
+    element.onload = resolve;
+    element.onerror = () => {
+      element.remove();
+      reject(new Error(`No se pudo cargar el editor de imágenes (${url}). Comprueba la conexión e inténtalo de nuevo.`));
+    };
+    document.head.append(element);
+  });
+}
+
+function loadCropperAssets() {
+  if (!cropperAssetsPromise) {
+    cropperAssetsPromise = Promise.all([
+      loadCropperAsset("link", cropperStyleUrl, "href"),
+      typeof window.Cropper === "function" ? Promise.resolve() : loadCropperAsset("script", cropperScriptUrl, "src")
+    ]).then(() => {
+      if (typeof window.Cropper !== "function") throw new Error("El editor de imágenes no quedó disponible.");
+    }).catch(error => {
+      cropperAssetsPromise = null;
+      throw error;
+    });
+  }
+  return cropperAssetsPromise;
+}
 
 export function mountTipsterView(root, { embedded = false } = {}) {
   const $ = id => root.querySelector(`#${CSS.escape(id)}`);
@@ -199,8 +235,43 @@ let auth, db, currentUser = null, currentProfile = null, currentPicks = [], stop
 let selectedWidgetFormat = "cascada";
 let stopFollowerCount = null;
 let stopPermissions = null;
+const obsSelections = new Map();
+let stopObsSelections = null;
+let obsSelectionReady = false;
+
+function isInOBS(pick) {
+  return obsSelections.has(pick.id) ? obsSelections.get(pick.id) : pick.show_on_stream === true;
+}
+
+function subscribeToObsSelections() {
+  const uid = currentUser.uid;
+  stopObsSelections = onSnapshot(collection(db, "perfiles", uid, "obsSelections"), snapshot => {
+    if (currentUser?.uid !== uid) return;
+    obsSelections.clear();
+    for (const item of snapshot.docs) obsSelections.set(item.id, item.data().visible === true);
+    obsSelectionReady = true;
+    schedulePicksRender();
+  }, error => {
+    if (currentUser?.uid !== uid) return;
+    obsSelectionReady = false;
+    console.error("No se pudo cargar la selección de OBS:", error);
+    message("pickMessage", "No se pudo cargar la selección de OBS. Recarga el panel para reintentar.");
+    schedulePicksRender();
+  });
+}
+
+function stopObsTools() {
+  if (stopObsSelections) stopObsSelections();
+  stopObsSelections = null;
+  obsSelections.clear();
+  obsSelectionReady = false;
+  streamUpdates.clear();
+}
 
 function stopTipsterTools() {
+  if ($("pickReviewDialog").open) $("pickReviewDialog").close("cancel");
+  $("monetizationView").classList.add("hidden");
+  stopObsTools();
   if (heartbeat) clearInterval(heartbeat);
   heartbeat = null;
   if (stopPicks) stopPicks();
@@ -281,6 +352,11 @@ function authErrorMessage(error) {
 function localDateValue(value) {
   const date = value?.toDate?.() ?? (value ? new Date(value) : new Date());
   return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+}
+function updateEventDateMinimum() {
+  const nextMinute = new Date((Math.floor(Date.now() / 60_000) + 1) * 60_000);
+  $("eventDate").min = localDateValue(nextMinute);
+  return $("eventDate").min;
 }
 function safeExternalUrl(value) {
   try {
@@ -718,7 +794,14 @@ function pickLockReason(pick, eventDate = pickEventDate(pick)) {
     ? "evento iniciado"
     : "";
 }
+const streamUpdates = new Set();
+let renderedPickLocks = "";
+let historyMode = "all";
+function pickLockSignature() {
+  return currentPicks.map(pick => `${pick.id}:${pickLockReason(pick)}`).join("|");
+}
 function renderPicks() {
+  renderedPickLocks = pickLockSignature();
   let performance;
   try {
     performance = summarizePerformance(currentPicks);
@@ -733,7 +816,13 @@ function renderPicks() {
   $("tipsterYield").textContent = metricStatus || (performance.yield === null ? "Sin unidades cerradas" : `${performance.yield.toFixed(2)} %`);
   $("tipsterExcluded").textContent = metricStatus || `${performance.excludedFinancial} resultados sin unidades/retorno público, excluidos de ROI/Yield. Cash out no cuenta como ganado ni perdido.`;
   renderBankrollSummary();
-  const filteredPicks = bankrollSelection();
+  const bankrollPicks = bankrollSelection();
+  const filteredPicks = filterTipsterHistory(bankrollPicks, {
+    mode: historyMode, search: $("pickHistorySearch").value, inOBS: isInOBS
+  });
+  const unresolved = filterTipsterHistory(bankrollPicks, { mode: "needs-result" }).length;
+  $("pickHistoryHint").textContent = historyLoading ? "Cargando historial…" : `${unresolved} pendientes con evento iniciado en este período. «Por resolver» no confirma que el evento haya terminado.`;
+  $("pickHistoryClear").hidden = historyMode === "all" && !$("pickHistorySearch").value;
   const pages = Math.max(1, Math.ceil(filteredPicks.length / 50));
   bankrollPage = Math.min(bankrollPage, pages - 1);
   $("bankrollPrevious").disabled = bankrollPage === 0 || historyLoading;
@@ -741,7 +830,7 @@ function renderPicks() {
   $("bankrollPage").textContent = `Página ${bankrollPage + 1} de ${pages} · 50 por página`;
   $("myPicks").setAttribute("aria-busy", String(historyLoading));
   $("pickCount").textContent = `${filteredPicks.length} en el filtro`;
-  const streamPickCount = filteredPicks.filter(pick => pick.show_on_stream === true).length;
+  const streamPickCount = filteredPicks.filter(isInOBS).length;
   $("streamPickCount").textContent = `${streamPickCount} en OBS en el filtro`;
   const activePickCount = currentPicks.filter(pick => pick.status === "pending").length;
   const activeLimitMessage = activePickCount >= 50
@@ -777,6 +866,7 @@ function renderPicks() {
     const pickLocked = Boolean(lockReason);
     const date = timestamp && Number.isFinite(timestamp.getTime()) ? new Intl.DateTimeFormat(navigator.language || "es", { dateStyle: "medium", timeStyle: "short" }).format(timestamp) : "";
     const row = body.insertRow();
+    row.dataset.pickId = pick.id;
     const details = row.insertCell();
     details.className = "pick-description";
     const headline = document.createElement("div");
@@ -785,42 +875,100 @@ function renderPicks() {
     event.className = "font-semibold";
     event.textContent = `${pick.destacada ? "Destacada · " : ""}${pick.event || ""}`;
     headline.append(event);
-    if (pickLocked) {
-      const lockBadge = document.createElement("span");
-      lockBadge.className = "pick-lock-badge rounded-full border border-amber-300/20 bg-amber-300/[.07] px-2 py-1 text-[11px] font-semibold text-amber-100";
-      lockBadge.textContent = `Bloqueado: ${lockReason}`;
-      lockBadge.setAttribute("role", "status");
-      headline.append(lockBadge);
-    }
+    const lockBadge = document.createElement("button");
+    lockBadge.type = "button";
+    lockBadge.className = "control pick-lock-badge";
+    lockBadge.dataset.locked = String(pickLocked);
+    const lockLabel = pickLocked ? `Cerrado: ${lockReason}` : "Abierto: pronóstico editable";
+    lockBadge.setAttribute("aria-label", `${lockLabel} · ${pick.event || "Pronóstico"}`);
+    const lockIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    for (const [name, value] of Object.entries({
+      viewBox: "0 0 24 24", width: "16", height: "16", fill: "none", stroke: "currentColor",
+      "stroke-width": "1.8", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true"
+    })) lockIcon.setAttribute(name, value);
+    const lockPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    lockPath.setAttribute("d", `M6 11h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1Zm6 4v2${pickLocked ? "M8 11V7a4 4 0 0 1 8 0v4" : "M8 11V7a4 4 0 0 1 7.5-2"}`);
+    lockIcon.append(lockPath);
+    lockBadge.append(lockIcon);
+    const lockTooltip = document.createElement("div");
+    lockTooltip.id = `lock-${pick.id}`;
+    lockTooltip.className = "pick-action-popup pick-lock-tooltip";
+    lockTooltip.textContent = `${lockLabel}. ${pickLocked ? "Los datos del pronóstico no se pueden editar." : "Puedes editar sus datos antes del inicio."} La selección de OBS es independiente.`;
+    configurePickPopup(lockBadge, lockTooltip);
+    lockTooltip.setAttribute("role", "tooltip");
+    lockBadge.setAttribute("aria-describedby", lockTooltip.id);
+    lockBadge.removeAttribute("popovertarget");
+    const showLockTooltip = () => {
+      if (lockTooltip.isConnected && !lockTooltip.matches(":popover-open")) lockTooltip.showPopover();
+    };
+    const hideLockTooltip = () => {
+      if (!lockBadge.matches(":hover, :focus") && !lockTooltip.matches(":hover") && lockTooltip.matches(":popover-open")) lockTooltip.hidePopover();
+    };
+    lockBadge.addEventListener("pointerenter", showLockTooltip);
+    lockBadge.addEventListener("focus", showLockTooltip);
+    lockBadge.addEventListener("click", showLockTooltip);
+    lockBadge.addEventListener("pointerleave", hideLockTooltip);
+    lockBadge.addEventListener("blur", hideLockTooltip);
+    lockTooltip.addEventListener("pointerleave", hideLockTooltip);
+    lockBadge.addEventListener("keydown", event => {
+      if (event.key === "Escape" && lockTooltip.matches(":popover-open")) {
+        event.preventDefault();
+        event.stopPropagation();
+        lockTooltip.hidePopover();
+      }
+    });
+    headline.append(lockBadge, lockTooltip);
     details.append(headline);
     const selection = row.insertCell();
     selection.className = "pick-description text-zinc-300";
-    selection.textContent = pick.selection || pick.selection || "Sin selección";
-    const noteButton = document.createElement("button");
-    noteButton.type = "button";
-    noteButton.className = "control mt-2 block min-h-11 rounded-lg border border-white/10 px-3 text-xs";
-    noteButton.textContent = "Ver nota";
-    noteButton.setAttribute("aria-label", `Nota de ${pick.event || ""}`);
-    const notePopup = document.createElement("div");
-    notePopup.id = `note-${pick.id}`;
-    notePopup.className = "pick-action-popup pick-note-popup";
-    const noteTitle = document.createElement("p");
-    noteTitle.className = "mb-3 font-semibold break-words";
-    noteTitle.textContent = pick.event || "Nota del pick";
-    const noteContent = document.createElement("p");
-    noteContent.className = "mb-3 text-sm leading-6 text-zinc-300";
-    noteContent.style.whiteSpace = "pre-wrap";
-    noteContent.style.overflowWrap = "anywhere";
-    noteContent.textContent = pick.analysis || "Este pick no tiene nota.";
-    const closeNote = document.createElement("button");
-    closeNote.type = "button";
-    closeNote.className = "control rounded-lg border border-white/10 px-3 text-xs";
-    closeNote.textContent = "Cerrar nota";
-    closeNote.setAttribute("popovertarget", notePopup.id);
-    closeNote.setAttribute("popovertargetaction", "hide");
-    notePopup.append(noteTitle, noteContent, closeNote);
-    selection.append(noteButton, notePopup);
-    configurePickPopup(noteButton, notePopup);
+    const selectionLine = document.createElement("div");
+    selectionLine.className = "pick-selection-line";
+    const selectionText = document.createElement("span");
+    selectionText.textContent = pick.selection || "Sin selección";
+    selectionLine.append(selectionText);
+    selection.append(selectionLine);
+    if (pick.analysis?.trim()) {
+      const noteButton = document.createElement("button");
+      noteButton.type = "button";
+      noteButton.className = "control pick-note-trigger";
+      noteButton.title = "Ver análisis publicado";
+      noteButton.setAttribute("aria-label", `Nota de ${pick.event || ""}`);
+      const noteIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      noteIcon.setAttribute("viewBox", "0 0 24 24");
+      noteIcon.setAttribute("width", "16");
+      noteIcon.setAttribute("height", "16");
+      noteIcon.setAttribute("fill", "none");
+      noteIcon.setAttribute("stroke", "currentColor");
+      noteIcon.setAttribute("stroke-width", "1.5");
+      noteIcon.setAttribute("stroke-linecap", "round");
+      noteIcon.setAttribute("stroke-linejoin", "round");
+      noteIcon.setAttribute("aria-hidden", "true");
+      const notePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      notePath.setAttribute("d", "M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-6-6Zm0 0v6h6M8 13h8M8 17h5");
+      noteIcon.append(notePath);
+      noteButton.append(noteIcon);
+      const notePopup = document.createElement("div");
+      notePopup.id = `note-${pick.id}`;
+      notePopup.className = "pick-action-popup pick-note-popup";
+      const noteTitle = document.createElement("p");
+      noteTitle.className = "mb-3 font-semibold break-words";
+      noteTitle.textContent = pick.event || "Nota del pick";
+      const noteContent = document.createElement("p");
+      noteContent.className = "mb-3 text-sm leading-6 text-zinc-300";
+      noteContent.style.whiteSpace = "pre-wrap";
+      noteContent.style.overflowWrap = "anywhere";
+      noteContent.textContent = pick.analysis;
+      const closeNote = document.createElement("button");
+      closeNote.type = "button";
+      closeNote.className = "control rounded-lg border border-white/10 px-3 text-xs";
+      closeNote.textContent = "Cerrar nota";
+      closeNote.setAttribute("popovertarget", notePopup.id);
+      closeNote.setAttribute("popovertargetaction", "hide");
+      notePopup.append(noteTitle, noteContent, closeNote);
+      selectionLine.append(noteButton);
+      selection.append(notePopup);
+      configurePickPopup(noteButton, notePopup);
+    }
     const bookmaker = pick.bookmaker || pick.bookmaker || "";
     const bookmakerOption = [...$("bookmaker").options].find(option => option.value === bookmaker);
     const sportOption = [...$("sport").options].find(option => option.value === pick.sport);
@@ -861,6 +1009,7 @@ function renderPicks() {
       cell.textContent = value;
     }
     const streamCell = row.insertCell();
+    streamCell.className = "pick-stream-cell";
     const actions = row.insertCell();
     actions.className = "pick-actions";
     const trigger = document.createElement("button");
@@ -895,19 +1044,27 @@ function renderPicks() {
     configurePickPopup(trigger, popup);
 
     const streamLabel = document.createElement("label");
-    streamLabel.className = "flex min-h-9 cursor-pointer items-center gap-2 rounded-lg border border-white/10 px-3 text-xs font-semibold text-zinc-300 hover:bg-white/[.05]";
+    streamLabel.className = "pick-stream-control";
     const streamInput = document.createElement("input");
     streamInput.type = "checkbox";
     streamInput.dataset.action = "stream";
     streamInput.dataset.id = pick.id;
     streamInput.setAttribute("aria-label", `Mostrar ${pick.event || ""} en el widget`);
-    streamInput.className = "h-4 w-4 accent-emerald-300";
-    streamInput.checked = pick.show_on_stream === true;
-    streamInput.disabled = pickLocked;
-    const streamText = document.createElement("span");
-    streamText.textContent = "En stream";
-    streamLabel.append(streamInput, streamText);
-    streamCell.append(streamLabel);
+    streamInput.className = "pick-stream-checkbox";
+    streamInput.checked = isInOBS(pick);
+    streamInput.disabled = !obsSelectionReady || streamUpdates.has(pick.id);
+    const streamStatus = document.createElement("span");
+    streamStatus.id = `stream-status-${pick.id}`;
+    streamStatus.className = "pick-stream-status";
+    streamStatus.textContent = streamUpdates.has(pick.id) ? "Guardando…"
+      : !obsSelectionReady ? "OBS no disponible"
+        : isInOBS(pick) ? "En OBS" : "";
+    streamStatus.hidden = !streamStatus.textContent;
+    streamInput.setAttribute("aria-describedby", streamStatus.id);
+    streamInput.title = "Mostrar u ocultar en OBS sin modificar el pronóstico";
+    streamCell.setAttribute("aria-busy", String(streamUpdates.has(pick.id)));
+    streamLabel.append(streamInput);
+    streamCell.append(streamLabel, streamStatus);
 
     const editButton = document.createElement("button");
     editButton.type = "button";
@@ -1020,6 +1177,12 @@ function schedulePicksRender() {
     if (currentUser) renderPicks();
   });
 }
+setInterval(() => {
+  if (currentUser && !historyLoading && pickLockSignature() !== renderedPickLocks) schedulePicksRender();
+}, 1000);
+listenDocument("visibilitychange", () => {
+  if (document.visibilityState === "visible" && currentUser) schedulePicksRender();
+});
 function synchronizeBankrollRecords() {
     const ids = new Set(currentPicks.map(pick => pick.id));
     for (const [id, stop] of bankrollSubscriptions) {
@@ -1053,9 +1216,27 @@ function setCurrentMonth() {
   $("bankrollFrom").value = localDay(new Date(now.getFullYear(), now.getMonth(), 1));
   $("bankrollThrough").value = localDay(now);
 }
+function updateBankrollFilterStatus() {
+  const filters = [];
+  if ($("bankrollPeriod").value === "custom") filters.push("período personalizado");
+  for (const [id, label] of [
+    ["bankrollStatus", "estado"],
+    ["bankrollSport", "deporte"],
+    ["bankrollBookmaker", "casa"]
+  ]) {
+    const select = $(id);
+    if (select.value) filters.push(`${label}: ${select.selectedOptions[0].textContent}`);
+  }
+  const count = filters.length;
+  $("bankrollFilterStatus").textContent = count
+    ? `${count} ${count === 1 ? "filtro activo" : "filtros activos"} · ${filters.join(" · ")}`
+    : "Mes en curso · sin filtros adicionales";
+  $("bankrollClearFilters").hidden = count === 0;
+}
 for (const [sourceId, targetId] of [["sport", "bankrollSport"], ["bookmaker", "bankrollBookmaker"]]) {
   for (const option of $(sourceId).options) $(targetId).append(option.cloneNode(true));
 }
+updateBankrollFilterStatus();
 async function subscribeToPicks() {
   if (stopPicks) stopPicks();
   for (const stop of bankrollSubscriptions.values()) stop();
@@ -1145,6 +1326,7 @@ filterSummary.addEventListener("pointerdown", () => $("bankrollFilterPanel").set
 filterSummary.addEventListener("keydown", () => $("bankrollFilterPanel").removeAttribute("data-pointer-motion"));
 $("bankrollFilters").addEventListener("change", event => {
   bankrollPage = 0;
+  updateBankrollFilterStatus();
   if (["bankrollPeriod", "bankrollFrom", "bankrollThrough"].includes(event.target.id)) {
     const custom = $("bankrollPeriod").value === "custom";
     $("bankrollFrom").disabled = !custom;
@@ -1152,9 +1334,38 @@ $("bankrollFilters").addEventListener("change", event => {
     subscribeToPicks();
   } else renderPicks();
 });
+$("bankrollClearFilters").addEventListener("click", () => {
+  $("bankrollPeriod").value = "month";
+  $("bankrollStatus").value = "";
+  $("bankrollSport").value = "";
+  $("bankrollBookmaker").value = "";
+  $("bankrollFrom").disabled = true;
+  $("bankrollThrough").disabled = true;
+  setCurrentMonth();
+  bankrollPage = 0;
+  updateBankrollFilterStatus();
+  subscribeToPicks();
+});
 $("bankrollReload").addEventListener("click", subscribeToPicks);
 $("bankrollPrevious").addEventListener("click", () => { bankrollPage--; renderPicks(); });
 $("bankrollNext").addEventListener("click", () => { bankrollPage++; renderPicks(); });
+function updateHistoryMode(mode) {
+  historyMode = mode;
+  bankrollPage = 0;
+  $("pickHistoryControls").querySelectorAll("[data-history-mode]").forEach(button => {
+    button.setAttribute("aria-pressed", String(button.dataset.historyMode === mode));
+  });
+  renderPicks();
+}
+$("pickHistoryControls").addEventListener("click", event => {
+  const button = event.target.closest("[data-history-mode]");
+  if (button) updateHistoryMode(button.dataset.historyMode);
+});
+$("pickHistorySearch").addEventListener("input", () => { bankrollPage = 0; renderPicks(); });
+$("pickHistoryClear").addEventListener("click", () => {
+  $("pickHistorySearch").value = "";
+  updateHistoryMode("all");
+});
 function downloadBankroll(blob, filename) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -1198,7 +1409,7 @@ $("bankrollPDF").addEventListener("click", () => exportBankroll(true, "pdf"));
 function resetPickForm() {
   $("pickForm").reset();
   $("confidence").value = "4";
-  $("eventDate").value = localDateValue();
+  $("eventDate").value = updateEventDateMinimum();
   $("featured").checked = false;
   editingPickId = null;
   $("pickFormTitle").textContent = "Publicar pronóstico";
@@ -1232,6 +1443,7 @@ async function beginEdit(pick) {
   $("selection").value = pick.selection || pick.selection || "";
   $("bookmaker").value = pick.bookmaker || pick.bookmaker || "";
   $("confidence").value = pick.confianza ? String(pick.confianza) : "";
+  updateEventDateMinimum();
   $("eventDate").value = localDateValue(pick.event_date);
   $("note").value = pick.analysis || "";
   $("featured").checked = Boolean(pick.destacada);
@@ -1278,9 +1490,10 @@ async function savePick(event) {
   }
   const wasEditing = Boolean(editingPickId);
   const editedPickId = editingPickId;
+  const uid = currentUser.uid;
   const button = $("savePickButton");
   button.disabled = true;
-  button.textContent = editingPickId ? "Guardando..." : "Publicando...";
+  button.textContent = "Revisando...";
   clearMessage("pickMessage");
   const data = {
     user_id: currentUser.uid,
@@ -1315,6 +1528,15 @@ async function savePick(event) {
       || (data.confianza !== null && (!Number.isInteger(data.confianza) || data.confianza < 1 || data.confianza > 5))
       || !Number.isFinite(data.event_date.getTime())) {
       throw new Error("Revisa los campos: deporte, casa, evento, pronóstico, cuota, confianza, nota y fecha deben cumplir los límites indicados.");
+    }
+    if (data.event_date.getTime() <= Date.now()) {
+      throw new Error("La fecha del evento debe ser futura. Elige una hora posterior a la actual.");
+    }
+    const confirmed = await reviewPick(data, bankroll, wasEditing);
+    if (!confirmed || disposed || currentUser?.uid !== uid) return;
+    button.textContent = wasEditing ? "Guardando..." : "Publicando...";
+    if (data.event_date.getTime() <= Date.now()) {
+      throw new Error("La fecha del evento debe ser futura. Elige una hora posterior a la actual.");
     }
     const profileRef = doc(db, "perfiles", currentUser.uid);
     const pickRef = editedPickId ? doc(db, "picks", editedPickId) : doc(collection(db, "picks"));
@@ -1373,17 +1595,59 @@ async function savePick(event) {
     else button.textContent = "Guardar cambios";
   }
 }
-function openCrop(file, target) {
-  if (!file) return;
-  if (typeof Cropper !== "function") {
-    message("profileMessage", "No se pudo cargar el editor de imágenes. Recarga la página e inténtalo de nuevo.");
-    return;
+function reviewPick(data, bankroll, editing) {
+  const dialog = $("pickReviewDialog");
+  const summary = $("pickReviewSummary");
+  summary.replaceChildren();
+  $("pickReviewTitle").textContent = editing ? "Revisar cambios del pronóstico" : "Revisar pronóstico";
+  $("confirmPickPublication").textContent = editing ? "Confirmar cambios" : "Confirmar publicación";
+  const values = [
+    ["Evento", data.event], ["Deporte", $("sport").selectedOptions[0].textContent],
+    ["Competición / mercado", `${data.league} · ${data.market}`], ["Selección", data.selection],
+    ["Cuota / stake público", `${data.odds.toFixed(2)} · ${data.stake} unidades`],
+    ["Inicio del evento", new Intl.DateTimeFormat("es", { dateStyle: "medium", timeStyle: "short" }).format(data.event_date)],
+    ["Casa / confianza", `${$("bookmaker").selectedOptions[0].textContent} · ${data.confianza === null ? "Sin indicar" : `${data.confianza}/5`}`],
+    ["Análisis público", data.analysis || "Sin análisis"], ["Destacado", data.destacada ? "Sí" : "No"],
+    ["Privado · monto arriesgado", bankroll ? `${bankroll.stakeAmount} ${bankroll.currency}` : "No registrado"]
+  ];
+  for (const [label, value] of values) {
+    const group = document.createElement("div");
+    const term = document.createElement("dt");
+    const description = document.createElement("dd");
+    term.textContent = label;
+    description.textContent = value;
+    group.append(term, description);
+    summary.append(group);
   }
+  dialog.returnValue = "";
+  return new Promise(resolve => {
+    const finish = () => {
+      dialog.removeEventListener("close", finish);
+      controller.signal.removeEventListener("abort", cancel);
+      resolve(dialog.returnValue === "confirm");
+    };
+    const cancel = () => { dialog.close("cancel"); finish(); };
+    dialog.addEventListener("close", finish, { once: true });
+    controller.signal.addEventListener("abort", cancel, { once: true });
+    dialog.showModal();
+  });
+}
+async function openCrop(file, target) {
+  if (!file) return;
   const maxBytes = target === "avatar" ? 2 * 1024 * 1024 : 5 * 1024 * 1024;
   if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > maxBytes) {
     message("profileMessage", target === "avatar" ? "Elige una imagen JPG, PNG o WebP de hasta 2 MB." : "Elige una imagen JPG, PNG o WebP de hasta 5 MB.");
     return;
   }
+  message("profileMessage", "Cargando el editor de imágenes…", true);
+  try {
+    await loadCropperAssets();
+  } catch (error) {
+    console.error("No se pudo cargar el editor de imágenes:", error);
+    message("profileMessage", error.message || "No se pudo cargar el editor de imágenes.");
+    return;
+  }
+  if (disposed) return;
   clearMessage("profileMessage");
   clearMessage("cropMessage");
   cropTarget = target;
@@ -1446,8 +1710,8 @@ async function compressCropToDataUrl(canvas, maxLength) {
   throw new Error("La imagen sigue siendo demasiado grande después de comprimirla. Elige otra imagen.");
 }
 function installTabs() {
-  const tabs = { picks: "picksTab", widget: "widgetTab", profile: "profileTab" };
-  const views = { picks: "picksView", widget: "widgetView", profile: "profileView" };
+  const tabs = { picks: "picksTab", widget: "widgetTab", profile: "profileTab", monetization: "monetizationTab" };
+  const views = { picks: "picksView", widget: "widgetView", profile: "profileView", monetization: "monetizationView" };
   const choose = selected => {
     for (const [view, elementId] of Object.entries(views)) {
       $(elementId).classList.toggle("hidden", view !== selected);
@@ -1459,6 +1723,11 @@ function installTabs() {
   for (const [view, tabId] of Object.entries(tabs)) {
     $(tabId).addEventListener("click", () => choose(view));
   }
+  $("manageWidgetPicks").addEventListener("click", () => {
+    choose("picks");
+    $("myPicksTitle").focus({ preventScroll: true });
+    $("myPicksTitle").scrollIntoView({ block: "center" });
+  });
 }
 if (!embedded) {
   installGoogleAccess({ button: $("tipsterGoogle"), showMessage: (text, success) => message("loginMessage", text, success) });
@@ -1603,14 +1872,6 @@ listenWindow("message", event => {
   $("widgetPreviewEmpty").textContent = "No hay pronósticos seleccionados. Márcalos en tu lista para verlos aquí.";
   $("widgetPreviewEmpty").classList.toggle("hidden", !showEmpty);
 });
-async function updatePublicPick(id, changes) {
-  const ref = doc(db, "picks", id);
-  await runTransaction(db, async transaction => {
-    const snapshot = await transaction.get(ref);
-    if (!snapshot.exists()) throw new Error("No se encontró el pronóstico.");
-    transaction.set(ref, canonicalPick({ ...normalizePick(snapshot.data()), ...changes }));
-  });
-}
 async function settlePick(id, status, cashoutOdds, privateReturn) {
   const pickRef = doc(db, "picks", id);
   const bankrollRef = doc(pickRef, "private", "bankroll");
@@ -1643,26 +1904,38 @@ $("myPicks").addEventListener("change", async event => {
   if (!checkbox || !currentUser) return;
   const pick = currentPicks.find(item => item.id === checkbox.dataset.id);
   if (!pick) return;
-  const lockReason = pickLockReason(pick);
-  if (lockReason) {
+  if (!obsSelectionReady || streamUpdates.has(pick.id)) {
     checkbox.checked = !checkbox.checked;
-    message("pickMessage", `Este pronóstico está bloqueado: ${lockReason}.`);
+    message("pickMessage", "Espera a que la selección de OBS esté disponible antes de cambiarla.");
+    schedulePicksRender();
     return;
   }
   const showOnStream = checkbox.checked;
+  const uid = currentUser.uid;
+  streamUpdates.add(pick.id);
   checkbox.disabled = true;
+  checkbox.closest("td").setAttribute("aria-busy", "true");
+  const feedback = checkbox.closest("td").querySelector(".pick-stream-status");
+  feedback.hidden = false;
+  feedback.textContent = "Guardando…";
   try {
-    await updatePublicPick(pick.id, { show_on_stream: showOnStream });
+    await setDoc(doc(db, "perfiles", uid, "obsSelections", pick.id), {
+      visible: showOnStream, updated_at: serverTimestamp()
+    });
+    if (currentUser?.uid !== uid || disposed) return;
     message("pickMessage", showOnStream ? "Pronóstico añadido al widget." : "Pronóstico quitado del widget.", true);
   } catch (error) {
     console.error("No se pudo actualizar la selección del widget:", error);
+    if (currentUser?.uid !== uid || disposed) return;
     checkbox.checked = !showOnStream;
     message("pickMessage", error.code === "permission-denied"
-      ? "Firebase rechazó el cambio. Publica las reglas actualizadas con el comando de FIREBASE_SETUP.md y vuelve a intentarlo."
+      ? "No se pudo cambiar la selección de OBS. Revisa la aprobación de tu cuenta y los permisos del widget."
       : error.code === "failed-precondition"
         ? "Firestore necesita un índice actualizado. Publica las reglas e índices indicados en FIREBASE_SETUP.md y vuelve a intentarlo."
         : "No se pudo actualizar el widget. Comprueba la conexión e inténtalo de nuevo.");
-    checkbox.disabled = false;
+  } finally {
+    streamUpdates.delete(pick.id);
+    schedulePicksRender();
   }
 });
 $("myPicks").addEventListener("click", async event => {
@@ -1689,6 +1962,7 @@ $("myPicks").addEventListener("click", async event => {
       await runTransaction(db, async transaction => {
         const bankrollSnapshot = await transaction.get(bankrollRef);
         if (bankrollSnapshot.exists()) transaction.delete(bankrollRef);
+        transaction.delete(doc(db, "perfiles", currentUser.uid, "obsSelections", pick.id));
         transaction.delete(pickRef);
       });
       function closePickActionPopups() {
@@ -1755,12 +2029,12 @@ $("tipsterApplicationForm").addEventListener("submit", requestTipsterAccess);
 $("avatarFile").addEventListener("change", event => {
   const file = event.target.files?.[0];
   event.target.value = "";
-  openCrop(file, "avatar");
+  void openCrop(file, "avatar");
 });
 $("bannerFile").addEventListener("change", event => {
   const file = event.target.files?.[0];
   event.target.value = "";
-  openCrop(file, "banner");
+  void openCrop(file, "banner");
 });
 $("avatarUrl").addEventListener("change", updateImagePreviews);
 $("bannerUrl").addEventListener("change", updateImagePreviews);
@@ -1810,7 +2084,12 @@ $("applyCrop").addEventListener("click", async () => {
     button.textContent = "Usar imagen";
   }
 });
-$("eventDate").value = localDateValue();
+$("eventDate").value = updateEventDateMinimum();
+$("eventDate").addEventListener("invalid", event => {
+  if (event.target.validity.rangeUnderflow) {
+    message("pickMessage", "La fecha del evento debe ser futura. Elige una hora posterior a la actual.");
+  }
+});
 installTabs();
 
 if (!firebaseConfigured) {
@@ -1829,6 +2108,14 @@ if (!firebaseConfigured) {
     if (stopPermissions) stopPermissions();
     stopPermissions = null;
     currentUser = user;
+    if ($("pickReviewDialog").open) $("pickReviewDialog").close("cancel");
+    $("monetizationView").classList.add("hidden");
+    $("pickHistorySearch").value = "";
+    historyMode = "all";
+    $("pickHistoryControls").querySelectorAll("[data-history-mode]").forEach(button => {
+      button.setAttribute("aria-pressed", String(button.dataset.historyMode === "all"));
+    });
+    stopObsTools();
     $("dashboard").classList.add("hidden");
     if (heartbeat) clearInterval(heartbeat);
     if (stopPicks) stopPicks();
@@ -1921,10 +2208,11 @@ if (!firebaseConfigured) {
       if (currentUser?.uid !== user.uid) return;
       $("profileView").classList.add("hidden");
       $("picksView").classList.remove("hidden");
-      $("eventDate").value = localDateValue();
+      $("eventDate").value = updateEventDateMinimum();
       await initializePresence();
       if (currentUser?.uid !== user.uid) return;
       listenDocument("visibilitychange", handleVisibilityChange);
+      subscribeToObsSelections();
       subscribeToPicks();
       stopPermissions = watchAccountPermissions(user, permissions => {
         if (currentUser?.uid !== user.uid) return;

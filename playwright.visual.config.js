@@ -12,7 +12,7 @@ export default defineConfig({
     { name: "seed-emulators", testMatch: /visual-seed\.setup\.js/ },
     {
       name: "visual-seeded",
-      testMatch: /visual-seeded\.spec\.js/,
+      testMatch: /(?:visual-seeded|obs-control|tipster-workspace)\.spec\.js/,
       dependencies: ["seed-emulators"],
       use: { browserName: "chromium", headless: false, launchOptions: { slowMo: 1000 } }
     }

@@ -84,7 +84,7 @@
   <script type="module">
     import { firebaseApp, firebaseConfigured, firebaseDb } from "./firebase-config.js";
     import { normalizePick } from "./pick-schema.js";
-    import { collection, doc, getDoc, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+    import { collection, doc, documentId, getDoc, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
     const widget = document.getElementById("widget");
     const widgetName = document.getElementById("widgetName");
@@ -93,12 +93,95 @@
     const pickElements = new Map();
     const widgetFormats = new Set(["cascada", "compacto", "marcador"]);
     let stopPicks = null;
+    let stopSelections = null;
+    let stopProfile = null;
+    const selectedGroupStops = new Map();
+    const selectedGroups = new Map();
+    const legacyPicks = new Map();
+    const selections = new Map();
+    let legacyReady = false;
+    let selectionsReady = false;
+    let widgetFailed = false;
+
+    function stopWidget() {
+      if (stopPicks) stopPicks();
+      if (stopSelections) stopSelections();
+      if (stopProfile) stopProfile();
+      for (const stop of selectedGroupStops.values()) stop();
+      selectedGroupStops.clear();
+    }
 
     function showError(text) {
+      widgetFailed = true;
+      stopWidget();
       widget.hidden = true;
       widgetMessage.textContent = text;
       widgetMessage.hidden = false;
       publishPreviewSize();
+    }
+
+    function renderSelection() {
+      if (widgetFailed || !legacyReady || !selectionsReady) return;
+      const picks = new Map([...legacyPicks].filter(([id]) => selections.get(id) !== false));
+      for (const group of selectedGroups.values()) {
+        for (const [id, pick] of group) {
+          if (selections.get(id) === true) picks.set(id, pick);
+        }
+      }
+      const sorted = [...picks.values()].sort((a, b) => (b.created_at?.toMillis?.() || 0) - (a.created_at?.toMillis?.() || 0));
+      widgetMessage.hidden = true;
+      renderPicks(sorted);
+    }
+
+    function watchSelections(db, uid) {
+      stopSelections = onSnapshot(collection(db, "perfiles", uid, "obsSelections"), snapshot => {
+        if (widgetFailed) return;
+        selections.clear();
+        for (const item of snapshot.docs) selections.set(item.id, item.data().visible === true);
+        const ids = [...selections].filter(([, visible]) => visible).map(([id]) => id).sort();
+        const groups = new Map();
+        for (let offset = 0; offset < ids.length; offset += 30) {
+          const group = ids.slice(offset, offset + 30);
+          groups.set(JSON.stringify(group), group);
+        }
+        for (const [key, stop] of selectedGroupStops) {
+          if (!groups.has(key)) {
+            stop();
+            selectedGroupStops.delete(key);
+            selectedGroups.delete(key);
+          }
+        }
+        for (const [key, group] of groups) {
+          if (selectedGroupStops.has(key)) continue;
+          const selectedQuery = query(collection(db, "picks"), where("user_id", "==", uid), where(documentId(), "in", group));
+          const stop = onSnapshot(selectedQuery, pickSnapshot => {
+            if (widgetFailed || !selectedGroupStops.has(key)) return;
+            try {
+              const picks = new Map();
+              for (const item of pickSnapshot.docs) {
+                const pick = normalizePick({ ...item.data(), id: item.id });
+                if (pick.user_id !== uid) throw new Error("El pronóstico no pertenece a este tipster.");
+                picks.set(item.id, pick);
+              }
+              selectedGroups.set(key, picks);
+              renderSelection();
+            } catch (error) {
+              console.error("Pronóstico inválido en la selección OBS:", error);
+              showError("No se pudo interpretar el pronóstico seleccionado.");
+            }
+          }, error => {
+            if (widgetFailed || !selectedGroupStops.has(key)) return;
+            console.error("No se pudieron leer los pronósticos seleccionados en OBS:", error);
+            showError("No se pudieron cargar los pronósticos seleccionados. Comprueba la conexión y la disponibilidad del perfil.");
+          });
+          selectedGroupStops.set(key, stop);
+        }
+        selectionsReady = true;
+        renderSelection();
+      }, error => {
+        console.error("No se pudo cargar la selección de OBS:", error);
+        showError("No se pudo cargar la selección de OBS. Comprueba la conexión y los permisos del widget.");
+      });
     }
 
     let lastPreviewSize = "";
@@ -213,23 +296,37 @@
         }
 
         widgetName.textContent = profileSnapshot.data().nombre_publico || username;
+        stopProfile = onSnapshot(doc(db, "perfiles", usernameSnapshot.data().uid), snapshot => {
+          if (widgetFailed) return;
+          if (!snapshot.exists() || snapshot.data().tipster_status !== "approved" || snapshot.data().username !== username) {
+            showError("Este perfil no está disponible para mostrar pronósticos.");
+            return;
+          }
+          widgetName.textContent = snapshot.data().nombre_publico || username;
+        }, error => {
+          console.error("No se pudo comprobar la disponibilidad del perfil OBS:", error);
+          showError("Este perfil no está disponible. Comprueba el enlace y la conexión.");
+        });
+        watchSelections(db, usernameSnapshot.data().uid);
         const picksQuery = query(
           collection(db, "picks"),
           where("user_id", "==", usernameSnapshot.data().uid),
           where("show_on_stream", "==", true)
         );
         stopPicks = onSnapshot(picksQuery, snapshot => {
-          widgetMessage.hidden = true;
-          let picks;
+          if (widgetFailed) return;
           try {
-            picks = snapshot.docs.map(item => normalizePick({ id: item.id, ...item.data() }));
+            legacyPicks.clear();
+            for (const item of snapshot.docs) {
+              legacyPicks.set(item.id, normalizePick({ ...item.data(), id: item.id }));
+            }
           } catch (error) {
             console.error("Pronóstico inválido en el widget:", error);
             showError("No se pudo interpretar el pronóstico seleccionado.");
             return;
           }
-          picks.sort((a, b) => (b.created_at?.toMillis?.() || 0) - (a.created_at?.toMillis?.() || 0));
-          renderPicks(picks);
+          legacyReady = true;
+          renderSelection();
         }, error => {
           console.error("No se pudieron cargar los pronósticos del widget:", error);
           showError(error.code === "failed-precondition"
@@ -244,9 +341,7 @@
       }
     }
 
-    window.addEventListener("pagehide", () => {
-      if (stopPicks) stopPicks();
-    });
+    window.addEventListener("pagehide", stopWidget);
     if ("ResizeObserver" in window) {
       new ResizeObserver(publishPreviewSize).observe(document.body);
     }

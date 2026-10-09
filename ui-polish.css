@@ -177,6 +177,54 @@
 .ui-app #viewerNav[aria-busy="true"] #viewerLogin { visibility: hidden; }
 .ui-app .auth-actions { gap: 10px; }
 .ui-app .auth-button { padding-block: 12px; }
+.ui-app.frontpage #viewerAuth {
+  width: min(400px, calc(100vw - 32px));
+  padding: 24px;
+  border-radius: 18px;
+}
+.ui-app.frontpage #viewerAuth form { position: relative; }
+.ui-app.frontpage #viewerAuth h2 {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  margin: 0 0 16px;
+  padding-right: 96px;
+  font-size: 21px;
+  line-height: 1.25;
+}
+.ui-app.frontpage #viewerAuth label:not(:has(input[type="checkbox"])) { margin-top: 12px; }
+.ui-app.frontpage #viewerAuth label:has(input[type="checkbox"]) { margin-top: 12px; }
+.ui-app.frontpage #viewerAuth .auth-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 16px;
+}
+.ui-app.frontpage #viewerAuth .auth-actions :is(#viewerAuthSubmit, #viewerAuthGoogle) { grid-column: 1 / -1; }
+.ui-app.frontpage #viewerAuth .auth-actions :is(#viewerAuthReset, #viewerAuthToggle) {
+  min-width: 0;
+  padding-inline: 8px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+.ui-app.frontpage #viewerAuthCancel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding-inline: 10px;
+  border-color: transparent;
+  background: transparent;
+  color: #b3d0c1;
+}
+.ui-app.frontpage #viewerAuth .auth-button {
+  transition: transform 160ms cubic-bezier(.16, 1, .3, 1), background-color 160ms ease,
+    border-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+.ui-app.frontpage #viewerAuth .auth-button-primary {
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .28);
+}
+.ui-app.frontpage #viewerAuth .auth-button:not(:disabled):hover { transform: translateY(-1px); }
+.ui-app.frontpage #viewerAuth .auth-button:not(:disabled):active { transform: translateY(1px); }
 .ui-app :is(#viewerAuth, #viewerConsent) { max-height: calc(100dvh - 32px); overflow-y: auto; }
 .ui-app .ui-skeleton-group { display: grid; gap: 12px; width: 100%; }
 .ui-app .ui-skeleton-cards { grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 16px; grid-column: 1 / -1; }
@@ -205,10 +253,12 @@
   .ui-app #onlineGrid { gap: 12px; }
   .ui-app #onlineGrid .profile-card { padding: 12px; }
   .ui-app .auth-actions { gap: 8px; }
+  .ui-app.frontpage #viewerAuth { padding: 20px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .ui-app :is(.skeleton, .ui-skeleton-line), .ui-app button[aria-busy="true"]::after { animation: none !important; }
   .ui-app :is(button, a, .profile-card) { transform: none !important; }
+  .ui-app.frontpage :is(.community-control, .shell-icon-button, .sport-category, .user-menu-button, .user-menu-item, .sidebar-channel, .viewer-pick-card, #muralSend, #openMural, #viewerAuth .auth-button) { transition: none !important; }
 }
 @supports not (backdrop-filter: blur(1px)) {
   .ui-app { --ui-glass: #0e1b17; --ui-glass-secondary: #102219; }

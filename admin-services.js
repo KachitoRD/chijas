@@ -1,5 +1,6 @@
 import { firebaseAuth, firebaseDb as db } from "./firebase-config.js?v=2";
 import { doc, runTransaction, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { normalizeBlockedTerms } from "./mural-moderation.js";
 
 export function saveLimits(tipsterMonthlyPickLimit, viewerMonthlyPickLimit) {
   if (!Number.isInteger(tipsterMonthlyPickLimit) || tipsterMonthlyPickLimit < 1 || tipsterMonthlyPickLimit > 500
@@ -8,6 +9,15 @@ export function saveLimits(tipsterMonthlyPickLimit, viewerMonthlyPickLimit) {
   }
   return setDoc(doc(db, "platformSettings", "limits"), {
     tipsterMonthlyPickLimit, viewerMonthlyPickLimit, updated_at: serverTimestamp(), updated_by: firebaseAuth.currentUser.uid
+  });
+}
+
+export function saveCommunityBlacklist(value) {
+  const user = firebaseAuth.currentUser;
+  if (!user) throw new Error("Inicia sesión para guardar la lista de moderación.");
+  const blockedTerms = normalizeBlockedTerms(value);
+  return setDoc(doc(db, "platformSettings", "communityModeration"), {
+    blockedTerms, updated_at: serverTimestamp(), updated_by: user.uid
   });
 }
 

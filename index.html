@@ -271,6 +271,10 @@
       <button id="toggleChannels" class="shell-icon-button" type="button" aria-label="Reducir barra de tipsters" aria-controls="channelSidebar" aria-expanded="true">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"></rect><path d="M9 4v16m5-12 3 4-3 4"></path></svg>
       </button>
+      <button id="toggleMural" class="shell-icon-button mural-toggle" type="button" aria-label="Ocultar mural" aria-controls="communityMural" aria-expanded="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="M4 5.5h16v13H4z"></path><path d="M8 9h8M8 12h5m-5 3h8"></path></svg>
+        <span>Mural</span>
+      </button>
       <div id="viewerNav" class="viewer-nav" aria-busy="true">
         <button id="viewerLogin" type="button" class="community-control" disabled>Iniciar sesión</button>
         <button id="userMenuButton" type="button" class="user-menu-button" popovertarget="userMenu" aria-expanded="false" hidden>
@@ -428,32 +432,40 @@
       </header>
       <div id="dashboardViewContent"></div>
     </section>
-    <aside id="communityChat" class="community-chat" aria-labelledby="chatTitle">
-      <header class="chat-heading">
-        <div><h2 id="chatTitle">Chat de la comunidad</h2><p>Demo local · mensajes simulados</p></div>
-        <button id="closeChat" class="shell-icon-button" type="button" aria-label="Cerrar chat">
+    <aside id="communityMural" class="community-mural" aria-labelledby="muralTitle">
+      <header class="mural-heading">
+        <div>
+          <h2 id="muralTitle">Mural del pronóstico</h2>
+          <p id="muralContext">Selecciona un pronóstico para abrir su hilo.</p>
+        </div>
+        <button id="closeMural" class="shell-icon-button" type="button" aria-label="Cerrar mural">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"></path></svg>
         </button>
       </header>
-      <div class="chat-toolbar"><span>No conectado a Firebase</span><button id="pauseChat" type="button" aria-pressed="false">Pausar demo</button></div>
-      <div id="chatMessages" class="chat-messages" role="log" aria-live="off" aria-label="Mensajes de demostración" tabindex="0"></div>
-      <form id="chatForm" class="chat-composer">
-        <label for="chatInput">Probar un mensaje local</label>
-        <div class="chat-input-row">
-          <input id="chatInput" type="text" maxlength="240" autocomplete="off" placeholder="Escribe un mensaje…" required aria-describedby="chatNotice">
-          <button id="chatSend" type="submit" aria-label="Enviar mensaje local">
+      <div id="muralStatus" class="mural-status" role="status">Comentarios públicos del pronóstico seleccionado.</div>
+      <div id="muralEntries" class="mural-entries" role="log" aria-live="off" aria-label="Comentarios del pronóstico" tabindex="0">
+        <p id="muralEmptyState" class="mural-empty-state">Selecciona un pronóstico para ver y dejar comentarios sobre esa fija.</p>
+      </div>
+      <form id="muralForm" class="mural-composer" hidden>
+        <label for="muralInput">Comenta este pronóstico</label>
+        <textarea id="muralInput" maxlength="500" rows="3" autocomplete="off" placeholder="Comparte una opinión respetuosa…" required aria-describedby="muralNotice"></textarea>
+        <div class="mural-compose-actions">
+          <span>Máximo 500 caracteres</span>
+          <button id="muralSend" type="submit">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="m4 4 17 8-17 8 3-8-3-8Zm3 8h14"></path></svg>
+            Publicar
           </button>
         </div>
-        <p id="chatNotice" role="status">Solo visible en tu navegador. No se guarda ni se publica.</p>
+        <p id="muralNotice" role="status">No publiques datos personales ni enlaces externos.</p>
+        <button id="muralSignIn" class="mural-sign-in" type="button" hidden>Iniciar sesión para comentar</button>
       </form>
     </aside>
   </div>
-  <button id="openChat" class="chat-launcher" type="button" aria-haspopup="dialog" aria-controls="chatDrawer" aria-expanded="false">
+  <button id="openMural" class="mural-launcher" type="button" aria-haspopup="dialog" aria-controls="muralDrawer" aria-expanded="false" hidden>
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9H13a8.5 8.5 0 0 1 8 8v.5Z"></path></svg>
-    Chat <span>Demo</span>
+    Mural
   </button>
-  <dialog id="chatDrawer" aria-labelledby="chatTitle"></dialog>
+  <dialog id="muralDrawer" aria-labelledby="muralTitle"></dialog>
   <script type="module" src="viewer-shell.js"></script>
   <script type="module" src="dashboard-navigation.js"></script>
 
@@ -567,6 +579,14 @@
       button.dataset.tipsterName = profile.nombre_publico || profile.username || "tipster";
       return button;
     }
+    function muralButton(pick) {
+      const button = createElement("button", "community-control shrink-0 mural-open-thread", "Comentar");
+      button.type = "button";
+      button.addEventListener("click", () => window.dispatchEvent(new CustomEvent("fijas:mural-open", {
+        detail: { pickId: pick.id }
+      })));
+      return button;
+    }
     function updateFollowButtons() {
       document.querySelectorAll("button[data-follow]").forEach(button => {
         const following = isFollowing(button.dataset.follow);
@@ -604,13 +624,15 @@
         const author = createElement("a", "truncate text-sm font-semibold text-emerald-200", profile.nombre_publico || profile.username);
         author.href = profileHref(profile);
         heading.append(author, badgeNode(pick.status));
+        const actions = createElement("div", "mt-4 flex flex-wrap gap-2");
+        actions.append(followButton(profile), muralButton(pick));
         article.append(
           heading,
           createElement("h3", "mt-3 font-semibold leading-5", pick.event),
           createElement("p", "mt-2 text-sm leading-6 text-zinc-300", pick.selection || pick.selection),
           createElement("p", "mt-4 text-sm text-zinc-300", `Cuota ${Number(pick.odds).toFixed(2)} · ${pick.bookmaker || pick.bookmaker}`),
           createElement("p", "mt-2 text-xs text-zinc-400", pickDate(pick.event_date)),
-          followButton(profile)
+          actions
         );
         grid.append(article);
       }
@@ -664,6 +686,14 @@
       $("viewerConsent").showModal();
       return new Promise(resolve => { consentResolver = resolve; });
     }
+    window.addEventListener("fijas:request-viewer-consent", event => {
+      const resolve = event.detail?.resolve;
+      if (typeof resolve !== "function") return;
+      requestViewerConsent().then(resolve, error => {
+        console.error("No se pudo abrir el consentimiento comunitario:", error);
+        resolve(false);
+      });
+    });
     async function handleFollow(tipsterId) {
       if (!authReady || optimisticFollows.get(tipsterId)?.busy) return;
       $("communityMessage").classList.add("hidden");
@@ -964,11 +994,13 @@
         const top = createElement("div", "pick-card-heading");
         top.append(author, badgeNode(pick.status));
         const sport = SPORTS.find(item => item.id === pick.sport)?.label || "Otros deportes";
+        const actions = createElement("div", "pick-card-actions");
+        actions.append(followButton(profile), muralButton(pick));
         article.append(top, createElement("p", "pick-sport", sport),
           createElement("h3", "pick-event", pick.event || "Pronóstico"),
           createElement("p", "pick-selection", pick.selection || pick.selection || ""),
           createElement("p", "pick-metadata", `Cuota ${Number(pick.odds).toFixed(2)} · ${pick.bookmaker || pick.bookmaker || "Casa no indicada"}`),
-          createElement("p", "pick-date", pickDate(pick.event_date)), followButton(profile));
+          createElement("p", "pick-date", pickDate(pick.event_date)), actions);
         grid.append(article);
       }
       updateFollowButtons();
@@ -1083,6 +1115,7 @@
         const link = createElement("a", "directory-profile control flex min-h-[76px] items-center gap-3 py-3.5 sm:gap-4 sm:px-3");
         link.href = profileHref(profile);
         link.dataset.username = profile.username || "";
+        link.setAttribute("aria-label", `Abrir perfil de ${profile.nombre_publico || profile.username || "Tipster"}, @${profile.username || ""}`);
         const nameGroup = createElement("span", "min-w-0 flex-1");
         nameGroup.append(
           createElement("span", "block truncate text-sm font-semibold text-zinc-200", profile.nombre_publico || profile.username || "Tipster"),
@@ -1090,10 +1123,11 @@
         );
         const presence = profileOnline(profile)
           ? createElement("span", "inline-flex shrink-0 items-center gap-1.5 text-xs font-medium text-emerald-200", "Conectado")
-          : createElement("span", "shrink-0 text-xs text-zinc-500", "Ver perfil");
-        if (profileOnline(profile)) presence.prepend(createElement("span", "h-1.5 w-1.5 rounded-full bg-emerald-300"));
-        link.append(avatarNode(profile, "h-11 w-11 shrink-0 rounded-full"), nameGroup, presence);
-        const row = createElement("div", "directory-card flex items-center gap-3");
+          : null;
+        if (presence) presence.prepend(createElement("span", "h-1.5 w-1.5 rounded-full bg-emerald-300"));
+        link.append(avatarNode(profile, "h-11 w-11 shrink-0 rounded-full"), nameGroup);
+        if (presence) link.append(presence);
+        const row = createElement("div", "directory-card flex min-w-0 items-center gap-2");
         link.classList.add("min-w-0", "flex-1");
         row.append(link, followButton(profile));
         list.append(row);
@@ -1146,7 +1180,9 @@
         const odds = createElement("p", "text-xs text-zinc-500", "Cuota");
         odds.append(createElement("strong", "ml-1 text-xl tabular-nums text-zinc-100", Number(featured.odds || 0).toFixed(2)));
         footer.append(odds);
-        article.append(footer);
+        const actions = createElement("div", "mt-4 flex flex-wrap gap-2");
+        actions.append(muralButton(featured));
+        article.append(footer, actions);
         featuredContainer.append(article);
       }
       const grid = $("picksGrid");
@@ -1168,7 +1204,9 @@
           const odds = createElement("p", "shrink-0 text-xs text-zinc-500", "Cuota");
           odds.append(createElement("strong", "ml-1 text-lg tabular-nums text-zinc-100", Number(pick.odds || 0).toFixed(2)));
           footer.append(bookmaker, odds);
-          article.append(heading, event, selection, footer);
+          const actions = createElement("div", "mt-4 flex flex-wrap gap-2");
+          actions.append(muralButton(pick));
+          article.append(heading, event, selection, footer, actions);
           grid.append(article);
         }
       }

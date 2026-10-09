@@ -105,6 +105,7 @@
   <link rel="stylesheet" href="emerald-surface.css">
   <link rel="stylesheet" href="auth-styles.css">
   <link rel="stylesheet" href="ui-polish.css">
+  <link rel="stylesheet" href="tipster-view.css">
   <!-- Plausible Analytics - Core Web Vitals Monitoring -->
   <script defer data-domain="fijas.app" src="https://plausible.io/js/script.js"></script>
 </head>
@@ -189,6 +190,7 @@
         <button id="picksTab" type="button" class="tab control min-h-11 border-b-2 border-emerald-300 px-3 text-sm font-semibold text-emerald-100" aria-selected="true">Pronósticos</button>
         <button id="widgetTab" type="button" class="tab control min-h-11 border-b-2 border-transparent px-3 text-sm font-semibold text-zinc-500 hover:text-zinc-200" aria-selected="false">Widget OBS</button>
         <button id="profileTab" type="button" class="tab control min-h-11 border-b-2 border-transparent px-3 text-sm font-semibold text-zinc-500 hover:text-zinc-200" aria-selected="false">Mi perfil</button>
+        <button id="monetizationTab" type="button" class="tab control min-h-11 border-b-2 border-transparent px-3 text-sm font-semibold text-zinc-500 hover:text-zinc-200" aria-selected="false">Monetización</button>
       </nav>
 
       <section id="accountGate" class="hidden max-w-2xl rounded-2xl border border-white/[.08] bg-[#111114] p-5 sm:p-7" aria-labelledby="accountGateTitle">
@@ -265,6 +267,10 @@
                 <div><label for="bankrollBookmaker" class="label">Casa de apuestas</label><select id="bankrollBookmaker" class="input"><option value="">Todas</option></select></div>
               </div>
             </details>
+            <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
+              <p id="bankrollFilterStatus" class="text-xs text-zinc-400" role="status" aria-live="polite">Mes en curso · sin filtros adicionales</p>
+              <button id="bankrollClearFilters" type="button" class="control min-h-11 rounded-lg border border-emerald-300/20 px-3 text-xs font-semibold text-emerald-200 hover:bg-emerald-300/[.06]" hidden>Limpiar filtros</button>
+            </div>
             <p class="mt-3 text-xs leading-5 text-zinc-400">Yield = profit neto / stake cerrado × 100. Excluye pendientes y anuladas; incluye Cash out. «Cashback» aquí corresponde a cierre anticipado, no a un reembolso adicional.</p>
             <div class="mt-3 flex flex-wrap gap-2">
               <button id="bankrollExport" type="button" class="control min-h-11 rounded-lg border border-white/10 px-3 text-xs font-semibold" disabled>Exportar CSV (Excel)</button>
@@ -277,7 +283,19 @@
           </section>
 
           <section class="min-w-0 rounded-2xl border border-white/[.08] bg-[#111114] p-5 sm:p-6" aria-labelledby="myPicksTitle">
-            <div class="mb-4 flex flex-wrap items-end justify-between gap-2"><div><h2 id="myPicksTitle" class="text-lg font-bold">Mis pronósticos</h2><p class="mt-1 text-xs text-zinc-500">Actualizados al momento.</p></div><div class="flex gap-3 text-xs tabular-nums text-zinc-500"><span id="pickCount"></span><span id="streamPickCount">0 seleccionados</span></div></div>
+            <div class="mb-4 flex flex-wrap items-end justify-between gap-2"><div><h2 id="myPicksTitle" class="text-lg font-bold" tabindex="-1">Mis pronósticos</h2><p class="mt-1 text-xs text-zinc-500">Actualizados al momento.</p></div><div class="flex gap-3 text-xs tabular-nums text-zinc-500"><span id="pickCount"></span><span id="streamPickCount">0 seleccionados</span></div></div>
+            <div id="pickHistoryControls" class="pick-history-controls">
+              <div class="pick-history-search"><label for="pickHistorySearch" class="label">Buscar en el historial</label><input id="pickHistorySearch" class="input" type="search" maxlength="120" placeholder="Evento, selección, competición o mercado"><button id="pickHistoryClear" type="button" class="control" hidden>Restablecer historial</button></div>
+              <div class="pick-history-modes" role="group" aria-label="Filtrar historial de pronósticos">
+                <button type="button" class="control" data-history-mode="all" aria-pressed="true">Todos</button>
+                <button type="button" class="control" data-history-mode="pending" aria-pressed="false">Pendientes</button>
+                <button type="button" class="control" data-history-mode="needs-result" aria-pressed="false">Por resolver</button>
+                <button type="button" class="control" data-history-mode="closed" aria-pressed="false">Cerrados</button>
+                <button type="button" class="control" data-history-mode="obs" aria-pressed="false">En OBS</button>
+              </div>
+              <p id="pickHistoryHint" class="text-xs text-zinc-400" role="status"></p>
+              <p class="text-xs text-zinc-400">Estos filtros solo cambian el historial del período seleccionado; no alteran tus indicadores ni exportaciones financieras.</p>
+            </div>
             <div id="myPicks" aria-live="polite" aria-busy="true">
               <div class="h-20 animate-pulse rounded-xl bg-white/[.04]"></div><div class="h-20 animate-pulse rounded-xl bg-white/[.04]"></div>
             </div>
@@ -293,7 +311,8 @@
       <section id="widgetView" class="hidden mx-auto max-w-3xl" aria-labelledby="widgetTab">
         <div class="rounded-2xl border border-white/[.08] bg-[#111114] p-5 sm:p-7">
           <h2 class="text-xl font-bold tracking-tight">Pronósticos en tu stream</h2>
-          <p class="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">Marca los pronósticos que quieras mostrar desde la pestaña Pronósticos. El widget se actualiza automáticamente y solo enseña los que selecciones.</p>
+          <p class="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">Marca los pronósticos que quieras mostrar desde la pestaña Pronósticos. Puedes mostrar u ocultar eventos iniciados y resultados cerrados: esto no cambia sus datos ni tus estadísticas.</p>
+          <button id="manageWidgetPicks" type="button" class="control mt-3 min-h-11 rounded-lg border border-emerald-300/20 px-3 text-sm font-semibold text-emerald-200 hover:bg-emerald-300/[.06]">Gestionar selección de OBS</button>
           <div class="mt-6">
             <label for="widgetFormat" class="label">Formato del widget</label>
             <select id="widgetFormat" class="input" aria-describedby="widgetFormatHelp">
@@ -334,6 +353,29 @@
           </div>
         </div>
       </section>
+
+      <section id="monetizationView" class="hidden monetization-preparation" aria-labelledby="monetizationTab">
+        <h2 class="text-lg font-bold">Monetización desactivada</h2>
+        <p>Este espacio prepara tu futuro centro de ingresos. Hoy no se realizan cobros, se venden suscripciones ni se restringen pronósticos premium.</p>
+        <dl>
+          <div><dt>Planes y suscripciones</dt><dd>Pendiente de definir oferta, moneda y condiciones de cancelación.</dd></div>
+          <div><dt>Comisiones de plataforma</dt><dd>La administración ya puede preparar porcentajes futuros; no generan ingresos ni pagos.</dd></div>
+          <div><dt>Cobros, reembolsos y reparto</dt><dd>Sin proveedor ni servicio de pagos conectado.</dd></div>
+          <div><dt>Contenido premium</dt><dd>Requiere almacenamiento separado y autorización backend; no se activa desde este panel.</dd></div>
+        </dl>
+        <button type="button" class="control" disabled aria-describedby="monetizationRequirements">Activar monetización · no disponible</button>
+        <p id="monetizationRequirements">La activación futura requiere backend, webhooks verificados, contabilidad e implementación legal. Tu bankroll privado no representa ingresos de la plataforma.</p>
+      </section>
+
+      <dialog id="pickReviewDialog" class="pick-review-dialog" aria-labelledby="pickReviewTitle" aria-describedby="pickReviewWarning">
+        <h2 id="pickReviewTitle">Revisar pronóstico</h2>
+        <p id="pickReviewWarning">Revisa los datos antes de confirmar. Al iniciar el evento se bloquean selección, cuota, fecha y análisis; el resultado podrá cerrarse una sola vez. Mostrar en OBS no cambia el pronóstico.</p>
+        <dl id="pickReviewSummary"></dl>
+        <form method="dialog" class="pick-review-actions">
+          <button type="submit" class="control" value="cancel" autofocus>Volver a editar</button>
+          <button id="confirmPickPublication" type="submit" class="control" value="confirm">Confirmar publicación</button>
+        </form>
+      </dialog>
 
       <section id="profileView" class="hidden" aria-labelledby="profileTab">
         <form id="profileForm" class="mx-auto max-w-3xl space-y-6 rounded-2xl border border-white/[.08] bg-[#111114] p-5 sm:p-7">
