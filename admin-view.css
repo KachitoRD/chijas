@@ -397,3 +397,21 @@
   .admin-nav-button, .admin-button { transition: none; }
   .admin-panel { animation: none; }
 }
+/* Private comment evidence is a bounded review list, not a count-based ranking. */
+.admin-report-toolbar { display: flex; flex-wrap: wrap; align-items: end; gap: .75rem; margin: 1rem 0; }
+.admin-report-row { padding: 1.25rem 0; border-bottom: 1px solid #315347; overflow-wrap: anywhere; }
+.admin-report-row h3 { margin: 0 0 .5rem; font-size: 1rem; color: #ecfdf5; }
+.admin-report-row p { max-width: 72ch; margin: .5rem 0; color: #c2d8cf; font-size: .875rem; line-height: 1.55; }
+.admin-report-evidence { margin: .75rem 0; padding: .75rem; border-radius: .5rem; background: #122a21; color: #ecfdf5; white-space: pre-wrap; }
+.admin-report-review { display: grid; gap: .75rem; max-width: 42rem; margin-top: 1rem; }
+.admin-report-review .admin-button { justify-self: start; }
+.admin-report-row .admin-button svg { width: 1rem; height: 1rem; flex: none; }
+.admin-report-review [data-error="true"], #commentReportQueueStatus[data-error="true"] { color: #fda4af; }
+:is(.admin-report-review, .admin-report-toolbar, .admin-report-row) button:focus-visible { outline: 2px solid #6ee7b7; outline-offset: 3px; }
+@media (hover: hover) and (pointer: fine) {
+  :is(.admin-report-review, .admin-report-toolbar, .admin-report-row) button:not(:disabled):hover { background: #204c3c; }
+}
+:is(.admin-report-review, .admin-report-toolbar, .admin-report-row) button:not(:disabled):active { background: #2b604d; }
+@media (prefers-reduced-motion: reduce) {
+  :is(.admin-report-review, .admin-report-toolbar, .admin-report-row) * { transition: none; animation: none; }
+}

@@ -189,6 +189,7 @@
       <nav id="tipsterTabs" class="mb-6 flex gap-2 border-b border-white/[.08]" aria-label="Secciones del panel">
         <button id="picksTab" type="button" class="tab control min-h-11 border-b-2 border-emerald-300 px-3 text-sm font-semibold text-emerald-100" aria-selected="true">Pronósticos</button>
         <button id="widgetTab" type="button" class="tab control min-h-11 border-b-2 border-transparent px-3 text-sm font-semibold text-zinc-500 hover:text-zinc-200" aria-selected="false">Widget OBS</button>
+        <button id="bankrollTab" data-testid="bankroll-tab" type="button" class="tab control min-h-11 border-b-2 border-transparent px-3 text-sm font-semibold text-zinc-500 hover:text-zinc-200" aria-selected="false">Bankroll privado</button>
         <button id="profileTab" type="button" class="tab control min-h-11 border-b-2 border-transparent px-3 text-sm font-semibold text-zinc-500 hover:text-zinc-200" aria-selected="false">Mi perfil</button>
         <button id="monetizationTab" type="button" class="tab control min-h-11 border-b-2 border-transparent px-3 text-sm font-semibold text-zinc-500 hover:text-zinc-200" aria-selected="false">Monetización</button>
       </nav>
@@ -202,6 +203,49 @@
           <p id="applicationMessage" class="hidden rounded-lg border px-3 py-2.5 text-sm leading-5" role="status"></p>
           <button id="applicationButton" type="submit" class="control min-h-11 rounded-xl bg-emerald-300 px-5 text-sm font-bold text-zinc-950 hover:bg-emerald-200 disabled:cursor-wait disabled:opacity-60">Enviar solicitud</button>
         </form>
+      </section>
+
+      <section id="bankrollView" class="hidden" aria-labelledby="bankrollTab">
+        <div data-testid="bankroll-account" class="bankroll-account" aria-busy="true">
+          <h2>Bankroll privado</h2>
+          <p class="bankroll-account-help">Contabilidad manual, no saldo real de una casa de apuestas. Sin pagos ni conversiones: PEN, USD y EUR se registran por separado. Independiente del período del historial.</p>
+          <label for="accountCurrency" class="label">Moneda del registro</label>
+          <select id="accountCurrency" data-testid="bankroll-currency" class="input"></select>
+          <p data-testid="bankroll-account-status" role="status">Cargando registro privado…</p>
+          <button data-testid="bankroll-retry" type="button" hidden>Reintentar carga</button>
+          <form data-testid="bankroll-opening-form" hidden>
+            <label for="accountOpening" class="label">Saldo inicial</label>
+            <input id="accountOpening" data-testid="bankroll-opening-amount" class="input" type="number" min="0" max="1000000000" step="0.01" inputmode="decimal" required>
+            <p class="bankroll-account-help">Una apertura por moneda, inmutable y con fecha del servidor. Cero está permitido; los pronósticos anteriores no se recalculan.</p>
+            <button data-testid="bankroll-opening-submit" type="submit">Revisar apertura</button>
+          </form>
+          <dl data-testid="bankroll-balance" class="bankroll-account-balance"></dl>
+          <p data-testid="bankroll-account-warning" class="bankroll-account-help"></p>
+          <p class="bankroll-account-help">Saldo contable = apertura + depósitos − retiros + resultado de picks. Disponible contable = saldo contable − riesgo pendiente. Los valores negativos se muestran sin ajustes.</p>
+          <form data-testid="bankroll-movement-form" hidden>
+            <div class="bankroll-account-fields">
+              <div><label for="accountMovementType" class="label">Movimiento manual</label><select id="accountMovementType" data-testid="bankroll-movement-type" class="input"><option value="deposit">Depósito</option><option value="withdrawal">Retiro</option></select></div>
+              <div><label for="accountMovementAmount" class="label">Importe positivo</label><input id="accountMovementAmount" data-testid="bankroll-movement-amount" class="input" type="number" min="0.01" max="1000000000" step="0.01" inputmode="decimal" required></div>
+            </div>
+            <label for="accountMovementNote" class="label">Nota privada (opcional, hasta 200 caracteres)</label>
+            <input id="accountMovementNote" data-testid="bankroll-movement-note" class="input" maxlength="200">
+            <button data-testid="bankroll-movement-submit" type="submit">Revisar movimiento</button>
+          </form>
+          <div data-testid="bankroll-confirmation" class="bankroll-account-confirmation" role="region" aria-label="Confirmar registro privado" hidden>
+            <p data-testid="bankroll-confirmation-text"></p>
+            <div class="bankroll-account-actions"><button data-testid="bankroll-confirm" type="button">Confirmar registro</button><button data-testid="bankroll-cancel" type="button">Cancelar</button></div>
+          </div>
+          <p data-testid="bankroll-write-status" role="status"></p>
+          <h3>Movimientos inmutables</h3>
+          <p class="bankroll-account-help">Para rectificar, registra un movimiento contrario con una nota explícita. No se editan ni eliminan registros.</p>
+          <div class="bankroll-account-actions">
+            <button data-testid="bankroll-export-movements" type="button" aria-describedby="bankrollMovementsExportHelp" disabled>Exportar movimientos CSV</button>
+          </div>
+          <p id="bankrollMovementsExportHelp" class="bankroll-account-help">Solo la moneda seleccionada, con apertura y movimientos en orden cronológico. El flujo acumulado no incluye resultados ni riesgo de picks. Fechas en UTC; archivo privado compatible con Excel.</p>
+          <p data-testid="bankroll-export-status" class="bankroll-account-help" role="status"></p>
+          <p data-testid="bankroll-movement-empty" class="bankroll-account-help">Sin movimientos. Abre la moneda y registra un depósito o retiro manual.</p>
+          <ol data-testid="bankroll-movements" class="bankroll-account-movements"></ol>
+        </div>
       </section>
 
       <section id="picksView" aria-labelledby="picksTab">

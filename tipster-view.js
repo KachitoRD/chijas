@@ -1,5 +1,6 @@
 import { bankrollCurrencies, parseBankrollStake, parseCashOutReturn, pickFinancialResult, summarizeBankroll, eventDateRange, filterBankrollPicks, bankrollCSV, bankrollReportData } from "./bankroll.js";
 import { openExecutiveBankrollReport } from "./bankroll-report.js";
+import { mountBankrollAccountView } from "./bankroll-account-view.js";
 import { installAuthModal, installGoogleAccess, installPasswordRecovery } from "./auth-ui.js";
 import { installBusyButtons, showSkeleton } from "./ui-feedback.js";
 import { getAccountPermissions, watchAccountPermissions } from "./permissions.js";
@@ -51,6 +52,12 @@ export function mountTipsterView(root, { embedded = false } = {}) {
   const intervals = new Set();
   const timeouts = new Set();
   let disposed = false;
+  let stopBankrollAccount = null;
+  function stopPrivateBankroll() {
+    if (stopBankrollAccount) stopBankrollAccount();
+    stopBankrollAccount = null;
+    $("bankrollView").classList.add("hidden");
+  }
   function listenDocument(type, handler, options = {}) {
     document.addEventListener(type, handler, { ...(typeof options === "boolean" ? { capture: options } : options), signal: controller.signal });
   }
@@ -269,6 +276,7 @@ function stopObsTools() {
 }
 
 function stopTipsterTools() {
+  stopPrivateBankroll();
   if ($("pickReviewDialog").open) $("pickReviewDialog").close("cancel");
   $("monetizationView").classList.add("hidden");
   stopObsTools();
@@ -1710,8 +1718,8 @@ async function compressCropToDataUrl(canvas, maxLength) {
   throw new Error("La imagen sigue siendo demasiado grande después de comprimirla. Elige otra imagen.");
 }
 function installTabs() {
-  const tabs = { picks: "picksTab", widget: "widgetTab", profile: "profileTab", monetization: "monetizationTab" };
-  const views = { picks: "picksView", widget: "widgetView", profile: "profileView", monetization: "monetizationView" };
+  const tabs = { picks: "picksTab", bankroll: "bankrollTab", widget: "widgetTab", profile: "profileTab", monetization: "monetizationTab" };
+  const views = { picks: "picksView", bankroll: "bankrollView", widget: "widgetView", profile: "profileView", monetization: "monetizationView" };
   const choose = selected => {
     for (const [view, elementId] of Object.entries(views)) {
       $(elementId).classList.toggle("hidden", view !== selected);
@@ -2105,6 +2113,7 @@ if (!firebaseConfigured) {
   db = firebaseDb;
   onAuthStateChanged(auth, async user => {
     if (verificationFlowInProgress && user && !user.emailVerified) return;
+    stopPrivateBankroll();
     if (stopPermissions) stopPermissions();
     stopPermissions = null;
     currentUser = user;
@@ -2214,6 +2223,7 @@ if (!firebaseConfigured) {
       listenDocument("visibilitychange", handleVisibilityChange);
       subscribeToObsSelections();
       subscribeToPicks();
+      stopBankrollAccount = mountBankrollAccountView($("bankrollView"), user, downloadBankroll);
       stopPermissions = watchAccountPermissions(user, permissions => {
         if (currentUser?.uid !== user.uid) return;
         if (permissions.isAdmin) {

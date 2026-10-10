@@ -6,10 +6,12 @@ import { moderateViewer, reviewApplication, reviewProfile, saveAdministrators, s
 import { normalizePick, summarizePerformance } from "./pick-schema.js";
 import { groupPicksByTipster } from "./admin-dashboard-models.js";
 import { summarizePublishedPickUnits } from "./admin-finance.js";
+import { mountAdminReportQueue } from "./admin-report-queue.js";
 
 export function mountAdminView(root) {
 const $ = id => root.querySelector(`#${CSS.escape(id)}`);
 let disposed = false, stopAuth = null;
+let stopReportQueue = null;
 let access = null, generation = 0, stopPermissions = null, stops = [], clock = null;
 let data = {}, errors = new Set(), activeTab = null, filterUserId = null, lastDataUpdate = null;
 const busyOperations = new Set();
@@ -80,6 +82,8 @@ function updateLiveStatus() {
   }
 }
 function stopData() {
+  if (stopReportQueue) stopReportQueue();
+  stopReportQueue = null;
   stops.forEach(stop => stop());
   stops = [];
   if (clock) clearInterval(clock);
@@ -186,7 +190,10 @@ function startData() {
     live("admins", collection(db, "platformAdmins"));
     live("settings", doc(db, "platformSettings", "limits"));
   }
-  if (can("community")) live("communitySettings", doc(db, "platformSettings", "communityModeration"));
+  if (can("community")) {
+    live("communitySettings", doc(db, "platformSettings", "communityModeration"));
+    stopReportQueue = mountAdminReportQueue(root, auth.currentUser.uid);
+  }
 }
 function loaded(keys) {
   return keys.every(key => Object.hasOwn(data, key)) && !keys.some(key => errors.has(key));

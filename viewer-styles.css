@@ -91,11 +91,18 @@
   font-weight: 700;
   padding-inline: 6px;
 }
+.frontpage .sidebar-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-shrink: 0; }
+.frontpage .panel-toggle { display: inline-grid; place-items: center; min-height: 44px; }
+.frontpage .panel-toggle[aria-expanded="false"] svg { transform: rotate(180deg); }
+.frontpage .panel-toggle-tooltip { position: fixed; inset: auto; margin: 0; padding: 7px 11px; border: 1px solid rgb(110 231 183 / .2); border-radius: 8px; background: #102b20; color: #e1f5ea; font-size: 12px; line-height: 1.5; pointer-events: none; box-shadow: 0 6px 18px rgb(0 0 0 / .3); }
+.frontpage .channels-collapsed .sidebar-toolbar { justify-content: center; }
 .frontpage #sidebarChannels { overflow: auto; min-height: 0; flex: 1; overscroll-behavior: contain; }
 .frontpage .viewer-layout.channels-collapsed { grid-template-columns: 64px minmax(0, 1fr) 320px; }
-.frontpage .viewer-layout.mural-collapsed { grid-template-columns: 240px minmax(0, 1fr) 0; }
-.frontpage .viewer-layout.channels-collapsed.mural-collapsed { grid-template-columns: 64px minmax(0, 1fr) 0; }
-.frontpage .viewer-layout.mural-collapsed #communityMural,
+.frontpage .viewer-layout.mural-collapsed { grid-template-columns: 240px minmax(0, 1fr) 64px; }
+.frontpage .viewer-layout.channels-collapsed.mural-collapsed { grid-template-columns: 64px minmax(0, 1fr) 64px; }
+.frontpage .viewer-layout.mural-collapsed #communityMural > :not(.mural-heading),
+.frontpage .viewer-layout.mural-collapsed #communityMural .mural-heading > div { display: none; }
+.frontpage .viewer-layout.mural-collapsed .mural-heading { justify-content: center; padding: 16px 6px; border-bottom: 0; }
 .frontpage .viewer-layout.showing-dashboard #communityMural { display: none; }
 .frontpage .viewer-layout.showing-dashboard,
 .frontpage .viewer-layout.channels-collapsed.showing-dashboard { grid-template-columns: 240px minmax(0, 1fr) 0; }
@@ -240,9 +247,14 @@
 }
 @media (max-width: 900px) {
   .frontpage :is(.viewer-layout, .viewer-layout.channels-collapsed, .viewer-layout.mural-collapsed) { grid-template-columns: minmax(0, 1fr); grid-template-rows: 68px minmax(0, 1fr); }
-  .frontpage .viewer-layout.channels-collapsed { grid-template-rows: 0 minmax(0, 1fr); }
+  .frontpage .viewer-layout.channels-collapsed.mural-collapsed { grid-template-columns: minmax(0, 1fr); }
+  .frontpage .viewer-layout.channels-collapsed { grid-template-rows: 56px minmax(0, 1fr); }
   .frontpage .viewer-sidebar { padding: 6px 12px; border: 0; border-bottom: 1px solid rgb(110 231 183 / .1); }
-  .frontpage .channels-collapsed .viewer-sidebar { visibility: hidden; padding: 0; }
+  .frontpage .viewer-sidebar { flex-direction: row; align-items: center; gap: 12px; }
+  .frontpage .channels-collapsed .viewer-sidebar { padding: 6px 12px; }
+  .frontpage .channels-collapsed #sidebarChannels { display: none; }
+  .frontpage #toggleChannels svg { transform: rotate(90deg); }
+  .frontpage #toggleChannels[aria-expanded="false"] svg { transform: rotate(-90deg); }
   .frontpage :is(.sidebar-heading, .sidebar-hint, .sidebar-directory, .sidebar-channel > span:not(.sidebar-avatar), .sidebar-dot) { display: none; }
   .frontpage #sidebarChannels { display: flex; gap: 12px; overflow-x: auto; overflow-y: hidden; align-items: center; }
   .frontpage .sidebar-channel { padding: 4px 0; flex-shrink: 0; }
@@ -265,5 +277,24 @@
 }
 @media (forced-colors: active) {
   .frontpage :is(.viewer-pick-card, .sport-category, .viewer-sidebar, .mural-comment) { border: 1px solid CanvasText; }
+  .frontpage .panel-toggle-tooltip { background: Canvas; color: CanvasText; border-color: CanvasText; }
   .frontpage .sport-category[aria-pressed="true"] { outline: 2px solid Highlight; }
+}
+/* Private reporting stays inline with the existing Emerald mural. */
+.mural-report-button { display: inline-flex; align-items: center; gap: .35rem; }
+.mural-report-button svg { width: 1rem; height: 1rem; flex: none; }
+.mural-report-form { display: grid; gap: .65rem; margin-top: .75rem; padding-top: .75rem; border-top: 1px solid #315347; }
+.mural-report-form label { display: grid; gap: .35rem; font-size: .8rem; color: #d1e7df; }
+.mural-report-form :is(select, textarea) { width: 100%; min-width: 0; border: 1px solid #46695d; border-radius: .5rem; padding: .6rem; background: #0c211a; color: #ecfdf5; font: inherit; caret-color: #6ee7b7; }
+.mural-report-form p { margin: 0; font-size: .8rem; line-height: 1.5; color: #b8d4c9; }
+.mural-report-form [data-error="true"] { color: #fda4af; }
+.mural-report-form :is(button, select, textarea):focus-visible,
+.mural-report-button:focus-visible { outline: 2px solid #6ee7b7; outline-offset: 3px; }
+.mural-report-form :disabled, .mural-report-button:disabled { opacity: .65; cursor: not-allowed; }
+@media (hover: hover) and (pointer: fine) {
+  .mural-report-form button:not(:disabled):hover, .mural-report-button:not(:disabled):hover { background: #204c3c; color: #ecfdf5; }
+}
+.mural-report-form button:not(:disabled):active, .mural-report-button:not(:disabled):active { background: #2b604d; }
+@media (prefers-reduced-motion: reduce) {
+  .mural-report-form *, .mural-report-button { transition: none; animation: none; }
 }

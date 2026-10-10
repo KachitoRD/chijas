@@ -6,6 +6,8 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 import { watchAccountPermissions } from "./permissions.js";
 import { MURAL_RATE_LIMIT_MS, normalizeBlockedTerms, validateMuralComment } from "./mural-moderation.js";
+import { REPORT_CATEGORIES, REPORT_STATUSES } from "./comment-report-model.js";
+import { deleteCommentAsModerator, submitCommentReport } from "./comment-report-service.js";
 
 const TERMS_VERSION = "2026-10-03";
 const $ = id => document.getElementById(id);
@@ -39,8 +41,123 @@ export function mountCommunityMural() {
   let stopComments = null;
   let stopOwnMute = null;
   let stopMuteFeed = null;
+  let reportDraft = null;
+  let reportBusy = false;
+  let reportStops = [];
+  let reportStatuses = new Map();
+  let reportEligible = false;
+  let reportAccountActive = false;
+  let ageConfirmed = false;
+
+  function clearReports() {
+    reportStops.forEach(stop => stop());
+    reportStops = [];
+    reportDraft = null;
+    reportBusy = false;
+    reportStatuses.clear();
+    reportEligible = false;
+    entries.querySelectorAll(".mural-report-form, .mural-report-button").forEach(element => element.remove());
+  }
+
+  function canReport() {
+    return Boolean(selectedPick?.ownerUid && !dashboardOpen && user?.emailVerified
+      && !user.isAnonymous && accountReady && reportAccountActive && termsAccepted && ageConfirmed);
+  }
+
+  function watchReports() {
+    reportStops.forEach(stop => stop());
+    reportStops = [];
+    reportStatuses.clear();
+    if (!canReport()) return;
+    const generation = threadGeneration, identity = authGeneration, uid = user.uid;
+    for (const comment of comments) {
+      if (comment.authorUid === uid) continue;
+      reportStops.push(onSnapshot(doc(db, "picks", selectedPick.id, "comments", comment.id, "commentReports", uid), snapshot => {
+        if (generation !== threadGeneration || identity !== authGeneration) return;
+        reportStatuses.set(comment.id, snapshot.exists() ? snapshot.data().status : null);
+        renderComments();
+      }, error => {
+        if (generation !== threadGeneration || identity !== authGeneration) return;
+        console.error("No se pudo cargar el estado privado del reporte:", error);
+        reportStatuses.set(comment.id, "error");
+        renderComments();
+      }));
+    }
+  }
+
+  function reportForm(comment) {
+    const form = document.createElement("form");
+    form.className = "mural-report-form";
+    form.dataset.testid = "mural-report-form";
+    const label = document.createElement("label");
+    label.textContent = "Motivo del reporte";
+    const select = document.createElement("select");
+    select.name = "category";
+    select.dataset.testid = "report-category";
+    for (const [value, text] of Object.entries(REPORT_CATEGORIES)) {
+      select.add(new Option(text, value));
+    }
+    select.value = reportDraft.category;
+    select.addEventListener("change", () => { reportDraft.category = select.value; });
+    label.append(select);
+    const detailLabel = document.createElement("label");
+    detailLabel.textContent = "Detalle privado (opcional, hasta 300 caracteres)";
+    const detail = document.createElement("textarea");
+    detail.name = "detail";
+    detail.maxLength = 300;
+    detail.rows = 3;
+    detail.value = reportDraft.detail;
+    detail.addEventListener("input", () => { reportDraft.detail = detail.value; });
+    detailLabel.append(detail);
+    const note = document.createElement("p");
+    note.textContent = "Solo tú y administración comunitaria pueden ver este reporte. No ocultará el comentario.";
+    const status = document.createElement("p");
+    status.setAttribute("role", "status");
+    status.dataset.testid = "report-status";
+    status.dataset.error = String(Boolean(reportDraft.error));
+    status.textContent = reportDraft.error || "";
+    const send = document.createElement("button");
+    send.type = "submit";
+    send.className = "mural-moderation-button";
+    send.dataset.testid = "report-submit";
+    send.textContent = reportBusy ? "Enviando…" : "Enviar reporte";
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.className = "mural-moderation-button";
+    cancel.textContent = "Cancelar";
+    cancel.addEventListener("click", () => { reportDraft = null; renderComments(); });
+    for (const control of [select, detail, send, cancel]) control.disabled = reportBusy;
+    form.append(label, detailLabel, note, status, send, cancel);
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+      if (reportBusy || !canReport() || !reportDraft) return;
+      const generation = threadGeneration, identity = authGeneration, pick = { ...selectedPick }, uid = user.uid;
+      const draft = { ...reportDraft };
+      const current = () => generation === threadGeneration && identity === authGeneration && canReport() && user?.uid === uid;
+      reportBusy = true;
+      reportDraft.error = "";
+      renderComments();
+      try {
+        const result = await submitCommentReport(pick, comment, uid, draft.category, draft.detail, current);
+        if (!current()) return;
+        reportStatuses.set(comment.id, result.status);
+        reportDraft = null;
+        setNotice(result.duplicate ? "Ya habías reportado este comentario." : "Reporte privado enviado. El comentario sigue visible.");
+      } catch (error) {
+        console.error("No se pudo enviar el reporte privado:", error);
+        if (!current()) return;
+        reportDraft.error = error.code === "permission-denied"
+          ? "No se pudo reportar: revisa tu acceso o si el comentario sigue disponible. Reintenta."
+          : "No se pudo enviar. Comprueba tu conexión y reintenta.";
+      } finally {
+        if (current()) { reportBusy = false; renderComments(); }
+      }
+    });
+    return form;
+  }
 
   function clearThreadListeners() {
+    clearReports();
     for (const stop of [stopComments, stopOwnMute, stopMuteFeed]) {
       if (stop) stop();
     }
@@ -91,6 +208,13 @@ export function mountCommunityMural() {
     $("muralSignIn").hidden = !activeThread || (Boolean(user) && !canRequestConsent);
     $("muralSignIn").textContent = user ? "Aceptar términos" : "Iniciar sesión para comentar";
     setNotice(postingReason());
+    if (!canReport() && reportDraft) reportDraft = null;
+    const eligible = canReport();
+    if (eligible !== reportEligible) {
+      reportEligible = eligible;
+      watchReports();
+      renderComments();
+    }
   }
 
   function formatTime(value) {
@@ -108,6 +232,9 @@ export function mountCommunityMural() {
   }
 
   function renderComments() {
+    const focused = entries.contains(document.activeElement) ? document.activeElement : null;
+    const focusedName = focused?.closest(".mural-report-form") ? focused.name : null;
+    const selection = focusedName === "detail" ? [focused.selectionStart, focused.selectionEnd] : null;
     const wasNearBottom = entries.scrollHeight - entries.scrollTop - entries.clientHeight < 80;
     entries.replaceChildren();
     if (!selectedPick) {
@@ -157,6 +284,28 @@ export function mountCommunityMural() {
       text.className = "mural-comment-text";
       text.textContent = typeof comment.text === "string" ? comment.text : "";
       card.append(heading, text);
+      if (canReport() && user.uid !== comment.authorUid) {
+        const report = document.createElement("button");
+        report.type = "button";
+        report.className = "mural-moderation-button mural-report-button";
+        report.dataset.testid = "report-comment";
+        report.dataset.commentId = comment.id;
+        const state = reportStatuses.get(comment.id);
+        report.disabled = reportBusy || (state !== null && state !== "error");
+        const caption = state === "error" ? "Reintentar estado" : state
+          ? `Reportado · ${REPORT_STATUSES[state] || state}` : state === null ? "Reportar" : "Comprobando…";
+        report.innerHTML = '<svg aria-hidden="true" viewBox="0 0 20 20" fill="none"><path d="M5 17V3m0 1h10l-2 4 2 4H5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        report.append(document.createTextNode(caption));
+        report.setAttribute("aria-label", `${caption} comentario de ${name}`);
+        report.addEventListener("click", () => {
+          if (state === "error") { watchReports(); renderComments(); return; }
+          reportDraft = { commentId: comment.id, category: "spam", detail: "", error: "" };
+          renderComments();
+          entries.querySelector('[data-testid="report-category"]')?.focus();
+        });
+        card.append(report);
+        if (reportDraft?.commentId === comment.id) card.append(reportForm(comment));
+      }
 
       const moderator = Boolean(user && (user.uid === selectedPick.ownerUid || canModerateCommunity));
       const canDelete = moderator || user?.uid === comment.authorUid;
@@ -186,6 +335,11 @@ export function mountCommunityMural() {
       entries.append(card);
     }
     if (wasNearBottom) entries.scrollTop = entries.scrollHeight;
+    if (focusedName) {
+      const replacement = entries.querySelector(`.mural-report-form [name="${focusedName}"]`);
+      replacement?.focus({ preventScroll: true });
+      if (selection && replacement) replacement.setSelectionRange(...selection);
+    }
   }
 
   function canModeratePick() {
@@ -224,6 +378,7 @@ export function mountCommunityMural() {
     stopComments = onSnapshot(source, snapshot => {
       if (generation !== threadGeneration) return;
       comments = snapshot.docs.map(item => ({ ...item.data(), id: item.id })).reverse();
+      watchReports();
       $("muralStatus").textContent = comments.length
         ? `${comments.length} comentarios recientes · hilo actualizado en tiempo real`
         : "Aún no hay comentarios · este hilo se actualiza en tiempo real";
@@ -299,8 +454,16 @@ export function mountCommunityMural() {
   async function removeComment(comment) {
     if (!selectedPick || !user) return;
     if (!window.confirm("¿Eliminar este comentario? Esta acción no se puede deshacer.")) return;
+    const pickId = selectedPick.id;
+    const uid = user.uid;
     try {
-      await deleteDoc(doc(db, "picks", selectedPick.id, "comments", comment.id));
+      // Community admins always leave an audit; authors and pick owners keep their direct exception.
+      if (canModerateCommunity) {
+        await deleteCommentAsModerator(pickId, comment.id, uid,
+          () => user?.uid === uid && selectedPick?.id === pickId && canModerateCommunity);
+      } else {
+        await deleteDoc(doc(db, "picks", pickId, "comments", comment.id));
+      }
       setNotice("Comentario eliminado.");
     } catch (error) {
       console.error("No se pudo eliminar el comentario:", error);
@@ -340,6 +503,8 @@ export function mountCommunityMural() {
     user = userValue;
     accountReady = false;
     accountActive = false;
+    reportAccountActive = false;
+    ageConfirmed = false;
     termsAccepted = false;
     policyReady = false;
     blockedTerms = [];
@@ -356,12 +521,14 @@ export function mountCommunityMural() {
       accountReady = snapshot.exists();
       accountActive = snapshot.exists() && snapshot.data().role === "viewer"
         && snapshot.data().status !== "suspended";
+      reportAccountActive = snapshot.exists() && snapshot.data().status !== "suspended";
       updateComposer();
     }, error => {
       if (generation !== authGeneration) return;
       console.error("No se pudo comprobar el estado de la cuenta del mural:", error);
       accountReady = false;
       accountActive = false;
+      reportAccountActive = false;
       updateComposer();
     }));
 
@@ -370,11 +537,13 @@ export function mountCommunityMural() {
       const acceptance = snapshot.data();
       termsAccepted = snapshot.exists() && acceptance.terms_version === TERMS_VERSION
         && acceptance.privacy_version === TERMS_VERSION;
+      ageConfirmed = snapshot.exists() && acceptance.age_confirmed === true;
       updateComposer();
     }, error => {
       if (generation !== authGeneration) return;
       console.error("No se pudo comprobar el consentimiento comunitario:", error);
       termsAccepted = false;
+      ageConfirmed = false;
       updateComposer();
     }));
 

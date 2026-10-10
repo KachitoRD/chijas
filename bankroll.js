@@ -30,6 +30,55 @@ export function parseCashOutReturn(value, currencyCode) {
   return { returnAmount: stake.stakeAmount, returnMinorUnits: stake.stakeMinorUnits };
 }
 
+export function parseBankrollOpening(value, currencyCode) {
+  if (!value.trim()) throw new Error("Indica el saldo inicial, incluso si es cero.");
+  return parseCashOutReturn(value, currencyCode).returnMinorUnits;
+}
+
+export function bankrollAccountBalance(account, movements, picks, records) {
+  const validMinor = value => Number.isSafeInteger(value) && value >= 0 && value <= 100000000000;
+  const timestamp = value => value?.toMillis?.() ?? value?.getTime?.();
+  const opened = timestamp(account.created_at);
+  if (!bankrollCurrencies.some(item => item.code === account.currency)
+    || !validMinor(account.initialMinorUnits) || !Number.isFinite(opened)) {
+    throw new Error("La apertura del bankroll no tiene datos válidos.");
+  }
+  let deposits = 0, withdrawals = 0, profit = 0, risk = 0, financialCount = 0, withoutAmount = 0;
+  for (const movement of movements) {
+    if (!["deposit", "withdrawal"].includes(movement.type)
+      || !validMinor(movement.amountMinorUnits) || movement.amountMinorUnits === 0) {
+      throw new Error("El bankroll contiene un movimiento inválido.");
+    }
+    if (movement.type === "deposit") deposits += movement.amountMinorUnits;
+    else withdrawals += movement.amountMinorUnits;
+  }
+  for (const pick of picks) {
+    const created = timestamp(pick.created_at);
+    if (!Number.isFinite(created)) throw new Error("Un pronóstico no tiene fecha de publicación válida.");
+    if (created <= opened) continue;
+    if (!records.has(pick.id)) throw new Error("Faltan importes privados por cargar; el saldo no está disponible.");
+    const record = records.get(pick.id);
+    if (!record) { withoutAmount++; continue; }
+    if (record.currency !== account.currency) continue;
+    if (!validMinor(record.stakeMinorUnits) || record.stakeMinorUnits === 0) {
+      throw new Error("Un pronóstico tiene un importe privado inválido.");
+    }
+    const result = pickFinancialResult(pick, record);
+    if (result.returned !== null && (!Number.isSafeInteger(result.returned) || result.returned < 0)) {
+      throw new Error("Un pronóstico tiene un retorno privado inválido.");
+    }
+    financialCount++;
+    if (result.returned === null) risk += result.stake;
+    else profit += result.profit;
+  }
+  const equity = account.initialMinorUnits + deposits - withdrawals + profit;
+  const available = equity - risk;
+  if (![deposits, withdrawals, profit, risk, equity, available].every(Number.isSafeInteger)) {
+    throw new Error("El saldo supera el límite de cálculo exacto.");
+  }
+  return { deposits, withdrawals, profit, risk, equity, available, financialCount, withoutAmount };
+}
+
 export function pickFinancialResult(pick, bankroll) {
   pick = normalizePick(pick);
   if (!bankroll) return null;
@@ -143,9 +192,54 @@ export function bankrollCSV(picks, records, filters, summaryOnly = false) {
         financial?.yield == null ? "" : Number(financial.yield.toFixed(4))]);
     }
   }
-  return "\uFEFF" + rows.map(row => row.map(value => {
+  return encodeBankrollCSV(rows);
+}
+
+function encodeBankrollCSV(rows, numericColumns = []) {
+  return "\uFEFF" + rows.map(row => row.map((value, index) => {
     let text = value == null ? "" : String(value);
-    if (typeof value !== "number" && /^[\s]*[=+@\-\t\r\n]/.test(text)) text = "'" + text;
+    const numeric = typeof value === "number" || (numericColumns.includes(index) && /^-?\d+\.\d{2}$/.test(text));
+    if (!numeric && /^[\s]*[=+@\-\t\r\n]/.test(text)) text = "'" + text;
     return `"${text.replace(/"/g, '""')}"`;
   }).join(",")).join("\r\n");
+}
+
+export function bankrollMovementsCSV(account, movements) {
+  bankrollAccountBalance(account, movements, [], new Map());
+  const date = value => {
+    const result = value?.toDate?.() ?? value;
+    if (!(result instanceof Date) || !Number.isFinite(result.getTime())) {
+      throw new Error("Falta una fecha confirmada del servidor; no se puede exportar un registro parcial.");
+    }
+    return result;
+  };
+  const opened = date(account.created_at);
+  const ids = new Set();
+  const entries = movements.map(movement => {
+    if (typeof movement.id !== "string" || !movement.id || ids.has(movement.id)
+      || typeof movement.note !== "string" || movement.note.length > 200) {
+      throw new Error("Un movimiento tiene un identificador o una nota inválidos.");
+    }
+    ids.add(movement.id);
+    const created = date(movement.created_at);
+    if (created < opened) throw new Error("Un movimiento no puede ser anterior a la apertura.");
+    return { ...movement, date: created };
+  }).sort((a, b) => a.date - b.date || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  let flow = account.initialMinorUnits;
+  const amount = minorUnits => (minorUnits / 100).toFixed(2);
+  const rows = [
+    ["Movimientos privados de bankroll", account.currency],
+    ["Contabilidad manual, sin pagos ni conversiones. No incluye resultados ni riesgo de picks."],
+    ["Fechas UTC (ISO 8601). Flujo acumulado = apertura + depósitos - retiros; no es saldo contable ni saldo real."],
+    ["ID", "Fecha UTC", "Movimiento", "Moneda", "Importe firmado", "Flujo acumulado", "Nota privada"],
+    ["apertura", opened.toISOString(), "Apertura", account.currency, amount(flow), amount(flow), ""]
+  ];
+  for (const entry of entries) {
+    const signed = entry.type === "deposit" ? entry.amountMinorUnits : -entry.amountMinorUnits;
+    flow += signed;
+    if (!Number.isSafeInteger(flow)) throw new Error("El flujo supera el límite de cálculo exacto.");
+    rows.push([entry.id, entry.date.toISOString(), entry.type === "deposit" ? "Depósito" : "Retiro",
+      account.currency, amount(signed), amount(flow), entry.note]);
+  }
+  return encodeBankrollCSV(rows, [4, 5]);
 }

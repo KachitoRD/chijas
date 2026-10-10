@@ -268,13 +268,6 @@
         <span class="grid h-9 w-9 place-items-center rounded-xl bg-emerald-300 text-sm font-extrabold tracking-tight text-zinc-950">F.</span>
         <span class="text-sm font-bold tracking-tight sm:text-base">Fijas <span class="font-medium text-zinc-500">en vivo</span></span>
       </a>
-      <button id="toggleChannels" class="shell-icon-button" type="button" aria-label="Reducir barra de tipsters" aria-controls="channelSidebar" aria-expanded="true">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"></rect><path d="M9 4v16m5-12 3 4-3 4"></path></svg>
-      </button>
-      <button id="toggleMural" class="shell-icon-button mural-toggle" type="button" aria-label="Ocultar mural" aria-controls="communityMural" aria-expanded="true">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="M4 5.5h16v13H4z"></path><path d="M8 9h8M8 12h5m-5 3h8"></path></svg>
-        <span>Mural</span>
-      </button>
       <div id="viewerNav" class="viewer-nav" aria-busy="true">
         <button id="viewerLogin" type="button" class="community-control" disabled>Iniciar sesión</button>
         <button id="userMenuButton" type="button" class="user-menu-button" popovertarget="userMenu" aria-expanded="false" hidden>
@@ -296,7 +289,12 @@
 
   <div class="viewer-layout">
     <aside id="channelSidebar" class="viewer-sidebar" aria-label="Tipsters destacados">
-        <h2 class="sidebar-heading">Tipsters destacados</h2>
+        <header class="sidebar-toolbar">
+          <h2 class="sidebar-heading">Tipsters destacados</h2>
+          <button id="toggleChannels" class="shell-icon-button panel-toggle" type="button" aria-label="Contraer barra de tipsters" aria-controls="sidebarChannels" aria-expanded="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14 6-6 6 6 6"></path></svg>
+          </button>
+        </header>
         <p class="sidebar-hint">Conexión en la plataforma, no emisión de vídeo.</p>
         <div id="sidebarChannels" aria-busy="true">
           <div class="skeleton h-12"></div><div class="skeleton mt-3 h-12"></div>
@@ -438,8 +436,11 @@
           <h2 id="muralTitle">Mural del pronóstico</h2>
           <p id="muralContext">Selecciona un pronóstico para abrir su hilo.</p>
         </div>
-        <button id="closeMural" class="shell-icon-button" type="button" aria-label="Cerrar mural">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"></path></svg>
+        <button id="toggleMural" class="shell-icon-button panel-toggle" type="button" aria-label="Contraer mural" aria-controls="muralEntries muralForm" aria-expanded="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m10 6 6 6-6 6"></path></svg>
+        </button>
+        <button id="closeMural" class="shell-icon-button panel-toggle" type="button" aria-label="Contraer mural" aria-controls="muralDrawer">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 10 6 6 6-6"></path></svg>
         </button>
       </header>
       <div id="muralStatus" class="mural-status" role="status">Comentarios públicos del pronóstico seleccionado.</div>
@@ -462,10 +463,11 @@
     </aside>
   </div>
   <button id="openMural" class="mural-launcher" type="button" aria-haspopup="dialog" aria-controls="muralDrawer" aria-expanded="false" hidden>
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9H13a8.5 8.5 0 0 1 8 8v.5Z"></path></svg>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 14 6-6 6 6"></path></svg>
     Mural
   </button>
   <dialog id="muralDrawer" aria-labelledby="muralTitle"></dialog>
+  <div id="panelToggleTooltip" class="panel-toggle-tooltip" popover="manual" role="tooltip"></div>
   <script type="module" src="viewer-shell.js"></script>
   <script type="module" src="dashboard-navigation.js"></script>
 

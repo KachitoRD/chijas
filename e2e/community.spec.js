@@ -438,6 +438,7 @@ test("el permiso comunitario habilita silenciar y eliminar comentarios desde el 
     created_at: new Date()
   });
   fixture.documents.add(`picks/${pickId}/commentMutes/public-viewer`);
+  fixture.documents.add(`picks/${pickId}/commentDeletionAudit/moderation-comment`);
   const user = await signInGoogle(page, "community-moderator");
   const adminPath = `platformAdmins/${user.uid}`;
   fixture.documents.add(adminPath);

@@ -306,6 +306,22 @@
           <div id="viewers-list" class="admin-list" aria-live="polite"></div>
         </section>
         <section id="community-panel" class="admin-panel" role="tabpanel" aria-labelledby="community-tab" hidden>
+          <div class="admin-panel-heading"><h2>Reportes privados de comentarios</h2><p>Revisa la evidencia antes de actuar. Reportar no oculta ni silencia automáticamente.</p></div>
+          <div class="admin-report-toolbar">
+            <label class="admin-field" for="commentReportFilter">Estado
+              <select id="commentReportFilter" data-testid="admin-report-filter">
+                <option value="pending">Pendientes</option><option value="dismissed">Descartados</option>
+                <option value="removed">Eliminados</option><option value="unavailable">No disponibles</option>
+              </select>
+            </label>
+            <button id="commentReportRetry" class="admin-button" type="button" hidden>Reintentar cola</button>
+          </div>
+          <p id="commentReportQueueStatus" role="status" data-testid="admin-report-status"></p>
+          <div id="commentReportQueue" data-testid="admin-report-queue"></div>
+          <div class="admin-report-toolbar">
+            <button id="commentReportBack" class="admin-button" type="button" disabled>Anterior</button>
+            <button id="commentReportNext" class="admin-button" type="button" disabled>Siguiente página</button>
+          </div>
           <div class="admin-panel-heading"><h2>Moderación del mural</h2><p>Configura términos para el filtro de la interfaz y gestiona esta capacidad con permisos de mínimo privilegio.</p></div>
           <div class="admin-info-banner">
             Esta lista se aplica antes del envío desde la interfaz; Firestore Rules no ejecuta filtros de palabras dinámicos. Un cliente modificado podría omitirla. Las reglas sí exigen cuenta verificada, bloquean enlaces conocidos y limitan a un comentario cada 10 segundos por cuenta.

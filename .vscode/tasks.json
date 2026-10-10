@@ -1,11 +1,21 @@
 {
-  "version": "2.0.0",
-  "tasks": [
-    {
-      "label": "Live Preview server",
-      "type": "Live Preview",
-      "workspacePath": "${workspaceFolder}",
-      "problemMatcher": []
-    }
-  ]
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Live Preview server",
+			"type": "Live Preview",
+			"workspacePath": "${workspaceFolder}",
+			"problemMatcher": []
+		},
+		{
+			"label": "Fijas: vista previa automatica",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"scripts\\live-preview.js"
+			],
+			"isBackground": true,
+			"problemMatcher": []
+		}
+	]
 }

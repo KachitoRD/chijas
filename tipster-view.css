@@ -1,3 +1,36 @@
+.bankroll-account { max-width: 760px; min-width: 0; color: #e4eee9; }
+.bankroll-account h2 { font-size: 1.125rem; font-weight: 700; }
+.bankroll-account h3 { margin-top: 24px; font-size: .875rem; font-weight: 700; }
+.bankroll-account p { margin: 12px 0; line-height: 1.65; overflow-wrap: anywhere; }
+.bankroll-account-help { color: #b2c7bd; font-size: .8125rem; max-width: 72ch; }
+.bankroll-account > select { max-width: 280px; }
+.bankroll-account form { margin-top: 18px; padding-top: 16px; border-top: 1px solid #294438; }
+.bankroll-account .label { margin-top: 12px; }
+.bankroll-account input, .bankroll-account select { min-height: 44px; min-width: 0; caret-color: #6ee7b7; }
+.bankroll-account button { min-height: 44px; margin-top: 12px; padding: 8px 14px; border: 1px solid #426957; border-radius: 8px; color: #d1fae5; font-size: .8125rem; font-weight: 600; }
+.bankroll-account button:hover:not(:disabled) { background: #16392d; }
+.bankroll-account button:disabled { opacity: .55; cursor: not-allowed; }
+.bankroll-account [hidden] { display: none; }
+.bankroll-account [data-state="error"], .bankroll-account [data-negative="true"] { color: #fda4af; }
+.bankroll-account [data-state="loading"] { min-height: 44px; color: #b2c7bd; }
+.bankroll-account-balance { margin-top: 20px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; }
+.bankroll-account-balance > div { padding: 10px 0; border-bottom: 1px solid #294438; }
+.bankroll-account-balance dt { color: #b2c7bd; font-size: .75rem; }
+.bankroll-account-balance dd { margin-top: 4px; font-size: 1rem; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.bankroll-account-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.bankroll-account-confirmation { margin-top: 18px; padding: 12px 16px; border: 1px solid #426957; border-radius: 12px; background: #0e1b17; }
+.bankroll-account-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.bankroll-account [data-testid="bankroll-confirm"] { background: #6ee7b7; color: #052e23; }
+.bankroll-account [data-testid="bankroll-confirm"]:hover:not(:disabled) { background: #a7f3d0; }
+.bankroll-account-movements { margin-top: 12px; font-size: .8125rem; }
+.bankroll-account-movements li { padding: 12px 0; border-bottom: 1px solid #294438; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.bankroll-account-movements p { margin: 4px 0 0; color: #b2c7bd; }
+.bankroll-account :focus-visible { outline: 2px solid #6ee7b7; outline-offset: 3px; }
+@media (max-width: 480px) {
+  .bankroll-account-fields { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .bankroll-account input, .bankroll-account select { font-size: 16px; }
+}
+
 #dashboardView[data-view="tipster"] {
 
     & {

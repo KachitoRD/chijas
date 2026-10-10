@@ -79,9 +79,8 @@ service cloud.firestore {
 
     function canReadMural(pickId) {
       let pick = get(/databases/$(database)/documents/picks/$(pickId)).data;
-      return pickExists(pickId)
-        && ((pick.user_id is string && profileIsApproved(pick.user_id))
-          || hasAdminPermission("community"));
+      return hasAdminPermission("community")
+        || (pickExists(pickId) && pick.user_id is string && profileIsApproved(pick.user_id));
     }
 
     function canModerateMural(pickId) {
@@ -531,11 +530,101 @@ service cloud.firestore {
         && validCommentAuthorAccount(request.auth.uid)
         && profileIsApproved(get(/databases/$(database)/documents/picks/$(pickId)).data.user_id)
         && !exists(/databases/$(database)/documents/picks/$(pickId)/commentMutes/$(request.auth.uid))
+        && !exists(/databases/$(database)/documents/picks/$(pickId)/commentDeletionAudit/$(commentId))
         && validMuralComment(request.resource.data, request.auth.uid)
         && validCommentRateLink(request.auth.uid);
       allow update: if false;
+      // Author and pick-owner deletions are intentional unaudited exceptions.
+      // Any other community deletion must atomically create a server-timestamped audit.
+      function auditedCommunityDeletion() {
+        let auditPath = /databases/$(database)/documents/picks/$(pickId)/commentDeletionAudit/$(commentId);
+        return hasAdminPermission("community")
+          && !exists(auditPath) && existsAfter(auditPath)
+          && getAfter(auditPath).data.created_at == request.time
+          && getAfter(auditPath).data.created_by == request.auth.uid
+          && getAfter(auditPath).data.source_comment_id == commentId;
+      }
       allow delete: if verifiedUser()
-        && (resource.data.authorUid == request.auth.uid || canModerateMural(pickId));
+        && (resource.data.authorUid == request.auth.uid
+          || (pickExists(pickId) && get(/databases/$(database)/documents/picks/$(pickId)).data.user_id == request.auth.uid)
+          || auditedCommunityDeletion());
+    }
+
+    // Deterministic, immutable evidence for community deletions; private to community admins.
+    match /picks/{pickId}/commentDeletionAudit/{commentId} {
+      function validDeletionAudit(data) {
+        let sourcePath = /databases/$(database)/documents/picks/$(pickId)/comments/$(commentId);
+        return data.keys().hasOnly(["source_comment_id", "authorUid", "text", "created_by", "created_at"])
+          && data.keys().hasAll(["source_comment_id", "authorUid", "text", "created_by", "created_at"])
+          && data.source_comment_id == commentId
+          && data.authorUid is string && data.authorUid.size() <= 128
+          && data.text is string && data.text.size() <= 500
+          && data.created_by == request.auth.uid && data.created_at == request.time
+          && exists(sourcePath) && !existsAfter(sourcePath)
+          && data.authorUid == get(sourcePath).data.authorUid
+          && data.text == get(sourcePath).data.text;
+      }
+      allow read: if hasAdminPermission("community");
+      allow create: if verifiedUser() && hasAdminPermission("community")
+        && validDeletionAudit(request.resource.data);
+      allow update, delete: if false;
+    }
+
+    // Private evidence survives deletion of its parent comment/pick. No cascading cleanup.
+    match /picks/{pickId}/comments/{commentId}/commentReports/{reporterUid} {
+      function validReportEvidence(data) {
+        return data.keys().hasAll(["pickId", "commentId", "reporterUid", "ownerUid",
+            "authorUid", "authorName", "text", "category", "detail", "status", "created_at"])
+          && data.pickId == pickId && data.commentId == commentId
+          && data.reporterUid == reporterUid
+          && data.ownerUid is string && data.authorUid is string
+          && data.authorName is string && data.text is string
+          && data.category in ["spam", "harassment", "personal_data", "misleading", "other"]
+          && data.detail is string && data.detail.size() <= 300
+          && data.created_at is timestamp;
+      }
+      function validNewReport(data) {
+        let source = get(/databases/$(database)/documents/picks/$(pickId)/comments/$(commentId)).data;
+        let pick = get(/databases/$(database)/documents/picks/$(pickId)).data;
+        let user = get(/databases/$(database)/documents/users/$(reporterUid)).data;
+        let consent = get(/databases/$(database)/documents/legalAcceptances/$(reporterUid)/versions/2026-10-03).data;
+        return validReportEvidence(data)
+          && data.keys().hasOnly(["pickId", "commentId", "reporterUid", "ownerUid",
+            "authorUid", "authorName", "text", "category", "detail", "status", "created_at"])
+          && user.get("status", "active") == "active"
+          && consent.age_confirmed == true && acceptedCurrentTerms(reporterUid)
+          && profileIsApproved(pick.user_id)
+          && data.ownerUid == pick.user_id
+          && data.authorUid == source.authorUid && data.authorUid != reporterUid
+          && data.authorName == source.authorName && data.text == source.text
+          && data.status == "pending" && data.created_at == request.time;
+      }
+      function validReportReview(data) {
+        let sourcePath = /databases/$(database)/documents/picks/$(pickId)/comments/$(commentId);
+        return validReportEvidence(data)
+          && data.keys().hasOnly(["pickId", "commentId", "reporterUid", "ownerUid",
+            "authorUid", "authorName", "text", "category", "detail", "status", "created_at",
+            "reviewed_at", "reviewed_by", "resolution_reason"])
+          && data.keys().hasAll(["reviewed_at", "reviewed_by", "resolution_reason"])
+          && resource.data.status == "pending"
+          && data.diff(resource.data).affectedKeys().hasOnly(["status", "reviewed_at", "reviewed_by", "resolution_reason"])
+          && data.reviewed_at == request.time && data.reviewed_by == request.auth.uid
+          && data.resolution_reason is string && data.resolution_reason.size() <= 300
+          && (data.status == "dismissed" && exists(sourcePath) && existsAfter(sourcePath)
+            || (data.status == "removed" && exists(sourcePath) && !existsAfter(sourcePath)
+              && existsAfter(/databases/$(database)/documents/picks/$(pickId)/commentDeletionAudit/$(commentId)))
+            || (data.status == "unavailable" && !exists(sourcePath) && !existsAfter(sourcePath)));
+      }
+      allow get: if request.auth != null && request.auth.uid == reporterUid;
+      allow create: if signedInAs(reporterUid)
+        && request.auth.token.firebase.sign_in_provider != "anonymous"
+        && validNewReport(request.resource.data);
+      allow update: if hasAdminPermission("community") && validReportReview(request.resource.data);
+      allow delete: if false;
+    }
+    // Collection-group queries never grant owner/tipster or reporter list access.
+    match /{path=**}/commentReports/{reportId} {
+      allow read: if hasAdminPermission("community");
     }
 
     match /picks/{pickId}/commentMutes/{mutedUid} {
@@ -719,6 +808,53 @@ service cloud.firestore {
         && request.resource.data.moderated_at == request.time
         && request.resource.data.moderated_by == request.auth.uid;
       allow delete: if false;
+
+      // Manual private ledger only; no payments, entitlements or currency conversion.
+      // One immutable opening per currency, then append-only positive movements.
+      match /bankrollAccounts/{currency} {
+        function canManageBankroll() {
+          let userPath = /databases/$(database)/documents/users/$(userId);
+          let acceptancePath = /databases/$(database)/documents/legalAcceptances/$(userId)/versions/2026-10-03;
+          return signedInAs(userId)
+            && exists(userPath) && get(userPath).data.uid == userId
+            && profileIsApproved(userId) && acceptedCurrentTerms(userId)
+            && get(acceptancePath).data.age_confirmed == true;
+        }
+        function validBankrollAccount(data) {
+          return data.keys().hasAll(["currency", "initialMinorUnits", "created_at"])
+            && data.keys().hasOnly(["currency", "initialMinorUnits", "created_at"])
+            && currency in ["PEN", "USD", "EUR"]
+            && data.currency == currency
+            && data.initialMinorUnits is int
+            && data.initialMinorUnits >= 0 && data.initialMinorUnits <= 100000000000
+            && data.created_at is timestamp;
+        }
+        allow get, list: if canManageBankroll();
+        allow create: if canManageBankroll()
+          && validBankrollAccount(request.resource.data)
+          && request.resource.data.created_at == request.time;
+        allow update, delete: if false;
+
+        match /movements/{movementId} {
+          function validParentAccount() {
+            let path = /databases/$(database)/documents/users/$(userId)/bankrollAccounts/$(currency);
+            return exists(path) && validBankrollAccount(get(path).data);
+          }
+          function validBankrollMovement(data) {
+            return data.keys().hasAll(["type", "amountMinorUnits", "note", "created_at"])
+              && data.keys().hasOnly(["type", "amountMinorUnits", "note", "created_at"])
+              && data.type in ["deposit", "withdrawal"]
+              && data.amountMinorUnits is int
+              && data.amountMinorUnits > 0 && data.amountMinorUnits <= 100000000000
+              && data.note is string && data.note.size() <= 200
+              && data.created_at == request.time;
+          }
+          allow get, list: if canManageBankroll() && validParentAccount();
+          allow create: if canManageBankroll() && validParentAccount()
+            && validBankrollMovement(request.resource.data);
+          allow update, delete: if false;
+        }
+      }
 
       // Private viewer identity/preferences; never grants roles or changes editorial profiles.
       match /settings/{settingId} {

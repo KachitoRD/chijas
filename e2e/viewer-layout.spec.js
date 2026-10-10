@@ -42,7 +42,8 @@ test("escritorio conserva tres columnas con scroll independiente y paneles colap
   await page.locator("#toggleChannels").click();
   expect((await page.locator("#channelSidebar").boundingBox()).width).toBe(64);
   await page.locator("#toggleMural").click();
-  await expect(page.locator("#communityMural")).toBeHidden();
+  await expect(page.locator("#muralEntries")).toBeHidden();
+  await expect(page.locator("#communityMural #toggleMural")).toBeVisible();
   await page.locator("#toggleMural").click();
   await expect(page.locator("#communityMural")).toBeVisible();
 });
