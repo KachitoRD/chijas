@@ -7,6 +7,7 @@ import { normalizePick, summarizePerformance } from "./pick-schema.js";
 import { groupPicksByTipster } from "./admin-dashboard-models.js";
 import { summarizePublishedPickUnits } from "./admin-finance.js";
 import { mountAdminReportQueue } from "./admin-report-queue.js";
+import { signOutAndRedirect } from "./auth-navigation.js";
 
 export function mountAdminView(root) {
 const $ = id => root.querySelector(`#${CSS.escape(id)}`);
@@ -533,6 +534,9 @@ function renderApplications() {
     const identity = node("td");
     identity.append(node("strong", application.display_name),
       node("p", `${application.email} · ${application.id}`, "mt-2 text-xs text-zinc-400"));
+    const publicData = application.public_data || {};
+    if (publicData.bio) identity.append(node("p", `Biografía: ${publicData.bio}`, "mt-2 text-xs text-zinc-400"));
+    if (publicData.avatar_url) identity.append(node("p", `Avatar: ${publicData.avatar_url}`, "mt-1 break-all text-xs text-zinc-500"));
     const username = node("td", `@${application.requested_username}`);
     const decision = node("td");
     const actions = node("div", "", "admin-actions");
@@ -1183,7 +1187,7 @@ $("dashboard").addEventListener("click", event => {
     });
   }
 });
-$("sign-out").addEventListener("click", event => perform(event.currentTarget, () => signOut(auth), "Sesión cerrada."));
+$("sign-out").addEventListener("click", event => perform(event.currentTarget, () => signOutAndRedirect(() => signOut(auth)), "Sesión cerrada."));
 if (!firebaseConfigured) {
   deny(firebaseConfigError);
 } else {

@@ -667,13 +667,33 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    function validApplicationPublicData(data) {
+      return data is map
+        && (data.size() == 0 || (
+          data.keys().hasOnly([
+            "bio", "color_primario", "avatar_url", "banner_url",
+            "kick_url", "twitch_url", "youtube_url",
+            "telegram_url", "twitter_url", "instagram_url"
+          ])
+          && validProfileChanges(data)
+          && (!data.keys().hasAny(["avatar_url"]) || validOptionalHttpsUrl(data.avatar_url))
+          && (!data.keys().hasAny(["banner_url"]) || validOptionalHttpsUrl(data.banner_url))
+          && (!data.keys().hasAny(["kick_url"]) || validOptionalHttpsUrl(data.kick_url))
+          && (!data.keys().hasAny(["twitch_url"]) || validOptionalHttpsUrl(data.twitch_url))
+          && (!data.keys().hasAny(["youtube_url"]) || validOptionalHttpsUrl(data.youtube_url))
+          && (!data.keys().hasAny(["telegram_url"]) || validOptionalHttpsUrl(data.telegram_url))
+          && (!data.keys().hasAny(["twitter_url"]) || validOptionalHttpsUrl(data.twitter_url))
+          && (!data.keys().hasAny(["instagram_url"]) || validOptionalHttpsUrl(data.instagram_url))
+        ));
+    }
+
     // Applicants manage their own request; only an admin can review its status.
     match /tipsterApplications/{userId} {
       allow read: if signedInAs(userId) || hasAdminPermission("tipsters");
       allow create: if signedInAs(userId)
         && acceptedCurrentTerms(userId)
         && request.resource.data.keys().hasOnly([
-          "uid", "display_name", "email", "requested_username", "status",
+          "uid", "display_name", "email", "requested_username", "public_data", "status",
           "submitted_at", "reviewed_at", "reviewed_by"
         ])
         && request.resource.data.uid == userId
@@ -682,6 +702,7 @@ service cloud.firestore {
         && request.resource.data.display_name.size() <= 60
         && request.resource.data.email == request.auth.token.email
         && validUsername(request.resource.data.requested_username)
+        && validApplicationPublicData(request.resource.data.get("public_data", {}))
         && request.resource.data.status == "pending"
         && request.resource.data.submitted_at == request.time
         && request.resource.data.reviewed_at == null
@@ -694,7 +715,7 @@ service cloud.firestore {
           && acceptedCurrentTerms(userId)
           && resource.data.status == "rejected"
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            "display_name", "email", "requested_username", "status",
+            "display_name", "email", "requested_username", "public_data", "status",
             "submitted_at", "reviewed_at", "reviewed_by"
           ])
           && request.resource.data.uid == userId
@@ -703,6 +724,7 @@ service cloud.firestore {
           && request.resource.data.display_name.size() <= 60
           && request.resource.data.email == request.auth.token.email
           && validUsername(request.resource.data.requested_username)
+          && validApplicationPublicData(request.resource.data.get("public_data", {}))
           && request.resource.data.status == "pending"
           && request.resource.data.submitted_at == request.time
           && request.resource.data.reviewed_at == null

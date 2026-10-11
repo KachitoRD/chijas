@@ -39,6 +39,22 @@
         </div>
       </fieldset>
     </form>
+    <section id="tipsterApplicationSection" aria-labelledby="tipsterApplicationTitle">
+      <h2 id="tipsterApplicationTitle" class="settings-section-title">Solicitar ser tipster</h2>
+      <p class="tipster-application-intro">Envía tu solicitud para que el administrador revise tu acceso de publicación. Tu cuenta seguirá como viewer hasta que la aprueben.</p>
+      <p id="tipsterApplicationStatus" role="status" aria-live="polite">Comprobando el estado de tu solicitud…</p>
+      <form id="tipsterApplicationForm" hidden>
+        <div class="settings-fields">
+          <label for="applicationDisplayName">Nombre público<input id="applicationDisplayName" maxlength="60" required autocomplete="nickname"></label>
+          <label for="applicationUsername">Usuario solicitado<input id="applicationUsername" minlength="3" maxlength="30" pattern="[a-zA-Z0-9_-]{3,30}" required autocomplete="username" aria-describedby="applicationUsernameHint"><span id="applicationUsernameHint" class="settings-hint">Se usará en tu perfil público si aprueban la solicitud.</span></label>
+        </div>
+        <p class="settings-hint">Si aprueban la solicitud, el nombre, usuario, biografía y avatar indicados formarán parte de tu perfil público. Tu correo y demás datos privados no se copiarán.</p>
+        <p id="tipsterApplicationFeedback" role="alert" hidden></p>
+        <div class="settings-actions">
+          <button id="applicationButton" type="submit">Enviar solicitud</button>
+        </div>
+      </form>
+    </section>
     <button id="retryAccountSettings" type="button" hidden>Reintentar carga</button>
   </main>
   <script type="module">

@@ -185,6 +185,7 @@
     import { installAuthModal, installGoogleAccess, installPasswordRecovery } from "./auth-ui.js";
     import { installBusyButtons, showSkeleton } from "./ui-feedback.js";
     import { getAccountPermissions } from "./permissions.js";
+    import { signOutAndRedirect } from "./auth-navigation.js";
     installBusyButtons();
     installAuthModal({ dialog: document.getElementById("ownerAuth"), visibilityTarget: document.getElementById("creatorLogin"), title: "Administración de la plataforma" });
     showSkeleton(document.getElementById("loading"), { variant: "cards", label: "Comprobando acceso de creador" });
@@ -254,6 +255,12 @@
             createElement("p", "mt-1 truncate text-xs text-zinc-400", `@${application.requested_username || ""} | ${application.email || ""}`),
             createElement("p", "mt-1 truncate text-[11px] text-zinc-500", `UID ${application.uid}`)
           );
+          if (application.public_data?.bio) {
+            details.append(createElement("p", "mt-2 text-xs leading-5 text-zinc-300", `Biografía propuesta: ${application.public_data.bio}`));
+          }
+          if (application.public_data?.avatar_url) {
+            details.append(createElement("p", "mt-1 break-all text-[11px] text-zinc-500", `Avatar propuesto: ${application.public_data.avatar_url}`));
+          }
           const actions = createElement("div", "flex shrink-0 gap-2");
           const approve = createElement("button", "control min-h-9 rounded-lg bg-emerald-300 px-3 text-xs font-bold text-zinc-950 hover:bg-emerald-200 disabled:cursor-wait disabled:opacity-60", "Aprobar");
           approve.type = "button";
@@ -521,6 +528,7 @@
           }
           const profile = profileSnapshot.exists() ? profileSnapshot.data() : {};
           const socialProfile = socialProfileSnapshot.exists() ? socialProfileSnapshot.data() : {};
+          const publicData = application.public_data || {};
           if (!usernameSnapshot.exists()) transaction.set(usernameRef, { uid });
           transaction.set(profileRef, {
             id: uid,
@@ -529,22 +537,17 @@
             tipster_status: "approved",
             followerCount: profile.followerCount ?? 0,
             ...(profile.followerCountUpdatedBy ? { followerCountUpdatedBy: profile.followerCountUpdatedBy } : {}),
-            bio: profile.bio || null,
+            bio: Object.hasOwn(publicData, "bio") ? publicData.bio : profile.bio || null,
             color_primario: profile.color_primario || "#34d399",
             is_online: false,
             last_active_at: null,
             created_at: profile.created_at || serverTimestamp()
           });
-          transaction.set(socialProfileRef, {
-            avatar_url: socialProfile.avatar_url || null,
-            banner_url: socialProfile.banner_url || null,
-            kick_url: socialProfile.kick_url || null,
-            twitch_url: socialProfile.twitch_url || null,
-            youtube_url: socialProfile.youtube_url || null,
-            telegram_url: socialProfile.telegram_url || null,
-            twitter_url: socialProfile.twitter_url || null,
-            instagram_url: socialProfile.instagram_url || null
-          });
+          const socialFields = ["avatar_url", "banner_url", "kick_url", "twitch_url", "youtube_url", "telegram_url", "twitter_url", "instagram_url"];
+          transaction.set(socialProfileRef, Object.fromEntries(socialFields.map(field => [
+            field,
+            Object.hasOwn(publicData, field) ? publicData[field] : socialProfile[field] || null
+          ])));
           if (!presenceSnapshot.exists()) {
             transaction.set(presenceRef, {
               uid,
@@ -688,7 +691,7 @@
     $("logout").addEventListener("click", async () => {
       $("logout").disabled = true;
       try {
-        await signOut(auth);
+        await signOutAndRedirect(() => signOut(auth));
       } catch (error) {
         console.error("No se pudo cerrar sesión:", error);
         notice("applicationsMessage", "No se pudo cerrar sesión. Inténtalo de nuevo.");

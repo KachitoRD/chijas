@@ -3,6 +3,7 @@ import { openExecutiveBankrollReport } from "./bankroll-report.js";
 import { mountBankrollAccountView } from "./bankroll-account-view.js";
 import { installAuthModal, installGoogleAccess, installPasswordRecovery } from "./auth-ui.js";
 import { installBusyButtons, showSkeleton } from "./ui-feedback.js";
+import { signOutAndRedirect } from "./auth-navigation.js";
 import { getAccountPermissions, watchAccountPermissions } from "./permissions.js";
 import { normalizePick, canonicalPick, summarizePerformance } from "./pick-schema.js";
 import { filterTipsterHistory } from "./tipster-workspace.js";
@@ -456,17 +457,19 @@ listenWindow("beforeunload", () => {
 });
 
 async function getAccountState(user) {
-  const [permissions, applicationSnapshot, settingsSnapshot] = await Promise.all([
+  const [permissions, applicationSnapshot, settingsSnapshot, viewerProfileSnapshot] = await Promise.all([
     getAccountPermissions(user),
     getDoc(doc(db, "tipsterApplications", user.uid)),
-    getDoc(doc(db, "platformSettings", "limits"))
+    getDoc(doc(db, "platformSettings", "limits")),
+    getDoc(doc(db, "users", user.uid, "settings", "profile"))
   ]);
   const settings = settingsSnapshot.exists() ? settingsSnapshot.data() : {};
   const result = {
     isAdmin: permissions.isAdmin,
     tipsterStatus: permissions.tipsterStatus,
     applicationStatus: applicationSnapshot.exists() ? applicationSnapshot.data().status || null : null,
-    tipsterMonthlyPickLimit: settings.tipsterMonthlyPickLimit ?? 50
+    tipsterMonthlyPickLimit: settings.tipsterMonthlyPickLimit ?? 50,
+    viewerProfile: viewerProfileSnapshot.data() || {}
   };
   return result;
 }
@@ -479,8 +482,9 @@ function showAccountGate(state, user) {
   $("presenceState").classList.add("hidden");
   $("dashboardTitle").textContent = "Tu cuenta";
   $("dashboardDescription").textContent = "Consulta el estado de tu cuenta y solicita publicar como tipster.";
-  $("applicationDisplayName").value = user.displayName?.trim() || user.email?.split("@")[0] || "";
-  $("applicationUsername").value = (user.displayName || user.email?.split("@")[0] || "")
+  const publicName = state.viewerProfile.displayName || user.displayName || user.email?.split("@")[0] || "";
+  $("applicationDisplayName").value = publicName.trim();
+  $("applicationUsername").value = publicName
     .normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
     .replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 30);
   const pending = state.applicationStatus === "pending";
@@ -501,11 +505,17 @@ async function requestTipsterAccess(event) {
   button.textContent = "Enviando...";
   clearMessage("applicationMessage");
   try {
+    const viewerProfileSnapshot = await getDoc(doc(db, "users", currentUser.uid, "settings", "profile"));
+    const viewerProfile = viewerProfileSnapshot.data() || {};
     await setDoc(doc(db, "tipsterApplications", currentUser.uid), {
       uid: currentUser.uid,
       display_name: $("applicationDisplayName").value.trim(),
       email: currentUser.email || "",
       requested_username: $("applicationUsername").value.trim().toLowerCase(),
+      public_data: {
+        bio: viewerProfile.bio?.trim() || null,
+        avatar_url: viewerProfile.photoURL || null
+      },
       status: "pending",
       submitted_at: serverTimestamp(),
       reviewed_at: null,
@@ -1818,7 +1828,7 @@ $("legalAcceptanceForm").addEventListener("submit", async event => {
 });
 $("legalLogoutButton").addEventListener("click", async () => {
   try {
-    await signOut(auth);
+    await signOutAndRedirect(() => signOut(auth));
   } catch (error) {
     console.error("No se pudo cerrar la sesión:", error);
     message("legalAcceptanceMessage", "No se pudo cerrar la sesión. Inténtalo de nuevo.");
@@ -1834,7 +1844,7 @@ $("logoutButton").addEventListener("click", async () => {
     presenceError = true;
   }
   try {
-    await signOut(auth);
+    await signOutAndRedirect(() => signOut(auth));
     if (presenceError) message("loginMessage", "La sesión se cerró. La conexión pública caducará automáticamente en 90 segundos.");
   } catch (error) {
     console.error("No se pudo cerrar sesión:", error);

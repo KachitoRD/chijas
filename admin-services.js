@@ -74,18 +74,20 @@ export async function reviewApplication(uid, approve) {
       ]);
       if (reservation.exists() && reservation.data().uid !== uid) throw new Error("El usuario ya está reservado.");
       const current = profile.data() || {};
+      const publicData = application.public_data || {};
       if (!reservation.exists()) transaction.set(usernameRef, { uid });
       transaction.set(profileRef, {
         id: uid, username, nombre_publico: application.display_name, tipster_status: "approved",
         followerCount: current.followerCount ?? 0,
         ...(current.followerCountUpdatedBy ? { followerCountUpdatedBy: current.followerCountUpdatedBy } : {}),
-        bio: current.bio || null, color_primario: current.color_primario || "#34d399",
+        bio: Object.hasOwn(publicData, "bio") ? publicData.bio : current.bio || null,
+        color_primario: current.color_primario || "#34d399",
         is_online: false, last_active_at: null, created_at: current.created_at || serverTimestamp()
       });
       const socialData = social.data() || {};
       transaction.set(socialRef, Object.fromEntries([
         "avatar_url", "banner_url", "kick_url", "twitch_url", "youtube_url", "telegram_url", "twitter_url", "instagram_url"
-      ].map(field => [field, socialData[field] || null])));
+      ].map(field => [field, Object.hasOwn(publicData, field) ? publicData[field] : socialData[field] || null])));
       if (!presence.exists()) transaction.set(presenceRef, { uid, is_online: false, last_active_at: serverTimestamp() });
     }
     transaction.update(applicationRef, {

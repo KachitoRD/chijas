@@ -51,6 +51,7 @@ test.afterEach(async ({ request, page }, testInfo) => {
   await request.delete(`${firestoreRoot}/viewerPresence/${account.localId}`, { headers: { Authorization: "Bearer owner" } });
   await request.delete(`${firestoreRoot}/platformAdmins/${account.localId}`, { headers: { Authorization: "Bearer owner" } });
   await request.delete(`${firestoreRoot}/legalAcceptances/${account.localId}/versions/2026-10-03`, { headers: { Authorization: "Bearer owner" } });
+  await request.delete(`${firestoreRoot}/tipsterApplications/${account.localId}`, { headers: { Authorization: "******" } });
   const response = await request.post(`${authRoot}/identitytoolkit.googleapis.com/v1/accounts:delete?key=demo-key`, { data: { idToken: account.idToken } });
   expect(response.ok()).toBeTruthy();
 });
@@ -141,13 +142,54 @@ test("cuenta privada: el enlace aparece con sesión y conserva login en la vitri
   await page.reload();
   await expect(page.locator("#profile-email")).toHaveText(account.email);
   await page.locator("#sign-out").click();
-  await expect(page.locator("#signed-out")).toBeVisible();
-  await expect(page.locator("#profile")).toBeHidden();
-  await expect(page.locator("#profile-email")).toBeEmpty();
-  await expect(page.locator("#profile-uid")).toBeEmpty();
-  await page.goto("/");
+  await expect(page).toHaveURL(/\/$/);
   await expect(page.locator("#viewerLogin")).toBeVisible();
   await expect(page.locator("#viewerAccount")).toBeHidden();
+  await page.locator("#viewerLogin").click();
+  await page.locator("#viewerAuthEmail").fill(account.email);
+  await page.locator("#viewerAuthPassword").fill(password);
+  await page.locator("#viewerAuthSubmit").click();
+  await expect(page.locator("#userMenuButton")).toBeVisible();
+  await page.locator("#userMenuButton").click();
+  await page.locator("#viewerLogout").click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.locator("#viewerLogin")).toBeVisible();
+});
+
+test("cuenta privada: viewer puede solicitar acceso y compartir solo sus datos públicos", async ({ page, request }) => {
+  await page.goto("/");
+  await page.locator("#viewerLogin").click();
+  await page.locator("#viewerAuthEmail").fill(account.email);
+  await page.locator("#viewerAuthPassword").fill(password);
+  await page.locator("#viewerAuthSubmit").click();
+  await page.locator("#userMenuButton").click();
+  await page.locator("#viewerAccount").click();
+  await expect(page.locator("#tipsterApplicationForm")).toBeVisible();
+  await page.locator("#accountName").fill("Viewer solicitante");
+  await page.locator("#accountBio").fill("Biografía elegida por el viewer.");
+  await page.locator("#accountAvatar").fill("https://example.test/viewer-avatar.png");
+  await page.locator("#saveAccountSettings").click();
+  await expect(page.locator("#accountSettingsMessage")).toHaveText("Configuración guardada.");
+  await expect(page.locator("#applicationDisplayName")).toHaveValue("Viewer solicitante");
+  await page.locator("#applicationUsername").fill(`viewer-${account.localId.slice(0, 10)}`);
+  await page.locator("#applicationButton").click();
+  await expect(page.locator("#tipsterApplicationStatus")).toContainText("pendiente");
+  await expect(page.locator("#tipsterApplicationForm")).toBeHidden();
+  const idToken = await page.evaluate(async () => {
+    const { getAuth } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
+    return getAuth().currentUser.getIdToken();
+  });
+  const submitted = await request.get(`${firestoreRoot}/tipsterApplications/${account.localId}`, {
+    headers: { Authorization: `Bearer ${idToken}` }
+  });
+  expect(submitted.ok(), await submitted.text()).toBeTruthy();
+  const application = (await submitted.json()).fields;
+  expect(application.public_data.mapValue.fields.bio.stringValue).toBe("Biografía elegida por el viewer.");
+  expect(application.public_data.mapValue.fields.avatar_url.stringValue).toBe("https://example.test/viewer-avatar.png");
+  expect(application.public_data.mapValue.fields).not.toHaveProperty("email");
+  await page.reload();
+  await expect(page.locator("#tipsterApplicationStatus")).toContainText("pendiente");
+  await expect(page.locator("#tipsterApplicationForm")).toBeHidden();
 });
 
 test("cuenta privada: una visita sin sesión no muestra datos personales", async ({ page }) => {

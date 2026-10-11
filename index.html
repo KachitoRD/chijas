@@ -512,6 +512,7 @@
   <script type="module">
     import { firebaseConfigured, firebaseConfigError, firebaseDb, firebaseAuth } from "./firebase-config.js?v=2";
     import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+    import { signOutAndRedirect } from "./auth-navigation.js";
     import { collection, doc, getDoc, onSnapshot, query, where, orderBy, limit, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
     import { ensureViewer, setFollowing, subscribeFollowingFeed } from "./community.js";
     import { installViewerAccess } from "./auth-ui.js";
@@ -780,7 +781,7 @@
     });
     $("viewerLogout").addEventListener("click", async () => {
       $("viewerLogout").disabled = true;
-      try { await signOut(firebaseAuth); }
+      try { await signOutAndRedirect(() => signOut(firebaseAuth)); }
       catch (error) { communityError(error, "No se pudo cerrar la sesión. Vuelve a intentarlo."); }
       finally { $("viewerLogout").disabled = false; }
     });

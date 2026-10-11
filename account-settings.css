@@ -15,6 +15,11 @@
 .account-settings input::placeholder, .account-settings textarea::placeholder { color: #a8bdb1; }
 .account-settings .settings-hint { font-size: 12px; line-height: 1.6; color: #bbcec3; margin-top: -8px; }
 .account-settings .settings-section-title { display: block; width: 100%; padding-top: 28px; margin: 28px 0 20px; border-top: 1px solid rgb(110 231 183 / .12); }
+.account-settings .tipster-application-intro { max-width: 65ch; margin: 0 0 16px; color: #bbcec3; font-size: 13px; line-height: 1.6; }
+.account-settings #tipsterApplicationStatus { margin-bottom: 16px; color: #bbcec3; font-size: 14px; line-height: 1.6; }
+.account-settings #tipsterApplicationStatus[data-error="true"], .account-settings #tipsterApplicationFeedback { color: #fecdd3; font-size: 13px; line-height: 1.6; }
+.account-settings #applicationButton { background: #6ee7b7; color: #052e23; }
+.account-settings #applicationButton:hover:not(:disabled) { background: #a7f3d0; }
 .account-settings .settings-checkbox { display: flex; gap: 12px; align-items: center; min-height: 44px; }
 .account-settings [type="checkbox"] { width: 18px; height: 18px; accent-color: #6ee7b7; }
 .account-settings .settings-actions { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin-top: 28px; }

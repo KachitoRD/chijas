@@ -197,6 +197,7 @@
         <form id="tipsterApplicationForm" class="mt-6 space-y-4">
           <div><label for="applicationDisplayName" class="label">Nombre público</label><input id="applicationDisplayName" class="input" maxlength="60" required></div>
           <div><label for="applicationUsername" class="label">Usuario solicitado</label><input id="applicationUsername" class="input" minlength="3" maxlength="30" pattern="[a-zA-Z0-9_\-]{3,30}" autocomplete="username" required><p class="mt-1.5 text-xs text-zinc-500">Tu perfil público usará este nombre si aprueban la solicitud.</p></div>
+          <p class="text-xs leading-5 text-zinc-400">Si aprueban la solicitud, el nombre, usuario, biografía y avatar indicados formarán parte de tu perfil público. Tu correo y demás datos privados no se copiarán.</p>
           <p id="applicationMessage" class="hidden rounded-lg border px-3 py-2.5 text-sm leading-5" role="status"></p>
           <button id="applicationButton" type="submit" class="control min-h-11 rounded-xl bg-emerald-300 px-5 text-sm font-bold text-zinc-950 hover:bg-emerald-200 disabled:cursor-wait disabled:opacity-60">Enviar solicitud</button>
         </form>

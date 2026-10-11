@@ -8,14 +8,16 @@ const password = "Test-password-123!";
 let accounts, paths, prefix, originalLimits;
 
 function fields(data) {
-  return Object.fromEntries(Object.entries(data).map(([key, value]) => [key,
-    value === null ? { nullValue: null }
-      : value instanceof Date ? { timestampValue: value.toISOString() }
-        : typeof value === "boolean" ? { booleanValue: value }
-          : typeof value === "number" ? { doubleValue: value }
-            : Array.isArray(value) ? { arrayValue: { values: value.map(stringValue => ({ stringValue })) } }
-              : { stringValue: value }
-  ]));
+  return Object.fromEntries(Object.entries(data).map(([key, value]) => [key, fieldValue(value)]));
+}
+function fieldValue(value) {
+  return value === null ? { nullValue: null }
+    : value instanceof Date ? { timestampValue: value.toISOString() }
+      : typeof value === "boolean" ? { booleanValue: value }
+        : typeof value === "number" ? { doubleValue: value }
+          : Array.isArray(value) ? { arrayValue: { values: value.map(stringValue => ({ stringValue })) } }
+            : typeof value === "object" ? { mapValue: { fields: fields(value) } }
+              : { stringValue: value };
 }
 async function seed(request, path, data) {
   paths.add(path);
@@ -299,6 +301,93 @@ test("métricas base viewer cuentan usuarios y distinguen moderación pendiente"
   await expect(page.locator("#communityModerationStatus")).toContainText("demo local");
 });
 
+test("aprobación copia el perfil público del viewer al tipster sin exponer datos privados", async ({ page, request }) => {
+  const uid = accounts.applicant.uid;
+  await seed(request, `users/${uid}/settings/profile`, {
+    displayName: "Nombre del viewer",
+    photoURL: "https://example.test/viewer-avatar.png",
+    bio: "Biografía pública elegida.",
+    theme: "contrast",
+    notifications: false,
+    updated_at: new Date()
+  });
+  await seed(request, `tipsterApplications/${uid}`, {
+    uid,
+    display_name: "Nombre del viewer",
+    email: accounts.applicant.email,
+    requested_username: prefix,
+    public_data: {
+      bio: "Biografía pública elegida.",
+      avatar_url: "https://example.test/viewer-avatar.png"
+    },
+    status: "pending",
+    submitted_at: new Date(),
+    reviewed_at: null,
+    reviewed_by: null
+  });
+
+  await signIn(page, "super");
+  await page.evaluate(async uid => {
+    const { reviewApplication } = await import("/admin-services.js");
+    await reviewApplication(uid, true);
+  }, uid);
+
+  for (const collection of ["perfiles", "perfiles_social", "presencia"]) paths.add(`${collection}/${uid}`);
+  paths.add(`usernames/${prefix}`);
+  const profileResponse = await request.get(`${root}/perfiles/${uid}`, { headers });
+  const socialResponse = await request.get(`${root}/perfiles_social/${uid}`, { headers });
+  expect(profileResponse.ok()).toBeTruthy();
+  expect(socialResponse.ok()).toBeTruthy();
+  const profile = (await profileResponse.json()).fields;
+  const social = (await socialResponse.json()).fields;
+  expect(profile.id.stringValue).toBe(uid);
+  expect(profile.username.stringValue).toBe(prefix);
+  expect(profile.nombre_publico.stringValue).toBe("Nombre del viewer");
+  expect(profile.bio.stringValue).toBe("Biografía pública elegida.");
+  expect(social.avatar_url.stringValue).toBe("https://example.test/viewer-avatar.png");
+  expect(profile).not.toHaveProperty("email");
+  expect(social).not.toHaveProperty("email");
+});
+
+test("panel owner muestra y conserva los datos públicos de la solicitud al aprobar", async ({ page, request }) => {
+  const uid = accounts.applicant.uid;
+  const avatar = "https://example.test/owner-avatar.png";
+  await seed(request, `tipsterApplications/${uid}`, {
+    uid,
+    display_name: "Solicitud para owner",
+    email: accounts.applicant.email,
+    requested_username: prefix,
+    public_data: { bio: "Biografía revisada en owner.", avatar_url: avatar },
+    status: "pending",
+    submitted_at: new Date(),
+    reviewed_at: null,
+    reviewed_by: null
+  });
+
+  await signIn(page, "super");
+  await page.goto("/owner.html");
+  await expect(page.locator("#ownerDashboard")).toBeVisible();
+  const application = page.locator(`#applications article:has(button[data-review="approve"][data-uid="${uid}"])`);
+  await expect(application).toContainText("Biografía propuesta: Biografía revisada en owner.");
+  await expect(application).toContainText(`Avatar propuesto: ${avatar}`);
+  await application.locator('button[data-review="approve"]').click();
+  await expect(application).toHaveCount(0);
+
+  for (const collection of ["perfiles", "perfiles_social", "presencia"]) paths.add(`${collection}/${uid}`);
+  paths.add(`usernames/${prefix}`);
+  const profileResponse = await request.get(`${root}/perfiles/${uid}`, { headers });
+  const socialResponse = await request.get(`${root}/perfiles_social/${uid}`, { headers });
+  expect(profileResponse.ok()).toBeTruthy();
+  expect(socialResponse.ok()).toBeTruthy();
+  const profile = (await profileResponse.json()).fields;
+  const social = (await socialResponse.json()).fields;
+  expect(profile.nombre_publico.stringValue).toBe("Solicitud para owner");
+  expect(profile.bio.stringValue).toBe("Biografía revisada en owner.");
+  expect(social.avatar_url.stringValue).toBe(avatar);
+  expect(profile).not.toHaveProperty("email");
+  expect(social).not.toHaveProperty("email");
+});
+
 test("fijas canónicas y legacy liquidan cashout sin publicar bankroll ni reabrir resultados", async ({ page, request }) => {
   await signIn(page, "super");
   await page.evaluate(async uid => {
@@ -453,6 +542,46 @@ test("SPA restaura historial y sesión, respeta mobile y cierra panel al salir",
   await expect(page.locator("#viewerMain")).toBeVisible();
   await expect(page.locator("#dashboard")).toHaveCount(0);
   expect(errors).toEqual([]);
+});
+
+test("logout de admin y tipster invalida la sesión y vuelve a frontpage", async ({ page, request }) => {
+  await signIn(page, "admin");
+  let timeOrigin = await page.evaluate(() => performance.timeOrigin);
+  await page.locator("#sign-out").click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect.poll(() => page.evaluate(() => performance.timeOrigin)).toBeGreaterThan(timeOrigin);
+  await expect(page.locator("#viewerLogin")).toBeVisible();
+
+  const applicant = accounts.applicant;
+  await seed(request, `perfiles/${applicant.uid}`, {
+    id: applicant.uid,
+    username: prefix,
+    nombre_publico: "Tipster de prueba",
+    bio: null,
+    color_primario: "#34d399",
+    is_online: false,
+    last_active_at: null,
+    created_at: new Date(),
+    tipster_status: "approved"
+  });
+  await seed(request, `perfiles_social/${applicant.uid}`, {
+    avatar_url: null, banner_url: null, kick_url: null, twitch_url: null,
+    youtube_url: null, telegram_url: null, twitter_url: null, instagram_url: null
+  });
+  await seed(request, `usernames/${prefix}`, { uid: applicant.uid });
+  await page.evaluate(async account => {
+    const { firebaseAuth } = await import("/firebase-config.js?v=2");
+    const { signInWithEmailAndPassword } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
+    await signInWithEmailAndPassword(firebaseAuth, account.email, account.password);
+  }, applicant);
+  await page.goto("/tipster-dashboard.html");
+  await expect(page.locator("#myPicks")).toBeVisible();
+  timeOrigin = await page.evaluate(() => performance.timeOrigin);
+  await page.locator("#logoutButton").click();
+  await expect(page).toHaveURL(/\/$/);
+  await page.waitForLoadState("domcontentloaded");
+  await expect.poll(() => page.evaluate(() => performance.timeOrigin)).toBeGreaterThan(timeOrigin);
+  await expect(page.locator("#viewerLogin")).toBeVisible();
 });
 
 test("SPA cancela carga pendiente al regresar sin montar listeners tardíos", async ({ page }) => {
