@@ -29,7 +29,7 @@ test("exporta CSV privado de la moneda seleccionada en SPA y standalone y bloque
     await expect(page.getByTestId("bankroll-account-status")).toContainText("Sin apertura");
     await expect(button).toBeDisabled();
     await expect(page.getByTestId("bankroll-export-status")).toBeEmpty();
-    await page.goto("/tipster-dashboard.html");
+    await page.goto("/src/views/tipster-workspace.html");
     await page.getByTestId("bankroll-tab").click();
     await expect(button).toBeEnabled();
     downloaded = page.waitForEvent("download");

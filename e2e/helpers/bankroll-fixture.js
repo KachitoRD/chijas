@@ -72,6 +72,6 @@ export async function loginLedger(page, fixture, standalone = false) {
   await page.locator("#viewerAuthPassword").fill(fixture.password);
   await page.locator("#viewerAuthSubmit").click();
   await expect(page.locator("#viewerAuth")).not.toBeVisible();
-  await page.goto(standalone ? "/tipster-dashboard.html" : "/#view=tipster");
+  await page.goto(standalone ? "/src/views/tipster-workspace.html" : "/#view=tipster");
   await expect(page.locator("#tipsterTabs")).toBeVisible();
 }

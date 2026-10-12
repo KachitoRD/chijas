@@ -11,7 +11,7 @@ async function login(page) {
   await expect(page.locator("#viewerAuth")).not.toBeVisible();
   await page.goto("/#view=tipster");
   await expect(page.locator("#dashboard")).toBeVisible();
-  return page.evaluate(async () => (await import("/firebase-config.js?v=2")).firebaseAuth.currentUser.uid);
+  return page.evaluate(async () => (await import("/src/services/firebase-config.js?v=2")).firebaseAuth.currentUser.uid);
 }
 
 function fixture(uid, id, status = "pending", visible = false) {
@@ -25,7 +25,7 @@ function fixture(uid, id, status = "pending", visible = false) {
 
 async function firestoreAction(page, operation, path, data = {}) {
   return page.evaluate(async ({ operation, path, data }) => {
-    const { firebaseDb } = await import("/firebase-config.js?v=2");
+    const { firebaseDb } = await import("/src/services/firebase-config.js?v=2");
     const sdk = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
     try {
       if (operation === "list") {
@@ -134,7 +134,7 @@ test("reglas OBS separan presentación de términos y rechazan suplantación y d
     expect(await firestoreAction(page, "pick", pickPath, { selection: "Alterada" })).toEqual({ ok: false, code: "permission-denied" });
     expect(await firestoreAction(page, "delete", path)).toEqual({ ok: true });
     expect(await firestoreAction(page, "save", path, { visible: true })).toEqual({ ok: true });
-    await page.evaluate(async () => (await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js")).signOut((await import("/firebase-config.js?v=2")).firebaseAuth));
+    await page.evaluate(async () => (await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js")).signOut((await import("/src/services/firebase-config.js?v=2")).firebaseAuth));
     expect((await firestoreAction(page, "read", path)).ok).toBe(true);
     expect(await firestoreAction(page, "save", path, { visible: false })).toEqual({ ok: false, code: "permission-denied" });
     await writeVisualDocument(request, `perfiles/${foreignUid}`, { tipster_status: "revoked" });
@@ -165,7 +165,7 @@ for (const status of ["pending", "won"]) {
       const row = page.locator("#myPicks tr").filter({ hasText: pick.event });
       const stream = row.getByRole("checkbox", { name: `Mostrar ${pick.event} en el widget`, exact: true });
       const before = await firestoreAction(page, "read", pickPath);
-      await overlay.goto("/overlay.html?u=tipster_test");
+      await overlay.goto("/src/views/streaming-overlay.html?u=tipster_test");
       await expect(overlay.locator("#pickList")).toContainText(pick.event);
       await expect(stream).toBeEnabled();
       await expect(stream).toBeChecked();
@@ -208,7 +208,7 @@ test("OBS conserva otros picks al eliminar un pronóstico seleccionado", async (
       await stream.check();
       await expect(stream).toBeEnabled();
     }
-    await overlay.goto("/overlay.html?u=tipster_test");
+    await overlay.goto("/src/views/streaming-overlay.html?u=tipster_test");
     for (const pick of picks) await expect(overlay.locator("#pickList")).toContainText(pick.event);
     // Simulate the pick notification arriving before its selection is removed.
     await deleteVisualDocument(request, `picks/${ids[0]}`);
@@ -245,7 +245,7 @@ test("OBS deja de mostrar picks si se revoca la aprobación del perfil", async (
     await writeVisualDocument(request, `usernames/${username}`, { uid });
     await writeVisualDocument(request, `picks/${id}`, pick);
     await writeVisualDocument(request, `perfiles/${uid}/obsSelections/${id}`, { visible: true, updated_at: new Date() });
-    await page.goto(`/overlay.html?u=${username}`);
+    await page.goto(`/src/views/streaming-overlay.html?u=${username}`);
     await expect(page.locator("#pickList")).toContainText(pick.event);
     await writeVisualDocument(request, `perfiles/${uid}`, { tipster_status: "revoked" });
     await expect(page.locator("#widget")).toBeHidden();

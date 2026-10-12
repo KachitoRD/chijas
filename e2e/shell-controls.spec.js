@@ -6,23 +6,23 @@ test.beforeEach(async ({ page }) => {
   await page.route("**/*", async route => {
     const url = new URL(route.request().url());
     if (url.hostname !== "localhost") return route.abort();
-    if (url.pathname === "/community-mural.js") {
+    if (url.pathname === "/src/views/community-mural.js") {
       return route.fulfill({ contentType: "text/javascript", body: "export function mountCommunityMural() {}" });
     }
     const files = {
-      "/": "index.html",
-      "/viewer-shell.js": "viewer-shell.js",
-      "/viewer-styles.css": "viewer-styles.css",
-      "/ui-polish.css": "ui-polish.css",
-      "/emerald-surface.css": "emerald-surface.css",
+      "/": "src/views/public-tipsters.html",
+      "/src/views/viewer-shell.js": "src/views/viewer-shell.js",
+      "/src/styles/viewer-styles.css": "src/styles/viewer-styles.css",
+      "/src/styles/ui-polish.css": "src/styles/ui-polish.css",
+      "/src/styles/emerald-surface.css": "src/styles/emerald-surface.css",
       "/dist/styles.min.css": "dist/styles.min.css"
     };
     const file = files[url.pathname];
     if (!file) return route.abort();
     let body = await readFile(file, "utf8");
-    if (file === "index.html") {
+    if (file === "src/views/public-tipsters.html") {
       body = body.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
-        .replace("</body>", '<script type="module" src="viewer-shell.js"></script></body>');
+        .replace("</body>", '<script type="module" src="/src/views/viewer-shell.js"></script></body>');
     }
     await route.fulfill({ body, contentType: file.endsWith(".css") ? "text/css" : file.endsWith(".js") ? "text/javascript" : "text/html" });
   });

@@ -17,12 +17,12 @@ async function login(page, role) {
     }
     return;
   }
-  await page.goto("/owner.html");
+  await page.goto("/src/views/platform-owner.html");
   await page.locator("#creatorEmail").fill(account.email);
   await page.locator("#creatorPassword").fill(account.password);
   await page.locator("#creatorLoginButton").click();
-  await expect(page.locator("#ownerDashboard")).toBeVisible();
-  await expect(page.locator("#ownerAuth")).not.toBeVisible();
+  await expect(page).toHaveURL(/\/src\/views\/operations-console\.html$/);
+  await expect(page.locator("#dashboard")).toBeVisible();
 }
 
 test("panel tipster incluye módulos de pronósticos, bankroll y widget OBS", async ({ page }) => {
@@ -32,6 +32,21 @@ test("panel tipster incluye módulos de pronósticos, bankroll y widget OBS", as
   await expect(page.locator("#myPicks")).toHaveCount(1);
   await expect(page.locator("#bankrollSummary")).toHaveCount(1);
   await expect(page.locator("#widgetPreviewFrame")).toHaveCount(1);
+  await page.locator("#profileTab").click();
+  const identityLayout = await page.locator("#profileView .form-field-grid").first().evaluate(element => {
+    const [username, displayName] = [...element.children].map(child => child.getBoundingClientRect());
+    const help = [...element.querySelectorAll(".profile-identity-help")].map(item => item.getBoundingClientRect());
+    return {
+      columns: getComputedStyle(element).gridTemplateColumns.split(" ").length,
+      widthDifference: Math.abs(username.width - displayName.width),
+      helpCount: help.length,
+      helpTopDifference: help.length === 2 ? Math.abs(help[0].top - help[1].top) : Infinity
+    };
+  });
+  expect(identityLayout.columns).toBe(2);
+  expect(identityLayout.widthDifference).toBeLessThanOrEqual(1);
+  expect(identityLayout.helpCount).toBe(2);
+  expect(identityLayout.helpTopDifference).toBeLessThanOrEqual(1);
 });
 
 test("rechaza una fecha de evento pasada antes de enviar el pronóstico", async ({ page }) => {
@@ -90,7 +105,7 @@ test("filtros de bankroll se limpian en una acción y vuelven al período actual
 test("el widget OBS muestra solo picks seleccionados en la vista previa y enlace público", async ({ page, request }) => {
   const event = `OBS de prueba ${randomUUID()}`;
   await login(page, "tipster");
-  const uid = await page.evaluate(async () => (await import("/firebase-config.js?v=2")).firebaseAuth.currentUser.uid);
+  const uid = await page.evaluate(async () => (await import("/src/services/firebase-config.js?v=2")).firebaseAuth.currentUser.uid);
   try {
     await includeVisualUpcomingPicks(page);
     await page.locator("#sport").selectOption("futbol");
@@ -144,7 +159,7 @@ for (const analysis of ["", "Análisis publicado: ritmo de juego y ocasiones."])
   test(`controles de nota y OBS ${analysis ? "con análisis" : "sin análisis"} mantienen su estado`, async ({ page, request }, testInfo) => {
     const event = `Controles ${randomUUID()}`;
     await login(page, "tipster");
-    const uid = await page.evaluate(async () => (await import("/firebase-config.js?v=2")).firebaseAuth.currentUser.uid);
+    const uid = await page.evaluate(async () => (await import("/src/services/firebase-config.js?v=2")).firebaseAuth.currentUser.uid);
     try {
       await includeVisualUpcomingPicks(page);
       await page.locator("#odds").fill("1.85");
@@ -223,7 +238,7 @@ test("recorrido visual con viewer, tipster, OBS y owner sembrados", async ({ bro
   const initialCount = Number((await profile.json()).fields.followerCount.integerValue);
   let baseline;
   async function newPage() {
-    const context = await browser.newContext({ baseURL: "http://localhost:5500" });
+    const context = await browser.newContext({ baseURL: "http://127.0.0.1:5502" });
     contexts.push(context);
     return context.newPage();
   }
@@ -235,8 +250,8 @@ test("recorrido visual con viewer, tipster, OBS y owner sembrados", async ({ bro
     await test.step("modales: backdrop vacío y protección de borradores", async () => {
       for (const [path, dialog, email] of [
         ["/", "#viewerAuth", "#viewerAuthEmail"],
-        ["/tipster-dashboard.html", "#tipsterAuth", "#email"],
-        ["/owner.html", "#ownerAuth", "#creatorEmail"]
+        ["/src/views/tipster-workspace.html", "#tipsterAuth", "#email"],
+        ["/src/views/platform-owner.html", "#ownerAuth", "#creatorEmail"]
       ]) {
         await viewer.goto(path);
         if (path === "/") await viewer.locator("#viewerLogin").click();
@@ -247,7 +262,7 @@ test("recorrido visual con viewer, tipster, OBS y owner sembrados", async ({ bro
         await viewer.locator(email).fill("");
         await viewer.mouse.click(2, 2);
         if (path === "/") await expect(viewer.locator(dialog)).not.toBeVisible();
-        else await expect(viewer).toHaveURL(/\/$/);
+        else await expect(viewer).toHaveURL(/\/src\/views\/public-tipsters\.html$/);
       }
     });
     await test.step("viewer sigue y deja de seguir; contador en tiempo real", async () => {
@@ -312,7 +327,7 @@ test("recorrido visual con viewer, tipster, OBS y owner sembrados", async ({ bro
       await stream.check();
       await expect(stream).toBeEnabled();
       const clientTimestampCreate = await tipster.evaluate(async () => {
-        const { firebaseAuth, firebaseDb } = await import("/firebase-config.js?v=2");
+        const { firebaseAuth, firebaseDb } = await import("/src/services/firebase-config.js?v=2");
         const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
         const id = `client-time-${crypto.randomUUID()}`;
         try {
@@ -335,7 +350,7 @@ test("recorrido visual con viewer, tipster, OBS y owner sembrados", async ({ bro
       }
       expect(clientTimestampCreate.result).toBe("permission-denied");
       const editableStake = await tipster.evaluate(async id => {
-        const { firebaseDb } = await import("/firebase-config.js?v=2");
+        const { firebaseDb } = await import("/src/services/firebase-config.js?v=2");
         const { doc, getDoc, updateDoc, serverTimestamp } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
         const bankrollRef = doc(firebaseDb, "picks", id, "private", "bankroll");
         try {
@@ -359,7 +374,7 @@ test("recorrido visual con viewer, tipster, OBS y owner sembrados", async ({ bro
       );
       expect(startedPick.ok(), await startedPick.text()).toBeTruthy();
       const temporalMutations = await tipster.evaluate(async id => {
-        const { firebaseDb } = await import("/firebase-config.js?v=2");
+        const { firebaseDb } = await import("/src/services/firebase-config.js?v=2");
         const { doc, getDoc, updateDoc, runTransaction, serverTimestamp } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
         const pickRef = doc(firebaseDb, "picks", id);
         const bankrollRef = doc(pickRef, "private", "bankroll");
@@ -400,7 +415,7 @@ test("recorrido visual con viewer, tipster, OBS y owner sembrados", async ({ bro
       expect(qualifiedPick.ok(), await qualifiedPick.text()).toBeTruthy();
       await expect(pickRow.locator(".pick-lock-badge")).toHaveText("Bloqueado: pronóstico calificado");
       const qualifiedMutations = await tipster.evaluate(async id => {
-        const { firebaseDb } = await import("/firebase-config.js?v=2");
+        const { firebaseDb } = await import("/src/services/firebase-config.js?v=2");
         const { doc, updateDoc, runTransaction } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
         const pickRef = doc(firebaseDb, "picks", id);
         const bankrollRef = doc(pickRef, "private", "bankroll");
@@ -420,7 +435,7 @@ test("recorrido visual con viewer, tipster, OBS y owner sembrados", async ({ bro
       expect(qualifiedMutations).toEqual(["permission-denied", "permission-denied"]);
     });
     await test.step("OBS renderiza la fija seleccionada sin sesión", async () => {
-      await widget.goto(`/overlay.html?u=${visualUsername}`);
+      await widget.goto(`/src/views/streaming-overlay.html?u=${visualUsername}`);
       await expect(widget.locator("#widget")).toBeVisible();
       await expect(widget.locator("#widgetName")).toHaveText(visualAccounts.tipster.name);
       await expect(widget.locator("#pickList")).toContainText(event);
@@ -428,8 +443,8 @@ test("recorrido visual con viewer, tipster, OBS y owner sembrados", async ({ bro
     });
     await test.step("owner accede y carga métricas globales", async () => {
       await login(owner, "owner");
-      await expect(owner.locator("#pendingCount")).toHaveText(/^\d+$/);
-      await expect(owner.locator("#tipsterCount")).toHaveText(/^\d+$/);
+      await expect(owner.locator("#tipster-pending-count")).toHaveText(/^\d+$/);
+      await expect(owner.locator("#active-tipsters")).toHaveText(/^\d+$/);
       await expect(owner.locator("#tipsters")).toContainText(visualAccounts.tipster.name);
     });
   } finally {

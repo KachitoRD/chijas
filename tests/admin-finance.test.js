@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { summarizePublishedPickUnits } from "../admin-finance.js";
+import { summarizePublishedPickUnits } from "../src/views/admin-finance.js";
 
 test("summarizes published pick units using publication date and settled outcomes", () => {
   const result = summarizePublishedPickUnits([

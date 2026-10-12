@@ -38,7 +38,7 @@ test.beforeEach(async ({ request, page }) => {
 test.afterEach(async ({ request, page }, testInfo) => {
   if (new URL(page.url()).origin === new URL(testInfo.project.use.baseURL).origin) {
     const user = await page.evaluate(async () => {
-      const { firebaseAuth } = await import("/firebase-config.js?v=2");
+      const { firebaseAuth } = await import("/src/services/firebase-config.js?v=2");
       return firebaseAuth.currentUser ? { uid: firebaseAuth.currentUser.uid, idToken: await firebaseAuth.currentUser.getIdToken() } : null;
     });
     if (user && user.uid !== account.localId) {
@@ -58,13 +58,13 @@ test.afterEach(async ({ request, page }, testInfo) => {
 
 for (const surface of [
   { path: "/", email: "#viewerAuthEmail", reset: "#viewerAuthReset", message: "#viewerAuthMessage" },
-  { path: "/admin.html", email: "#email", reset: "#resetTipsterPassword", message: "#loginMessage" },
-  { path: "/owner.html", email: "#creatorEmail", reset: "#resetCreatorPassword", message: "#creatorLoginMessage" }
+  { path: "/src/views/tipster-access.html", email: "#email", reset: "#resetTipsterPassword", message: "#loginMessage" },
+  { path: "/src/views/platform-owner.html", email: "#creatorEmail", reset: "#resetCreatorPassword", message: "#creatorLoginMessage" }
 ]) {
   test(`recuperación real en Auth Emulator desde ${surface.path}`, async ({ page, request }, testInfo) => {
     await page.goto(surface.path);
     const configuration = await page.evaluate(async () => {
-      const { firebaseApp, firebaseAuth } = await import("/firebase-config.js?v=2");
+      const { firebaseApp, firebaseAuth } = await import("/src/services/firebase-config.js?v=2");
       return { projectId: firebaseApp.options.projectId, emulator: firebaseAuth.emulatorConfig };
     });
     expect(configuration.projectId).toBe("demo-fijas-vivo");
@@ -130,7 +130,7 @@ test("cuenta privada: el enlace aparece con sesión y conserva login en la vitri
   await expect(page.locator("#followingTab")).toBeVisible();
   await page.locator("#viewerAccount").click();
   await expect(page.locator("#accountSettingsForm")).toBeVisible();
-  await page.goto("/user-profile.html");
+  await page.goto("/src/views/user-profile.html");
   await expect(page.locator("#profile")).toBeVisible();
   await expect(page.locator("#profile-email")).toHaveText(account.email);
   await expect(page.locator("#profile-uid")).toHaveText(account.localId);
@@ -142,7 +142,7 @@ test("cuenta privada: el enlace aparece con sesión y conserva login en la vitri
   await page.reload();
   await expect(page.locator("#profile-email")).toHaveText(account.email);
   await page.locator("#sign-out").click();
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/src\/views\/public-tipsters\.html$/);
   await expect(page.locator("#viewerLogin")).toBeVisible();
   await expect(page.locator("#viewerAccount")).toBeHidden();
   await page.locator("#viewerLogin").click();
@@ -152,7 +152,7 @@ test("cuenta privada: el enlace aparece con sesión y conserva login en la vitri
   await expect(page.locator("#userMenuButton")).toBeVisible();
   await page.locator("#userMenuButton").click();
   await page.locator("#viewerLogout").click();
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/src\/views\/public-tipsters\.html$/);
   await expect(page.locator("#viewerLogin")).toBeVisible();
 });
 
@@ -193,7 +193,7 @@ test("cuenta privada: viewer puede solicitar acceso y compartir solo sus datos p
 });
 
 test("cuenta privada: una visita sin sesión no muestra datos personales", async ({ page }) => {
-  await page.goto("/user-profile.html");
+  await page.goto("/src/views/user-profile.html");
   await expect(page.locator("#signed-out")).toBeVisible();
   await expect(page.locator("#profile")).toBeHidden();
   await expect(page.locator("#profile-email")).toBeEmpty();
@@ -204,12 +204,12 @@ test("cuenta privada: muestra el nombre básico del visor autenticado", async ({
   await page.goto("/");
   await expect(page.locator("#viewerLogin")).toBeEnabled();
   await page.evaluate(async ({ email, password }) => {
-    const { firebaseAuth } = await import("/firebase-config.js?v=2");
+    const { firebaseAuth } = await import("/src/services/firebase-config.js?v=2");
     const { signInWithEmailAndPassword, updateProfile } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
     const { user } = await signInWithEmailAndPassword(firebaseAuth, email, password);
     await updateProfile(user, { displayName: "Visor de prueba" });
   }, { email: account.email, password });
-  await page.goto("/user-profile.html");
+  await page.goto("/src/views/user-profile.html");
   await expect(page.locator("#profile-name")).toHaveText("Visor de prueba");
 });
 
@@ -236,10 +236,11 @@ test("registro viewer guarda aceptación y exige verificar correo", async ({ pag
 
 test("owner usa Google alternativo sin conceder permisos administrativos", async ({ page }) => {
   await mockGooglePopup(page, { subject: `google-${account.localId}`, email: `google-${account.email}`, name: "Google sin permisos" });
-  await page.goto("/owner.html");
+  await page.goto("/src/views/platform-owner.html");
   await page.locator("#creatorGoogle").click();
   await expect(page.locator("#denied")).toBeVisible();
-  await expect(page.locator("#ownerDashboard")).toBeHidden();
+  await expect(page).toHaveURL(/\/src\/views\/platform-owner\.html$/);
+  await expect(page.locator("#dashboard")).toHaveCount(0);
 });
 
 for (const provider of ["google", "password"]) {
@@ -262,7 +263,7 @@ for (const provider of ["google", "password"]) {
     }
     await expect(page.locator("#userMenuButton")).toBeVisible();
     await expect(page.locator("#viewerMain")).toBeVisible();
-    await expect(page).toHaveURL(/\/$/);
+    await expect(page).toHaveURL(/\/src\/views\/public-tipsters\.html$/);
     await page.locator("#userMenuButton").click();
     await expect(page.locator("#userAdminLink")).toBeVisible();
     await page.reload();
@@ -282,15 +283,13 @@ test("owner con autorización conserva login por contraseña", async ({ page, re
   await request.patch(`${firestoreRoot}/platformAdmins/${account.localId}`, {
     headers: { Authorization: "Bearer owner" }, data: { fields: { enabled: { booleanValue: true } } }
   });
-  await page.goto("/owner.html");
+  await page.goto("/src/views/platform-owner.html");
   await page.locator("#creatorEmail").fill(account.email);
   await page.locator("#creatorPassword").fill(password);
   await page.locator("#creatorLoginButton").click();
-  await expect(page.locator("#ownerDashboard")).toBeVisible();
-  await expect(page.locator("#ownerAuth")).not.toBeVisible();
-  await expect(page.locator("#applications")).toHaveAttribute("aria-busy", "false");
-  await expect(page.locator("#profileRequests")).toHaveAttribute("aria-busy", "false");
-  await expect(page.locator("#tipsters")).toHaveAttribute("aria-busy", "false");
+  await expect(page).toHaveURL(/\/src\/views\/operations-console\.html$/);
+  await expect(page.locator("#dashboard")).toBeVisible();
+  await expect(page.locator("#operations-tab")).toBeVisible();
   for (const width of [390, 1280]) {
     await page.setViewportSize({ width, height: 900 });
     expect(await auditButtons(page)).toEqual([]);

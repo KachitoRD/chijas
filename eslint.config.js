@@ -7,7 +7,7 @@ export default [
     ignores: [".agents/**", ".firebase/**", "node_modules/**", "playwright-report/**", "test-results/**", "reports/**", "docs/**", "archivo/**"],
   },
   {
-    files: ["*.html"],
+    files: ["*.html", "src/**/*.html"],
     plugins: { html },
     languageOptions: {
       ecmaVersion: "latest",
@@ -23,7 +23,7 @@ export default [
     },
   },
   {
-    files: ["*.js"],
+    files: ["*.js", "src/**/*.js"],
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "module",

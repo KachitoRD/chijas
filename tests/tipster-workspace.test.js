@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { filterTipsterHistory } from "../tipster-workspace.js";
+import { filterTipsterHistory } from "../src/views/tipster-workspace.js";
 
 const picks = [
   { id: "future", event: "Clásico", selection: "Goles", league: "Liga", market: "Total", status: "pending", event_date: new Date(3000) },

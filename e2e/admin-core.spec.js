@@ -25,13 +25,13 @@ async function seed(request, path, data) {
   expect(response.ok(), await response.text()).toBeTruthy();
 }
 async function signIn(page, name) {
-  await page.goto("/user-profile.html");
+  await page.goto("/src/views/user-profile.html");
   await page.evaluate(async account => {
-    const { firebaseAuth } = await import("/firebase-config.js?v=2");
+    const { firebaseAuth } = await import("/src/services/firebase-config.js?v=2");
     const { signInWithEmailAndPassword } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
     await signInWithEmailAndPassword(firebaseAuth, account.email, account.password);
   }, accounts[name]);
-  await page.goto("/admin-dashboard.html");
+  await page.goto("/src/views/operations-console.html");
   await expect(page.locator("#dashboard")).toBeVisible();
 }
 test.describe.configure({ mode: "serial" });
@@ -91,7 +91,7 @@ for (const name of ["super", "admin"]) {
   test(`SPA conserva contexto viewer y monta administración nativa: ${name}`, async ({ page, request }) => {
     await page.goto("/");
     await page.evaluate(async account => {
-      const { firebaseAuth } = await import("/firebase-config.js?v=2");
+      const { firebaseAuth } = await import("/src/services/firebase-config.js?v=2");
       const { signInWithEmailAndPassword } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
       await signInWithEmailAndPassword(firebaseAuth, account.email, account.password);
       globalThis.originalDocument = document;
@@ -167,7 +167,7 @@ for (const name of ["viewer", "admin", "super"]) {
     paths.add(`users/${accounts[name].uid}/settings/profile`);
     await page.goto("/");
     await page.evaluate(async account => {
-      const { firebaseAuth } = await import("/firebase-config.js?v=2");
+      const { firebaseAuth } = await import("/src/services/firebase-config.js?v=2");
       const { signInWithEmailAndPassword } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
       await signInWithEmailAndPassword(firebaseAuth, account.email, account.password);
     }, accounts[name]);
@@ -191,9 +191,9 @@ for (const name of ["viewer", "admin", "super"]) {
     await expect(page.locator("#accountBio")).toHaveValue("Sigo fútbol y tenis.");
     await expect(page.locator("#accountNotifications")).not.toBeChecked();
     const attacks = await page.evaluate(async otherUid => {
-      const { firebaseDb } = await import("/firebase-config.js?v=2");
+      const { firebaseDb } = await import("/src/services/firebase-config.js?v=2");
       const { doc, updateDoc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
-      const { firebaseAuth } = await import("/firebase-config.js?v=2");
+      const { firebaseAuth } = await import("/src/services/firebase-config.js?v=2");
       const own = doc(firebaseDb, "users", firebaseAuth.currentUser.uid, "settings", "profile");
       const attempts = [
         () => updateDoc(own, { role: "super_admin" }),
@@ -218,9 +218,9 @@ for (const name of ["viewer", "admin", "super"]) {
 test("SPA tipster monta picks, bankroll y OBS con la sesión común", async ({ page, request }) => {
   await signIn(page, "super");
   await page.evaluate(async uid => {
-    const { reviewApplication } = await import("/admin-services.js");
+    const { reviewApplication } = await import("/src/services/admin-services.js");
     await reviewApplication(uid, true);
-    const { firebaseAuth } = await import("/firebase-config.js?v=2");
+    const { firebaseAuth } = await import("/src/services/firebase-config.js?v=2");
     const { signOut } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
     await signOut(firebaseAuth);
   }, accounts.applicant.uid);
@@ -240,7 +240,7 @@ test("SPA tipster monta picks, bankroll y OBS con la sesión común", async ({ p
   });
   await page.goto("/");
   await page.evaluate(async account => {
-    const { firebaseAuth } = await import("/firebase-config.js?v=2");
+    const { firebaseAuth } = await import("/src/services/firebase-config.js?v=2");
     const { signInWithEmailAndPassword } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
     await signInWithEmailAndPassword(firebaseAuth, account.email, account.password);
   }, accounts.applicant);
@@ -291,7 +291,7 @@ test("SPA tipster monta picks, bankroll y OBS con la sesión común", async ({ p
 test("métricas base viewer cuentan usuarios y distinguen moderación pendiente", async ({ page }) => {
   await signIn(page, "admin");
   const total = await page.evaluate(async () => {
-    const { firebaseDb } = await import("/firebase-config.js?v=2");
+    const { firebaseDb } = await import("/src/services/firebase-config.js?v=2");
     const { collection, query, where, getDocs } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
     return (await getDocs(query(collection(firebaseDb, "users"), where("role", "==", "viewer")))).size;
   });
@@ -328,7 +328,7 @@ test("aprobación copia el perfil público del viewer al tipster sin exponer dat
 
   await signIn(page, "super");
   await page.evaluate(async uid => {
-    const { reviewApplication } = await import("/admin-services.js");
+    const { reviewApplication } = await import("/src/services/admin-services.js");
     await reviewApplication(uid, true);
   }, uid);
 
@@ -349,7 +349,7 @@ test("aprobación copia el perfil público del viewer al tipster sin exponer dat
   expect(social).not.toHaveProperty("email");
 });
 
-test("panel owner muestra y conserva los datos públicos de la solicitud al aprobar", async ({ page, request }) => {
+test("consola operativa muestra y conserva los datos públicos de la solicitud al aprobar", async ({ page, request }) => {
   const uid = accounts.applicant.uid;
   const avatar = "https://example.test/owner-avatar.png";
   await seed(request, `tipsterApplications/${uid}`, {
@@ -365,12 +365,10 @@ test("panel owner muestra y conserva los datos públicos de la solicitud al apro
   });
 
   await signIn(page, "super");
-  await page.goto("/owner.html");
-  await expect(page.locator("#ownerDashboard")).toBeVisible();
-  const application = page.locator(`#applications article:has(button[data-review="approve"][data-uid="${uid}"])`);
-  await expect(application).toContainText("Biografía propuesta: Biografía revisada en owner.");
-  await expect(application).toContainText(`Avatar propuesto: ${avatar}`);
-  await application.locator('button[data-review="approve"]').click();
+  const application = page.locator(`[data-application="${uid}"]`);
+  await expect(application).toContainText("Biografía: Biografía revisada en owner.");
+  await expect(application).toContainText(`Avatar: ${avatar}`);
+  await application.locator('button[data-action="approve-application"]').click();
   await expect(application).toHaveCount(0);
 
   for (const collection of ["perfiles", "perfiles_social", "presencia"]) paths.add(`${collection}/${uid}`);
@@ -391,9 +389,9 @@ test("panel owner muestra y conserva los datos públicos de la solicitud al apro
 test("fijas canónicas y legacy liquidan cashout sin publicar bankroll ni reabrir resultados", async ({ page, request }) => {
   await signIn(page, "super");
   await page.evaluate(async uid => {
-    const { reviewApplication } = await import("/admin-services.js");
+    const { reviewApplication } = await import("/src/services/admin-services.js");
     await reviewApplication(uid, true);
-    const { firebaseAuth } = await import("/firebase-config.js?v=2");
+    const { firebaseAuth } = await import("/src/services/firebase-config.js?v=2");
     const { signOut } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
     await signOut(firebaseAuth);
   }, accounts.applicant.uid);
@@ -408,7 +406,7 @@ test("fijas canónicas y legacy liquidan cashout sin publicar bankroll ni reabri
   });
   await page.goto("/");
   await page.evaluate(async account => {
-    const { firebaseAuth } = await import("/firebase-config.js?v=2");
+    const { firebaseAuth } = await import("/src/services/firebase-config.js?v=2");
     const { signInWithEmailAndPassword } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
     await signInWithEmailAndPassword(firebaseAuth, account.email, account.password);
   }, accounts.applicant);
@@ -430,7 +428,7 @@ test("fijas canónicas y legacy liquidan cashout sin publicar bankroll ni reabri
   await page.locator("#confirmPickPublication").click();
   await expect(page.locator("#pickMessage")).toHaveText("Pronóstico publicado.");
   const created = await page.evaluate(async () => {
-    const { firebaseDb, firebaseAuth } = await import("/firebase-config.js?v=2");
+    const { firebaseDb, firebaseAuth } = await import("/src/services/firebase-config.js?v=2");
     const { collection, query, where, getDocs } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
     const snapshots = await getDocs(query(collection(firebaseDb, "picks"), where("user_id", "==", firebaseAuth.currentUser.uid)));
     const item = snapshots.docs.find(item => item.data().event === "Fija nueva canónica");
@@ -449,9 +447,9 @@ test("fijas canónicas y legacy liquidan cashout sin publicar bankroll ni reabri
   await popup.locator('form[data-cash-out-id] button').click();
   await expect(page.locator("#tipsterYield")).toHaveText("-25.00 %");
   const result = await page.evaluate(async id => {
-    const { firebaseDb } = await import("/firebase-config.js?v=2");
+    const { firebaseDb } = await import("/src/services/firebase-config.js?v=2");
     const { doc, getDoc, setDoc, updateDoc } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
-    const { normalizePick, canonicalPick } = await import("/pick-schema.js");
+    const { normalizePick, canonicalPick } = await import("/src/models/pick-schema.js");
     const ref = doc(firebaseDb, "picks", id);
     const raw = (await getDoc(ref)).data();
     let frozen;
@@ -471,7 +469,7 @@ test("fijas canónicas y legacy liquidan cashout sin publicar bankroll ni reabri
   const privateFields = (await (await request.get(`${root}/picks/${created.id}/private/bankroll`, { headers })).json()).fields;
   expect(Number(privateFields.returnAmount.doubleValue ?? privateFields.returnAmount.integerValue)).toBe(125);
   const restrictions = await page.evaluate(async id => {
-    const { firebaseDb } = await import("/firebase-config.js?v=2");
+    const { firebaseDb } = await import("/src/services/firebase-config.js?v=2");
     const { doc, updateDoc } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
     const attempts = [
       { status: "pending" }, { stakeAmount: 100 }, { cashout_odds: 4 }, { stake: 10 }
@@ -490,7 +488,7 @@ test("SPA viewer ignora users.role, rechaza rutas privadas y mantiene salida acc
   });
   await page.goto("/#view=admin");
   await page.evaluate(async account => {
-    const { firebaseAuth } = await import("/firebase-config.js?v=2");
+    const { firebaseAuth } = await import("/src/services/firebase-config.js?v=2");
     const { signInWithEmailAndPassword } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
     await signInWithEmailAndPassword(firebaseAuth, account.email, account.password);
   }, accounts.viewer);
@@ -498,7 +496,7 @@ test("SPA viewer ignora users.role, rechaza rutas privadas y mantiene salida acc
   await expect(page.locator("#userAdminLink")).toBeHidden();
   await expect(page.locator("#userTipsterLink")).toBeHidden();
   await expect(page.locator("#dashboardView")).toBeHidden();
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/src\/views\/public-tipsters\.html$/);
   await page.locator("#userMenuButton").focus();
   await page.keyboard.press("Enter");
   await expect(page.locator("#userMenu")).toBeVisible();
@@ -517,7 +515,7 @@ test("SPA restaura historial y sesión, respeta mobile y cierra panel al salir",
   page.on("pageerror", error => errors.push(error.message));
   await page.goto("/");
   await page.evaluate(async account => {
-    const { firebaseAuth } = await import("/firebase-config.js?v=2");
+    const { firebaseAuth } = await import("/src/services/firebase-config.js?v=2");
     const { signInWithEmailAndPassword } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
     await signInWithEmailAndPassword(firebaseAuth, account.email, account.password);
   }, accounts.super);
@@ -548,7 +546,7 @@ test("logout de admin y tipster invalida la sesión y vuelve a frontpage", async
   await signIn(page, "admin");
   let timeOrigin = await page.evaluate(() => performance.timeOrigin);
   await page.locator("#sign-out").click();
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/src\/views\/public-tipsters\.html$/);
   await expect.poll(() => page.evaluate(() => performance.timeOrigin)).toBeGreaterThan(timeOrigin);
   await expect(page.locator("#viewerLogin")).toBeVisible();
 
@@ -570,15 +568,15 @@ test("logout de admin y tipster invalida la sesión y vuelve a frontpage", async
   });
   await seed(request, `usernames/${prefix}`, { uid: applicant.uid });
   await page.evaluate(async account => {
-    const { firebaseAuth } = await import("/firebase-config.js?v=2");
+    const { firebaseAuth } = await import("/src/services/firebase-config.js?v=2");
     const { signInWithEmailAndPassword } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
     await signInWithEmailAndPassword(firebaseAuth, account.email, account.password);
   }, applicant);
-  await page.goto("/tipster-dashboard.html");
+  await page.goto("/src/views/tipster-workspace.html");
   await expect(page.locator("#myPicks")).toBeVisible();
   timeOrigin = await page.evaluate(() => performance.timeOrigin);
   await page.locator("#logoutButton").click();
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/src\/views\/public-tipsters\.html$/);
   await page.waitForLoadState("domcontentloaded");
   await expect.poll(() => page.evaluate(() => performance.timeOrigin)).toBeGreaterThan(timeOrigin);
   await expect(page.locator("#viewerLogin")).toBeVisible();
@@ -587,13 +585,13 @@ test("logout de admin y tipster invalida la sesión y vuelve a frontpage", async
 test("SPA cancela carga pendiente al regresar sin montar listeners tardíos", async ({ page }) => {
   await page.goto("/");
   await page.evaluate(async account => {
-    const { firebaseAuth } = await import("/firebase-config.js?v=2");
+    const { firebaseAuth } = await import("/src/services/firebase-config.js?v=2");
     const { signInWithEmailAndPassword } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
     await signInWithEmailAndPassword(firebaseAuth, account.email, account.password);
   }, accounts.super);
   let release;
   const held = new Promise(resolve => { release = resolve; });
-  await page.route("**/admin-dashboard.html", async route => {
+  await page.route("**/src/views/operations-console.html", async route => {
     await held;
     await route.continue();
   });
@@ -604,7 +602,7 @@ test("SPA cancela carga pendiente al regresar sin montar listeners tardíos", as
   release();
   await expect(page.locator("#viewerMain")).toBeVisible();
   await expect(page.locator("#dashboardViewContent")).toBeEmpty();
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/src\/views\/public-tipsters\.html$/);
 });
 
 test("solo super_admin puede leer o actualizar comisiones mediante SDK", async ({ page, request }) => {
@@ -616,9 +614,9 @@ test("solo super_admin puede leer o actualizar comisiones mediante SDK", async (
     enabled: true, role: "admin", permissions: ["kpis"]
   });
   for (const name of ["admin", "viewer", "applicant", "super"]) {
-    await page.goto("/user-profile.html");
+    await page.goto("/src/views/user-profile.html");
     const results = await page.evaluate(async ({ account, uid }) => {
-      const { firebaseAuth, firebaseDb } = await import("/firebase-config.js?v=2");
+      const { firebaseAuth, firebaseDb } = await import("/src/services/firebase-config.js?v=2");
       const { signInWithEmailAndPassword } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
       const { doc, collection, getDoc, getDocs, updateDoc, serverTimestamp } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
       await signInWithEmailAndPassword(firebaseAuth, account.email, account.password);
@@ -644,7 +642,7 @@ test("admin operativo no gobierna límites ni ACL ni comisiones, incluso llamand
   await expect(page.locator("#governance-tab")).toBeHidden();
   await expect(page.locator("#settingsForm")).toBeHidden();
   const results = await page.evaluate(async uid => {
-    const { firebaseDb, firebaseAuth } = await import("/firebase-config.js?v=2");
+    const { firebaseDb, firebaseAuth } = await import("/src/services/firebase-config.js?v=2");
     const { doc, setDoc, serverTimestamp } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
     const results = [];
     for (const [path, data] of [
@@ -682,7 +680,7 @@ test("super administra ACL granular, límites y evita su propio bloqueo", async 
   await expect(page.locator("#admin-message")).toContainText("Permisos guardados");
   paths.add(`platformAdmins/${accounts.viewer.uid}`);
   const denied = await page.evaluate(async () => {
-    const { firebaseDb, firebaseAuth } = await import("/firebase-config.js?v=2");
+    const { firebaseDb, firebaseAuth } = await import("/src/services/firebase-config.js?v=2");
     const { doc, updateDoc } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
     try {
       await updateDoc(doc(firebaseDb, "platformAdmins", firebaseAuth.currentUser.uid), { enabled: false });
@@ -691,7 +689,7 @@ test("super administra ACL granular, límites y evita su propio bloqueo", async 
   });
   expect(denied).toBe("permission-denied");
   await page.evaluate(async () => {
-    const { firebaseAuth } = await import("/firebase-config.js?v=2");
+    const { firebaseAuth } = await import("/src/services/firebase-config.js?v=2");
     const { signOut } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
     await signOut(firebaseAuth);
   });
@@ -699,7 +697,7 @@ test("super administra ACL granular, límites y evita su propio bloqueo", async 
   await expect(page.locator("#viewers-tab")).toBeHidden();
   await expect(page.locator("#operations-tab")).toBeVisible();
   const cannotList = await page.evaluate(async () => {
-    const { firebaseDb } = await import("/firebase-config.js?v=2");
+    const { firebaseDb } = await import("/src/services/firebase-config.js?v=2");
     const { collection, getDocs } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
     try { await getDocs(collection(firebaseDb, "users")); return "allowed"; }
     catch (error) { return error.code; }
@@ -938,8 +936,42 @@ test("gestión de tipsters filtra perfiles aprobados por estado, volumen y rendi
 
   await signIn(page, "super");
   await page.locator("#operations-tab").click();
+  const filterLayout = await page.locator(".admin-tipster-filters").evaluate(element => {
+    const [search, status] = [...element.children].slice(0, 2).map(child => child.getBoundingClientRect());
+    return {
+      columns: getComputedStyle(element).gridTemplateColumns.split(" ").length,
+      topDifference: Math.abs(search.top - status.top),
+      widthDifference: Math.abs(search.width - status.width),
+      containerWidth: element.getBoundingClientRect().width,
+      parentWidth: element.parentElement.getBoundingClientRect().width
+    };
+  });
+  expect(filterLayout.columns).toBe(2);
+  expect(filterLayout.topDifference).toBeLessThanOrEqual(1);
+  expect(filterLayout.widthDifference).toBeLessThanOrEqual(1);
+  expect(filterLayout.containerWidth).toBeGreaterThan(filterLayout.parentWidth * 0.9);
   const row = page.locator(`[data-tipster-row="${uid}"]`);
   await expect(row).toBeVisible();
+  const actionLayout = await row.locator(".admin-tipster-actions").evaluate(element => ({
+    direction: getComputedStyle(element).flexDirection,
+    count: element.children.length,
+    widths: [...element.children].map(child => Math.round(child.getBoundingClientRect().width)),
+    overflow: [...element.children].some(child => child.scrollWidth > child.clientWidth)
+  }));
+  expect(actionLayout.direction).toBe("column");
+  expect(actionLayout.count).toBe(2);
+  expect(Math.abs(actionLayout.widths[0] - actionLayout.widths[1])).toBeLessThanOrEqual(1);
+  expect(actionLayout.overflow).toBe(false);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobileActionLayout = await row.locator(".admin-tipster-actions").evaluate(element => ({
+    direction: getComputedStyle(element).flexDirection,
+    overflow: [...element.children].some(child => child.scrollWidth > child.clientWidth),
+    outsideCell: [...element.children].some(child => child.getBoundingClientRect().right > element.parentElement.getBoundingClientRect().right + 1)
+  }));
+  expect(mobileActionLayout.direction).toBe("column");
+  expect(mobileActionLayout.overflow).toBe(false);
+  expect(mobileActionLayout.outsideCell).toBe(false);
+  await page.setViewportSize({ width: 1280, height: 900 });
   await page.locator("#tipsterStatusFilter").selectOption("approved");
   await page.locator("#tipsterSearch").fill("Creador Ejecutivo");
   await page.locator("#tipsterVolumeFilter").selectOption("10");
@@ -1042,19 +1074,19 @@ test("moderación suspende acciones del viewer pero mantiene lectura pública", 
   paths.add(`viewerPresence/${accounts.viewer.uid}`);
   await expect(viewer).toContainText("Suspendido");
   await page.evaluate(async () => {
-    const { firebaseAuth } = await import("/firebase-config.js?v=2");
+    const { firebaseAuth } = await import("/src/services/firebase-config.js?v=2");
     const { signOut } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
     await signOut(firebaseAuth);
   });
-  await page.goto("/user-profile.html");
+  await page.goto("/src/views/user-profile.html");
   await page.evaluate(async account => {
-    const { firebaseAuth } = await import("/firebase-config.js?v=2");
+    const { firebaseAuth } = await import("/src/services/firebase-config.js?v=2");
     const { signInWithEmailAndPassword } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
     await signInWithEmailAndPassword(firebaseAuth, account.email, account.password);
   }, accounts.viewer);
   await expect(page.locator("#auth-message")).toContainText("suspendida");
   const result = await page.evaluate(async () => {
-    const { firebaseDb, firebaseAuth } = await import("/firebase-config.js?v=2");
+    const { firebaseDb, firebaseAuth } = await import("/src/services/firebase-config.js?v=2");
     const { doc, setDoc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
     const results = [];
     try { await getDoc(doc(firebaseDb, "usernames", "unclaimed-rbac")); results.push("public"); }

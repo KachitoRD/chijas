@@ -1,5 +1,5 @@
 export async function mockGooglePopup(page, { subject, email, name }) {
-  await page.route("**/google-sign-in.js", route => route.fulfill({
+  await page.route("**/src/services/google-sign-in.js", route => route.fulfill({
     contentType: "text/javascript",
     body: `
       import { firebaseAuth } from "./firebase-config.js?v=2";

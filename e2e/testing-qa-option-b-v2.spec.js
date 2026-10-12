@@ -22,7 +22,7 @@ test.describe("Testing & QA - Opción B (Simplified)", () => {
   });
 
   test("✅ Page loads successfully - admin.html", async ({ page }) => {
-    const response = await page.goto("/admin.html", {
+    const response = await page.goto("/src/views/tipster-access.html", {
       waitUntil: "domcontentloaded",
     });
     
@@ -31,7 +31,7 @@ test.describe("Testing & QA - Opción B (Simplified)", () => {
   });
 
   test("✅ Page loads successfully - owner.html", async ({ page }) => {
-    const response = await page.goto("/owner.html", {
+    const response = await page.goto("/src/views/platform-owner.html", {
       waitUntil: "domcontentloaded",
     });
     

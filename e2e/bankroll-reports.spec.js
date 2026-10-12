@@ -4,7 +4,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createCanvas } from "@napi-rs/canvas";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
-import { executiveBankrollHTML } from "../bankroll-report.js";
+import { executiveBankrollHTML } from "../src/views/bankroll-report.js";
 
 const project = "demo-fijas-vivo";
 const endpoint = `http://127.0.0.1:8080/v1/projects/${project}/databases/(default)/documents`;
@@ -118,9 +118,9 @@ test("CSV y PDF exportan el período completo con filtros, no solo la página vi
   }
   const commit = await request.post(`${endpoint}:commit`, { headers, data: { writes } });
   expect(commit.ok()).toBeTruthy();
-    await page.route("**/firebase-config.js*", route => route.fulfill({ contentType: "text/javascript", body: demoConfig }));
+    await page.route("**/src/services/firebase-config.js*", route => route.fulfill({ contentType: "text/javascript", body: demoConfig }));
     await page.route(/https:\/\/(firestore|identitytoolkit|securetoken)\.googleapis\.com\/.*/, route => route.abort());
-    await page.goto("/admin.html", { waitUntil: "domcontentloaded" });
+    await page.goto("/src/views/tipster-access.html", { waitUntil: "domcontentloaded" });
     await page.locator("#email").fill(email);
     await page.locator("#password").fill(password);
     await page.locator("#loginButton").click();

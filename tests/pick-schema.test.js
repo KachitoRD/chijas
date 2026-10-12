@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { normalizePick, summarizePerformance, canonicalPick } from "../pick-schema.js";
+import { normalizePick, summarizePerformance, canonicalPick } from "../src/models/pick-schema.js";
 
 test("legacy adapter preserves dates/results without inventing public money or stake", () => {
   const legacy = {

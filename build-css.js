@@ -10,14 +10,15 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 async function buildCSS() {
   console.log('🎨 Building Tailwind CSS...');
   
-  const input = fs.readFileSync(path.join(__dirname, 'styles.css'), 'utf-8');
+  const inputPath = path.join(__dirname, 'src', 'styles', 'styles.css');
+  const input = fs.readFileSync(inputPath, 'utf-8');
   
   try {
     const result = await postcss([
       tailwindcss(path.join(__dirname, 'tailwind.config.js')),
       autoprefixer(),
     ]).process(input, {
-      from: path.join(__dirname, 'styles.css'),
+      from: inputPath,
       to: path.join(__dirname, 'dist', 'styles.min.css'),
     });
 

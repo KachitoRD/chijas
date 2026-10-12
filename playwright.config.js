@@ -3,6 +3,9 @@ import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+const webServerPort = 5502;
+const webServerUrl = `http://127.0.0.1:${webServerPort}`;
+
 export default defineConfig({
   testDir: './e2e',
   testIgnore: /(?:visual-seeded|obs-control|tipster-workspace)\.spec\.js/,
@@ -13,7 +16,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
   use: {
-    baseURL: 'http://localhost:5500',
+    baseURL: webServerUrl,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
@@ -32,8 +35,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npx --yes http-server . -p 5500 -c-1',
-    url: 'http://localhost:5500',
-    reuseExistingServer: !process.env.CI,
+    command: 'node scripts/live-preview.js',
+    url: webServerUrl,
+    reuseExistingServer: false,
   },
 });

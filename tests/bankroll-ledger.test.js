@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import * as bankroll from "../bankroll.js";
+import * as bankroll from "../src/models/bankroll.js";
 
 const opened = new Date("2026-10-10T12:00:00Z");
 const published = new Date("2026-10-10T13:00:00Z");

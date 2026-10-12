@@ -1,7 +1,7 @@
 # Fijas en vivo - Instrucciones para Copilot
 
 ## PROYECTO
-Plataforma de tipsters y pronósticos ("fijas"). HTML5 + JavaScript con módulos ES y sin compilación JavaScript; CSS propio con Tailwind CSS 3.4 compilable mediante `build-css.js` desde `styles.css` a `dist/styles.min.css`. El archivo generado no se edita a mano. Confirmado: index.html, admin.html y owner.html cargan dist/styles.min.css. legal.html (se publica) aún usa Tailwind CDN: pendiente migrarla. Las demos DAY_* y PHASE_* usan CDN pero no se publican. overlay.html carga emerald-surface.css, no Tailwind CDN ni dist/styles.min.css. Firebase SDK 10.14.1 (Auth, Firestore, Hosting). Sin servidor API propio. Emuladores: Firestore 8080, Auth 9099, UI 4000, proyecto demo-fijas-vivo. Producción: proyecto chijas (https://chijas.web.app). Tests: Playwright (E2E y visuales) y ESLint.
+Plataforma de tipsters y pronósticos ("fijas"). HTML5 + JavaScript con módulos ES y sin compilación JavaScript. Fuentes organizadas bajo `src/views/`, `src/components/`, `src/services/`, `src/models/` y `src/styles/`; CSS propio con Tailwind CSS 3.4 compilable mediante `build-css.js` desde `src/styles/styles.css` a `dist/styles.min.css`. El archivo generado no se edita a mano. Los alias HTML históricos en la raíz redirigen a las vistas semánticas de `src/views/`. Firebase SDK 10.14.1 (Auth, Firestore, Hosting). Sin servidor API propio. Emuladores: Firestore 8080, Auth 9099, UI 4000, proyecto demo-fijas-vivo. Producción: proyecto chijas (https://chijas.web.app). Tests: Playwright (E2E y visuales) y ESLint.
 
 ## COMANDOS
 - Emuladores: `npm run dev` (libera procesos en los puertos 4000, 4400, 4500, 8080 y 9099; inicia Auth y Firestore para `demo-fijas-vivo`; no inicia servidor web). El usuario inicia los emuladores en su propia terminal; no los inicies tú salvo que te lo pida. Este comando termina por la fuerza procesos en esos puertos: avísame antes de ejecutarlo.
@@ -14,7 +14,7 @@ Plataforma de tipsters y pronósticos ("fijas"). HTML5 + JavaScript con módulos
 - Deploy (requiere autorización explícita): `firebase deploy --only firestore:rules,firestore:indexes,hosting --project chijas`. Antes de cualquier deploy autorizado, ejecuta `npm run build:css` y confirma que `dist/styles.min.css` está actualizado.
 
 ## ARCHIVOS CRÍTICOS
-index.html, admin.html, owner.html, overlay.html, firestore.rules, firebase-config.js, firebase.json, package.json, build-css.js, styles.css (fuente), `dist/styles.min.css` (generado; no editar a mano), scripts/, playwright*.config.js y *.spec.js. Los documentos antiguos (docs/historico/) y las demos (archivo/demos/) son prescindibles. docs/ y archivo/ no se publican: están excluidos en firebase.json.
+`src/views/`, `src/components/`, `src/services/`, `src/models/`, `src/styles/`, firestore.rules, firebase.json, package.json, build-css.js, `dist/styles.min.css` (generado; no editar a mano), scripts/, playwright*.config.js y e2e/*.spec.js. Las demos (archivo/demos/) son prescindibles. docs/ y archivo/ no se publican: están excluidos en firebase.json.
 
 ## SEGURIDAD OPERATIVA
 - Prohibido sin mi autorización explícita: `firebase deploy`, `firebase use`, `firebase login`, cualquier comando contra el proyecto `chijas`, `git commit`, `git push`, instalar o actualizar paquetes o skills.

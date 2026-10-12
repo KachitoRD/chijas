@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { bankrollFixture } from "./helpers/bankroll-fixture.js";
 import { deleteVisualDocument, firestoreRoot } from "./helpers/visual-seed.js";
 import { commentReportFixture as fixture, grantReportACL as acl, loginReportAccount as login } from "./helpers/comment-report-fixture.js";
-import { reviewOutcome, validateReportInput } from "../comment-report-model.js";
+import { reviewOutcome, validateReportInput } from "../src/models/comment-report-model.js";
 
 test.use({ baseURL: "http://127.0.0.1:5502" });
 
@@ -10,10 +10,10 @@ test("SDK real: un reporte privado persiste sin ocultar el comentario", async ({
   const f = await fixture(request);
   try {
     await page.route(/https:\/\/(firestore|identitytoolkit|securetoken)\.googleapis\.com\/.*/, route => route.abort());
-    await page.goto("/legal.html");
+    await page.goto("/src/views/legal-notice.html");
     await login(page, f.reporter);
     const result = await page.evaluate(async f => {
-      const { firebaseDb: db } = await import("/firebase-config.js?v=2");
+      const { firebaseDb: db } = await import("/src/services/firebase-config.js?v=2");
       const { doc, setDoc, getDoc, serverTimestamp } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
       try {
         await setDoc(doc(db, f.reportPath), {
@@ -39,7 +39,7 @@ test("SDK real: descartar conserva el comentario y deja una resolución terminal
   const f = await fixture(request);
   try {
     await page.route(/https:\/\/(firestore|identitytoolkit|securetoken)\.googleapis\.com\/.*/, route => route.abort());
-    await page.goto("/legal.html");
+    await page.goto("/src/views/legal-notice.html");
     await login(page, f.reporter);
     expect(await sdkAttempt(page, f, "create")).toBe("allowed");
     await acl(request, f.owner, true);
@@ -73,7 +73,7 @@ test("modelo: límites, categorías y terminales no se reabren", () => {
 
         async function sdkAttempt(page, f, kind, patch = {}) {
           return page.evaluate(async ({ f, kind, patch }) => {
-            const { firebaseDb: db, firebaseAuth: auth } = await import("/firebase-config.js?v=2");
+            const { firebaseDb: db, firebaseAuth: auth } = await import("/src/services/firebase-config.js?v=2");
             const sdk = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
             const ref = sdk.doc(db, f.reportPath);
             const data = { pickId: f.pickId, commentId: "source", reporterUid: f.reporterUid,
@@ -92,11 +92,11 @@ test("modelo: límites, categorías y terminales no se reabren", () => {
                 resolution_reason: patch.reason || "", ...(patch.extra || {})
               });
               if (kind === "review") {
-                const { resolveCommentReport } = await import("/comment-report-service.js");
+                const { resolveCommentReport } = await import("/src/services/comment-report-service.js");
                 return await resolveCommentReport(ref, patch.action || "remove", patch.reason || "", auth.currentUser.uid, () => true);
               }
               if (kind === "idempotent") {
-                const { submitCommentReport } = await import("/comment-report-service.js");
+                const { submitCommentReport } = await import("/src/services/comment-report-service.js");
                 return await submitCommentReport({ id: f.pickId, ownerUid: f.ownerUid },
                   { id: "source", authorUid: f.ownerUid, authorName: "Autor exacto", text: "Evidencia original" },
                   f.reporterUid, "spam", "", () => true);
@@ -112,16 +112,16 @@ test("modelo: límites, categorías y terminales no se reabren", () => {
           const other = await bankrollFixture(request);
           try {
             await page.route(/https:\/\/(firestore|identitytoolkit|securetoken)\.googleapis\.com\/.*/, route => route.abort());
-            await page.goto("/legal.html");
+            await page.goto("/src/views/legal-notice.html");
             expect(await sdkAttempt(page, f, "create")).toBe("permission-denied");
             await page.evaluate(async () => {
-              const { firebaseAuth } = await import("/firebase-config.js?v=2");
+              const { firebaseAuth } = await import("/src/services/firebase-config.js?v=2");
               const { signInAnonymously } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
               await signInAnonymously(firebaseAuth);
             });
             // Delete this exact anonymous account before moving to the verified fixture.
             const anonymous = await page.evaluate(async () => {
-              const { firebaseAuth } = await import("/firebase-config.js?v=2");
+              const { firebaseAuth } = await import("/src/services/firebase-config.js?v=2");
               return firebaseAuth.currentUser.uid;
             });
             try { expect(await sdkAttempt(page, f, "create")).toBe("permission-denied"); }
@@ -197,7 +197,7 @@ test("modelo: límites, categorías y terminales no se reabren", () => {
           const f = await fixture(request);
           try {
             await page.route(/https:\/\/(firestore|identitytoolkit|securetoken)\.googleapis\.com\/.*/, route => route.abort());
-            await page.goto("/legal.html");
+            await page.goto("/src/views/legal-notice.html");
             await login(page, f.reporter);
             expect(await sdkAttempt(page, f, "create")).toBe("allowed");
             await acl(request, f.owner, true);
@@ -211,7 +211,7 @@ test("modelo: límites, categorías y terminales no se reabren", () => {
             expect(outcomes.filter(value => value === "removed")).toHaveLength(1);
             expect(outcomes.find(value => value !== "removed")).toMatch(/Conflicto/);
             const report = await page.evaluate(async f => {
-              const { firebaseDb: db } = await import("/firebase-config.js?v=2");
+              const { firebaseDb: db } = await import("/src/services/firebase-config.js?v=2");
               const { doc, getDocFromServer } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
               const data = (await getDocFromServer(doc(db, f.reportPath))).data();
               return { ...data, created_at: data.created_at.toMillis(), reviewed_at: data.reviewed_at.toMillis(),
@@ -229,7 +229,7 @@ test("modelo: límites, categorías y terminales no se reabren", () => {
 
 async function sdk(page, action, args = {}) {
   return page.evaluate(async ({ action, args }) => {
-    const { firebaseDb: db, firebaseAuth: auth } = await import("/firebase-config.js?v=2");
+    const { firebaseDb: db, firebaseAuth: auth } = await import("/src/services/firebase-config.js?v=2");
     const s = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
     const ref = path => s.doc(db, path);
     const audit = () => ({ source_comment_id: args.commentId, authorUid: args.authorUid, text: args.text,
@@ -245,7 +245,7 @@ async function sdk(page, action, args = {}) {
         await batch.commit();
       }
       if (action === "moderate") {
-        const { deleteCommentAsModerator } = await import("/comment-report-service.js");
+        const { deleteCommentAsModerator } = await import("/src/services/comment-report-service.js");
         await deleteCommentAsModerator(args.pickId, args.commentId, auth.currentUser?.uid, () => true);
       }
       if (action === "get") {
@@ -298,7 +298,7 @@ test("SDK real: borrado administrativo exige auditoría; autor y dueño conserva
     for (const path of [`picks/${orphanPick}/commentDeletionAudit/orphan`, `${auditBase}/self`, `${auditBase}/owned`,
       `${base}/fresh`, `commentRateLimits/${f.reporter.uid}`]) await f.track(path);
     await page.route(/https:\/\/(firestore|identitytoolkit|securetoken)\.googleapis\.com\/.*/, route => route.abort());
-    await page.goto("/legal.html");
+    await page.goto("/src/views/legal-notice.html");
     await login(page, admin);
     expect(await sdk(page, "delete", source), "admin community sin auditoría").toBe("permission-denied");
     expect(await sdk(page, "audit-only", source), "auditoría sin borrado").toBe("permission-denied");
@@ -336,7 +336,7 @@ test("SDK real: descartar exige comentario presente antes y después", async ({ 
     reportPath: f.reportPath, authorUid: f.owner.uid, text: "Evidencia original" };
   try {
     await page.route(/https:\/\/(firestore|identitytoolkit|securetoken)\.googleapis\.com\/.*/, route => route.abort());
-    await page.goto("/legal.html");
+    await page.goto("/src/views/legal-notice.html");
     await login(page, f.reporter);
     expect(await sdkAttempt(page, f, "create")).toBe("allowed");
     await acl(request, f.owner, true);

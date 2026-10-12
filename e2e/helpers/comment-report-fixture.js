@@ -4,7 +4,7 @@ import { deleteVisualDocument, firestoreRoot } from "./visual-seed.js";
 
 export async function loginReportAccount(page, account) {
   await page.evaluate(async account => {
-    const { firebaseAuth: auth, firebaseDb: db } = await import("/firebase-config.js?v=2");
+    const { firebaseAuth: auth, firebaseDb: db } = await import("../../src/services/firebase-config.js?v=2");
     if (db.app.options.projectId !== "demo-fijas-vivo" || !auth.emulatorConfig) throw new Error("Solo emuladores");
     const { signInWithEmailAndPassword } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
     await signInWithEmailAndPassword(auth, account.email, account.password);

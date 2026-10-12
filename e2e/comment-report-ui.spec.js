@@ -13,7 +13,7 @@ test("UI: reporte inline por teclado, idempotencia, móvil/reduced motion y limp
   const f = await commentReportFixture(request);
   try {
     await page.route(/https:\/\/(firestore|identitytoolkit|securetoken)\.googleapis\.com\/.*/, route => route.abort());
-    await page.goto("/legal.html");
+    await page.goto("/src/views/legal-notice.html");
     await loginReportAccount(page, f.reporter);
     await page.goto("/");
     await openThread(page, f.pickId);
@@ -49,7 +49,7 @@ test("UI: reporte inline por teclado, idempotencia, móvil/reduced motion y limp
     await expect(page.locator("#muralEntries")).toContainText("Evidencia original");
     await expect(page.locator("#muralEntries")).not.toContainText("Detalle de evidencia privado");
     await page.evaluate(async () => {
-      const { firebaseAuth } = await import("/firebase-config.js?v=2");
+      const { firebaseAuth } = await import("/src/services/firebase-config.js?v=2");
       const { signOut } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
       await signOut(firebaseAuth);
     });
@@ -67,7 +67,7 @@ test("UI: cambiar de hilo y suspender cuenta retira el borrador privado sin tras
   const f = await commentReportFixture(request);
   try {
     await page.route(/https:\/\/(firestore|identitytoolkit|securetoken)\.googleapis\.com\/.*/, route => route.abort());
-    await page.goto("/legal.html");
+    await page.goto("/src/views/legal-notice.html");
     await loginReportAccount(page, f.reporter);
     await page.goto("/");
     await openThread(page, f.pickId);
@@ -99,7 +99,7 @@ test("UI: cola community, confirmación inline, evidencia, resolución y revocac
     });
     await grantReportACL(request, f.owner, true);
     await page.route(/https:\/\/(firestore|identitytoolkit|securetoken)\.googleapis\.com\/.*/, route => route.abort());
-    await page.goto("/legal.html");
+    await page.goto("/src/views/legal-notice.html");
     await loginReportAccount(page, f.owner);
     await page.goto("/#view=admin");
     await page.locator("#community-tab").click();
@@ -151,9 +151,9 @@ test("UI: paginación acotada y comentario ausente se resuelve sin inventar elim
     await grantReportACL(request, f.owner, true);
     await deleteVisualDocument(request, f.commentPath);
     await page.route(/https:\/\/(firestore|identitytoolkit|securetoken)\.googleapis\.com\/.*/, route => route.abort());
-    await page.goto("/legal.html");
+    await page.goto("/src/views/legal-notice.html");
     await loginReportAccount(page, f.owner);
-    await page.goto("/admin-dashboard.html");
+    await page.goto("/src/views/operations-console.html");
     await page.locator("#community-tab").click();
     await expect(page.getByTestId("admin-report-row")).toHaveCount(50);
     await page.locator("#commentReportNext").click();

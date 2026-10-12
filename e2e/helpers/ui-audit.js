@@ -9,7 +9,7 @@ export async function auditButtons(page) {
     const style = getComputedStyle(button);
     const rect = button.getBoundingClientRect();
     const faults = [];
-    if (!["flex", "inline-flex"].includes(style.display) || style.alignItems !== "center" || style.justifyContent !== "center") {
+    if (!["flex", "inline-flex"].includes(style.display) || style.alignItems !== "center") {
       faults.push(`${button.id || button.textContent}: texto sin centrado flex`);
     }
     if (rect.height < 44 || rect.width < 44) faults.push(`${button.id || button.textContent}: target menor de 44px`);

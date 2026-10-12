@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { bankrollFixture, loginLedger } from "./helpers/bankroll-fixture.js";
-import { bankrollAccountBalance, bankrollReportData, parseBankrollOpening } from "../bankroll.js";
+import { bankrollAccountBalance, bankrollReportData, parseBankrollOpening } from "../src/models/bankroll.js";
 
 test.use({ baseURL: "http://127.0.0.1:5502" });
 
@@ -46,7 +46,7 @@ test("apertura, revisión inline, monedas y saldo independiente del período en 
     await page.getByTestId("bankroll-confirm").click();
     await expect(page.getByTestId("bankroll-equity")).toContainText("100.00");
     const opened = await page.evaluate(async uid => {
-      const { firebaseDb } = await import("/firebase-config.js?v=2");
+      const { firebaseDb } = await import("/src/services/firebase-config.js?v=2");
       const { doc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
       return (await getDoc(doc(firebaseDb, "users", uid, "bankrollAccounts", "PEN"))).data().created_at.toMillis();
     }, fixture.uid);
@@ -99,7 +99,7 @@ test("apertura, revisión inline, monedas y saldo independiente del período en 
     await page.locator("#bankrollThrough").fill("2024-01-31");
     await page.getByTestId("bankroll-tab").click();
     await expect(page.getByTestId("bankroll-equity")).toContainText("90.00");
-    await page.goto("/tipster-dashboard.html");
+    await page.goto("/src/views/tipster-workspace.html");
     await page.getByTestId("bankroll-tab").click();
     await expect(page.getByTestId("bankroll-equity")).toContainText("90.00");
     await expect(page.getByTestId("bankroll-movement-row")).toHaveCount(2);
@@ -176,7 +176,7 @@ test("respuesta perdida no duplica movimientos; caché, unmount, logout y térmi
     expect(movementWrites).toBe(1);
     await page.unroute("http://127.0.0.1:8080/**");
     await page.evaluate(async () => {
-      const { firebaseDb } = await import("/firebase-config.js?v=2");
+      const { firebaseDb } = await import("/src/services/firebase-config.js?v=2");
       const { disableNetwork } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
       await disableNetwork(firebaseDb);
     });
@@ -184,7 +184,7 @@ test("respuesta perdida no duplica movimientos; caché, unmount, logout y térmi
     await expect(page.getByTestId("bankroll-account-status")).toContainText("Cargando");
     await expect(page.getByTestId("bankroll-movement-submit")).toBeDisabled();
     await page.evaluate(async () => {
-      const { firebaseDb } = await import("/firebase-config.js?v=2");
+      const { firebaseDb } = await import("/src/services/firebase-config.js?v=2");
       const { enableNetwork } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
       await enableNetwork(firebaseDb);
     });
@@ -199,7 +199,7 @@ test("respuesta perdida no duplica movimientos; caché, unmount, logout y térmi
     await expect(page.getByTestId("bankroll-equity")).toHaveCount(0);
     await expect(page.getByTestId("bankroll-movement-row")).toHaveCount(0);
     await page.evaluate(async () => {
-      const { firebaseAuth } = await import("/firebase-config.js?v=2");
+      const { firebaseAuth } = await import("/src/services/firebase-config.js?v=2");
       const { signOut } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
       await signOut(firebaseAuth);
     });

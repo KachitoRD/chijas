@@ -22,7 +22,7 @@ test.describe("Testing & QA - Opción B", () => {
   });
 
   test("Lighthouse audit on admin.html", async ({ page }) => {
-    await page.goto(new URL("/admin.html", test.info().project.use.baseURL).href);
+    await page.goto(new URL("/src/views/tipster-access.html", test.info().project.use.baseURL).href);
     await page.waitForLoadState("load");
     
     const metrics = await page.evaluate(() => ({
@@ -35,7 +35,7 @@ test.describe("Testing & QA - Opción B", () => {
   });
 
   test("Lighthouse audit on owner.html", async ({ page }) => {
-    await page.goto(new URL("/owner.html", test.info().project.use.baseURL).href);
+    await page.goto(new URL("/src/views/platform-owner.html", test.info().project.use.baseURL).href);
     await page.waitForLoadState("load");
     
     const metrics = await page.evaluate(() => ({
@@ -89,7 +89,7 @@ test.describe("Testing & QA - Opción B", () => {
   });
 
   test("Accessibility audit on admin.html", async ({ page }) => {
-    await page.goto(new URL("/admin.html", test.info().project.use.baseURL).href);
+    await page.goto(new URL("/src/views/tipster-access.html", test.info().project.use.baseURL).href);
     await page.waitForLoadState("load");
     
     const a11yIssues = await page.evaluate(() => {

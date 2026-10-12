@@ -9,10 +9,10 @@ test("SDK real: role legacy tipster no bloquea al aprobado ni concede acceso sin
   try {
     await owner.write(`users/${owner.uid}`, { role: "tipster" });
     await page.route(/https:\/\/(firestore|identitytoolkit|securetoken)\.googleapis\.com\/.*/, route => route.abort());
-    await page.goto("/legal.html");
+    await page.goto("/src/views/legal-notice.html");
     async function attemptOpening() {
       return page.evaluate(async owner => {
-        const { firebaseDb: db, firebaseAuth: auth } = await import("/firebase-config.js?v=2");
+        const { firebaseDb: db, firebaseAuth: auth } = await import("/src/services/firebase-config.js?v=2");
         if (db.app.options.projectId !== "demo-fijas-vivo" || !auth.emulatorConfig) throw new Error("Solo emuladores.");
         const { signInWithEmailAndPassword } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
         const { doc, setDoc, serverTimestamp } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
@@ -40,9 +40,9 @@ test("SDK real: bankroll privado, schema estricto, request.time, inmutabilidad y
   const other = await bankrollFixture(request);
   try {
     await page.route(/https:\/\/(firestore|identitytoolkit|securetoken)\.googleapis\.com\/.*/, route => route.abort());
-    await page.goto("/legal.html");
+    await page.goto("/src/views/legal-notice.html");
     const results = await page.evaluate(async ({ owner, other }) => {
-      const { firebaseDb: db, firebaseAuth: auth } = await import("/firebase-config.js?v=2");
+      const { firebaseDb: db, firebaseAuth: auth } = await import("/src/services/firebase-config.js?v=2");
       if (db.app.options.projectId !== "demo-fijas-vivo" || !auth.emulatorConfig) throw new Error("Solo emuladores.");
       const { signInWithEmailAndPassword, signOut } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
       const { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp } =
@@ -128,7 +128,7 @@ test("SDK real: bankroll privado, schema estricto, request.time, inmutabilidad y
       if (reason === "parent") await owner.write(`users/${owner.uid}`, { uid: "invalid-parent" });
       if (reason === "missing-parent") await deleteVisualDocument(request, `users/${owner.uid}`);
       const denied = await page.evaluate(async owner => {
-        const { firebaseDb: db, firebaseAuth: auth } = await import("/firebase-config.js?v=2");
+        const { firebaseDb: db, firebaseAuth: auth } = await import("/src/services/firebase-config.js?v=2");
         const { signInWithEmailAndPassword } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
         const { doc, collection, getDocFromServer, getDocsFromServer, setDoc, serverTimestamp } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
         await signInWithEmailAndPassword(auth, owner.email, owner.password);

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#09090b">
+  <meta name="robots" content="noindex, nofollow">
+  <meta property="og:title" content="Mi Panel en Fijas - Administra tus pronósticos">
+  <meta property="og:description" content="Panel privado para gestionar tu perfil y publicar pronósticos en Fijas.">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <title>Panel tipster | Fijas en vivo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/dist/styles.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
+  <link rel="stylesheet" href="/src/styles/button-styles.css">
+  <link rel="stylesheet" href="/src/styles/emerald-surface.css">
+  <link rel="stylesheet" href="/src/styles/auth-styles.css">
+  <link rel="stylesheet" href="/src/styles/ui-polish.css">
+  <link rel="stylesheet" href="/src/styles/tipster-view.css">
+  <script src="/src/components/legacy-cache-cleanup.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js" defer></script>
+</head>
+<body class="ui-app min-h-[100dvh] font-sans text-zinc-100 antialiased">
+  <main id="panelLoading" class="mx-auto max-w-6xl px-4 py-12" aria-busy="true" role="status" aria-live="polite">
+    Preparando tu panel tipster…
+  </main>
+
+  <script src="/src/components/toasts.js"></script>
+  <script type="module">
+    import { mountTipsterView } from "./tipster-view.js";
+    try {
+      const response = await fetch("/src/views/tipster-workspace.html");
+      if (!response.ok) throw new Error("No se pudo cargar el panel operativo.");
+      const template = new DOMParser().parseFromString(await response.text(), "text/html");
+      template.querySelectorAll("script").forEach(script => script.remove());
+      document.body.replaceChildren(...template.body.childNodes);
+      const cleanup = mountTipsterView(document.body);
+      addEventListener("pagehide", cleanup, { once: true });
+    } catch (error) {
+      console.error("No se pudo cargar el panel:", error);
+      document.getElementById("panelLoading").textContent = "No se pudo cargar el panel. Recarga para reintentar.";
+    }
+  </script>
+</body>
+</html>

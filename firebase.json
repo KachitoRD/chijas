@@ -1,6 +1,17 @@
 {
   "hosting": {
     "public": ".",
+    "redirects": [
+      { "source": "/index.html", "destination": "/src/views/public-tipsters.html", "type": 301 },
+      { "source": "/admin.html", "destination": "/src/views/tipster-access.html", "type": 301 },
+      { "source": "/admin-dashboard.html", "destination": "/src/views/operations-console.html", "type": 301 },
+      { "source": "/owner.html", "destination": "/src/views/platform-owner.html", "type": 301 },
+      { "source": "/tipster-dashboard.html", "destination": "/src/views/tipster-workspace.html", "type": 301 },
+      { "source": "/account-settings.html", "destination": "/src/views/account-settings.html", "type": 301 },
+      { "source": "/legal.html", "destination": "/src/views/legal-notice.html", "type": 301 },
+      { "source": "/overlay.html", "destination": "/src/views/streaming-overlay.html", "type": 301 },
+      { "source": "/user-profile.html", "destination": "/src/views/user-profile.html", "type": 301 }
+    ],
     "ignore": [
       "firebase.json",
       "**/.*",

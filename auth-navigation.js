@@ -1,4 +1,1 @@
-export async function signOutAndRedirect(signOutSession) {
-  await signOutSession();
-  window.location.assign("/");
-}
+export * from "./src/components/auth-navigation.js";

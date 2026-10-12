@@ -17,9 +17,9 @@ async function provision(request, path, fields) {
 }
 
 async function login(page) {
-  await page.goto("/user-profile.html");
+  await page.goto("/src/views/user-profile.html");
   await page.evaluate(async ({ email, password }) => {
-    const { firebaseAuth } = await import("/firebase-config.js?v=2");
+    const { firebaseAuth } = await import("/src/services/firebase-config.js?v=2");
     const { signInWithEmailAndPassword } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
     await signInWithEmailAndPassword(firebaseAuth, email, password);
   }, { email: account.email, password });
@@ -86,7 +86,7 @@ for (const scenario of [
     });
     await login(page);
     const result = await page.evaluate(async applicationId => {
-      const { firebaseDb, firebaseAuth } = await import("/firebase-config.js?v=2");
+      const { firebaseDb, firebaseAuth } = await import("/src/services/firebase-config.js?v=2");
       const { doc, getDoc, setDoc, updateDoc, serverTimestamp } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
       const results = [];
       try { await getDoc(doc(firebaseDb, "platformSettings", "limits")); results.push("read"); }
@@ -114,7 +114,7 @@ for (const scenario of [
       "read", scenario.allowed && scenario.role !== "admin" ? "configured" : "permission-denied",
       scenario.allowed ? "reviewed" : "permission-denied"
     ]);
-    await page.goto("/admin-dashboard.html");
+    await page.goto("/src/views/operations-console.html");
     if (scenario.allowed) {
       await expect(page.locator("#dashboard")).toBeVisible();
       await provision(request, `platformAdmins/${account.localId}`, {
@@ -138,7 +138,7 @@ test("RBAC no permite autoasignar ACL ni convertir users.role en autoridad", asy
   });
   await login(page);
   const result = await page.evaluate(async () => {
-    const { firebaseDb, firebaseAuth } = await import("/firebase-config.js?v=2");
+    const { firebaseDb, firebaseAuth } = await import("/src/services/firebase-config.js?v=2");
     const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
     try {
       await setDoc(doc(firebaseDb, "platformAdmins", firebaseAuth.currentUser.uid), {
@@ -148,7 +148,7 @@ test("RBAC no permite autoasignar ACL ni convertir users.role en autoridad", asy
     } catch (error) { return error.code; }
   });
   expect(result).toBe("permission-denied");
-  await page.goto("/admin-dashboard.html");
+  await page.goto("/src/views/operations-console.html");
   await expect(page.locator("#auth-message")).toBeVisible();
   await expect(page.locator("#dashboard")).toBeHidden();
 });
@@ -162,7 +162,7 @@ test("RBAC requiere correo verificado incluso para una ACL administrativa habili
   });
   expect(response.ok()).toBeTruthy();
   await login(page);
-  await page.goto("/admin-dashboard.html");
+  await page.goto("/src/views/operations-console.html");
   await expect(page.locator("#auth-message-text")).toContainText("Verifica tu correo");
   await expect(page.locator("#dashboard")).toBeHidden();
 });
@@ -194,9 +194,9 @@ for (const approved of [false, true]) {
     documents.add(`picks/${pickId}`);
     await login(page);
     const result = await page.evaluate(async pickId => {
-      const { firebaseDb, firebaseAuth } = await import("/firebase-config.js?v=2");
+      const { firebaseDb, firebaseAuth } = await import("/src/services/firebase-config.js?v=2");
       const { doc, setDoc, updateDoc, deleteDoc, serverTimestamp } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
-      const { getAccountPermissions } = await import("/permissions.js");
+      const { getAccountPermissions } = await import("/src/services/permissions.js");
       const permissions = await getAccountPermissions(firebaseAuth.currentUser);
       const ref = doc(firebaseDb, "picks", pickId);
       const pick = {
@@ -232,7 +232,7 @@ for (const approved of [false, true]) {
         status: { stringValue: "pending" }, created_at: { timestampValue: new Date().toISOString() }
       });
       const blocked = await page.evaluate(async pickId => {
-        const { firebaseDb } = await import("/firebase-config.js?v=2");
+        const { firebaseDb } = await import("/src/services/firebase-config.js?v=2");
         const { doc, updateDoc, deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
         const ref = doc(firebaseDb, "picks", pickId);
         const results = [];
@@ -244,7 +244,7 @@ for (const approved of [false, true]) {
       }, pickId);
       expect(blocked).toEqual(["permission-denied", "permission-denied"]);
     }
-    await page.goto("/tipster-dashboard.html");
+    await page.goto("/src/views/tipster-workspace.html");
     if (approved) {
       await expect(page.locator("#pickForm")).toBeVisible();
       const response = await request.patch(

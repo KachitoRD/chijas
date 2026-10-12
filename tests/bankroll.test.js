@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { executiveBankrollHTML } from "../bankroll-report.js";
-import { bankrollCurrencies, parseBankrollStake, parseCashOutReturn, pickFinancialResult, summarizeBankroll, eventDateRange, filterBankrollPicks, bankrollCSV, bankrollReportData } from "../bankroll.js";
+import { executiveBankrollHTML } from "../src/views/bankroll-report.js";
+import { bankrollCurrencies, parseBankrollStake, parseCashOutReturn, pickFinancialResult, summarizeBankroll, eventDateRange, filterBankrollPicks, bankrollCSV, bankrollReportData } from "../src/models/bankroll.js";
 
 test("importe opcional sin registro financiero", () => {
   assert.equal(parseBankrollStake("", "PEN"), null);

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { groupPicksByTipster } from "../admin-dashboard-models.js";
+import { groupPicksByTipster } from "../src/models/admin-dashboard-models.js";
 
 test("groupPicksByTipster indexes each public pick once and retains tipster order", () => {
   const first = { id: "p1", user_id: "tipster-a" };

@@ -80,7 +80,7 @@ function trackUser(user) {
 
 async function signInGoogle(page, label) {
   const user = await page.evaluate(async ({ prefix, label }) => {
-    const { firebaseAuth } = await import("/firebase-config.js?v=2");
+    const { firebaseAuth } = await import("/src/services/firebase-config.js?v=2");
     const { GoogleAuthProvider, signInWithCredential } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
     const token = JSON.stringify({
       sub: `${prefix}-${label}`, email: `${prefix}-${label}@example.test`,
@@ -267,7 +267,7 @@ test("solo la ACL comunitaria puede editar la blacklist dinámica", async ({ pag
     } }
   });
   expect(admin.ok(), await admin.text()).toBeTruthy();
-  await page.goto("/admin-dashboard.html");
+  await page.goto("/src/views/operations-console.html");
   await expect(page.locator("#dashboard")).toBeVisible();
   await expect(page.locator("#community-tab")).toBeVisible();
   await page.locator("#community-tab").click();
@@ -293,7 +293,7 @@ test("las reglas permiten comentar con términos aceptados y bloquean el flood",
   await acceptTerms(request, user);
   const pickId = `${fixture.ids[0]}-pick`;
   const commentId = await page.evaluate(async pickId => {
-    const { firebaseAuth, firebaseDb } = await import("/firebase-config.js?v=2");
+    const { firebaseAuth, firebaseDb } = await import("/src/services/firebase-config.js?v=2");
     const { collection, doc, serverTimestamp, writeBatch } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
     const comment = doc(collection(firebaseDb, "picks", pickId, "comments"));
     const rate = doc(firebaseDb, "commentRateLimits", firebaseAuth.currentUser.uid);
@@ -311,7 +311,7 @@ test("las reglas permiten comentar con términos aceptados y bloquean el flood",
   fixture.documents.add(`picks/${pickId}/comments/${commentId}`);
   fixture.documents.add(`commentRateLimits/${user.uid}`);
   const secondComment = await page.evaluate(async pickId => {
-    const { firebaseAuth, firebaseDb } = await import("/firebase-config.js?v=2");
+    const { firebaseAuth, firebaseDb } = await import("/src/services/firebase-config.js?v=2");
     const { collection, doc, serverTimestamp, writeBatch } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
     const comment = doc(collection(firebaseDb, "picks", pickId, "comments"));
     const rate = doc(firebaseDb, "commentRateLimits", firebaseAuth.currentUser.uid);
@@ -337,7 +337,7 @@ test("Firestore rechaza enlaces aunque se omita la validación de la interfaz", 
   const user = await signInGoogle(page, "mural-link");
   await acceptTerms(request, user);
   const result = await page.evaluate(async pickId => {
-    const { firebaseAuth, firebaseDb } = await import("/firebase-config.js?v=2");
+    const { firebaseAuth, firebaseDb } = await import("/src/services/firebase-config.js?v=2");
     const { collection, doc, serverTimestamp, writeBatch } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
     const comment = doc(collection(firebaseDb, "picks", pickId, "comments"));
     const rate = doc(firebaseDb, "commentRateLimits", firebaseAuth.currentUser.uid);
@@ -366,7 +366,7 @@ test("Firestore rechaza comentarios vacíos aunque se omita la interfaz", async 
   const user = await signInGoogle(page, "mural-empty");
   await acceptTerms(request, user);
   const attempt = await page.evaluate(async pickId => {
-    const { firebaseAuth, firebaseDb } = await import("/firebase-config.js?v=2");
+    const { firebaseAuth, firebaseDb } = await import("/src/services/firebase-config.js?v=2");
     const { collection, doc, serverTimestamp, writeBatch } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
     const comment = doc(collection(firebaseDb, "picks", pickId, "comments"));
     const rate = doc(firebaseDb, "commentRateLimits", firebaseAuth.currentUser.uid);
@@ -519,7 +519,7 @@ test("Google popup, consentimiento, persistencia y respuesta optimista sin dupli
   await page.locator("#viewerAuthGoogle").click();
   await expect(page.locator("#viewerConsent")).toBeVisible();
   const user = await page.evaluate(async () => {
-    const { firebaseAuth } = await import("/firebase-config.js?v=2");
+    const { firebaseAuth } = await import("/src/services/firebase-config.js?v=2");
     return { uid: firebaseAuth.currentUser.uid, idToken: await firebaseAuth.currentUser.getIdToken() };
   });
   trackUser(user);
@@ -570,8 +570,8 @@ test("feed con 11 creadores combina grupos, ordena, actualiza y excluye revocado
   const user = await signInGoogle(page, "feed");
   await acceptTerms(request, user);
   await page.evaluate(async ids => {
-    const { firebaseAuth } = await import("/firebase-config.js?v=2");
-    const { setFollowing } = await import("/community.js");
+    const { firebaseAuth } = await import("/src/services/firebase-config.js?v=2");
+    const { setFollowing } = await import("/src/views/community.js");
     for (const id of ids) await setFollowing(firebaseAuth.currentUser, id, true);
   }, fixture.ids);
   await page.locator("#followingTab").click();
@@ -605,7 +605,7 @@ test("reglas bloquean escalada, suplantación, contadores aislados y relaciones 
   const user = await signInGoogle(page, "rules");
   const id = fixture.ids[0];
   const denied = await page.evaluate(async ({ uid, id }) => {
-    const { firebaseDb } = await import("/firebase-config.js?v=2");
+    const { firebaseDb } = await import("/src/services/firebase-config.js?v=2");
     const { doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
     const operations = [
       () => updateDoc(doc(firebaseDb, "users", uid), { role: "tipster" }),
@@ -625,8 +625,8 @@ test("reglas bloquean escalada, suplantación, contadores aislados y relaciones 
   expect(denied).toEqual(Array(6).fill("permission-denied"));
   await acceptTerms(request, user);
   const afterConsent = await page.evaluate(async id => {
-    const { firebaseAuth, firebaseDb } = await import("/firebase-config.js?v=2");
-    const { setFollowing } = await import("/community.js");
+    const { firebaseAuth, firebaseDb } = await import("/src/services/firebase-config.js?v=2");
+    const { setFollowing } = await import("/src/views/community.js");
     const { doc, setDoc, serverTimestamp } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
     const uid = firebaseAuth.currentUser.uid;
     let code;
@@ -656,7 +656,7 @@ test("contador del panel tipster se actualiza con follows concurrentes de viewer
   fixture.ids.push(tipster.uid);
   await seedTipster(request, tipster.uid, 12);
   await acceptTerms(request, tipster);
-  await page.goto("/admin.html");
+  await page.goto("/src/views/tipster-access.html");
   await expect(page.locator("#dashboardTitle")).toHaveText("Panel de tipster");
   await expect(page.locator("#followerCount")).toHaveText("0");
   await expect(page.locator("#myPicks")).toHaveAttribute("aria-busy", "false");
@@ -677,14 +677,14 @@ test("contador del panel tipster se actualiza con follows concurrentes de viewer
       await acceptTerms(request, viewer);
     }
     await Promise.all(contexts.map(context => context.pages()[0].evaluate(async id => {
-      const { firebaseAuth } = await import("/firebase-config.js?v=2");
-      const { setFollowing } = await import("/community.js");
+      const { firebaseAuth } = await import("/src/services/firebase-config.js?v=2");
+      const { setFollowing } = await import("/src/views/community.js");
       await setFollowing(firebaseAuth.currentUser, id, true);
     }, tipster.uid)));
     await expect(page.locator("#followerCount")).toHaveText("2");
     await Promise.all(contexts.map(context => context.pages()[0].evaluate(async id => {
-      const { firebaseAuth } = await import("/firebase-config.js?v=2");
-      const { setFollowing } = await import("/community.js");
+      const { firebaseAuth } = await import("/src/services/firebase-config.js?v=2");
+      const { setFollowing } = await import("/src/views/community.js");
       await setFollowing(firebaseAuth.currentUser, id, false);
     }, tipster.uid)));
     await expect(page.locator("#followerCount")).toHaveText("0");

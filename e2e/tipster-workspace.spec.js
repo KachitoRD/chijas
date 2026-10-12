@@ -11,7 +11,7 @@ async function login(page) {
   await expect(page.locator("#viewerAuth")).not.toBeVisible();
   await page.goto("/#view=tipster");
   await expect(page.locator("#myPicks")).toHaveAttribute("aria-busy", "false");
-  return page.evaluate(async () => (await import("/firebase-config.js?v=2")).firebaseAuth.currentUser.uid);
+  return page.evaluate(async () => (await import("/src/services/firebase-config.js?v=2")).firebaseAuth.currentUser.uid);
 }
 async function fillPick(page, event) {
   await page.locator("#event").fill(event);

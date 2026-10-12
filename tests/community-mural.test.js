@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import assert from "node:assert/strict";
-import { normalizeBlockedTerms, validateMuralComment } from "../mural-moderation.js";
+import { normalizeBlockedTerms, validateMuralComment } from "../src/models/mural-moderation.js";
 
 test("validateMuralComment rejects empty or whitespace-only comments", () => {
   assert.deepEqual(validateMuralComment(" \n\t"), {
@@ -48,8 +48,8 @@ test("normalizeBlockedTerms rejects oversized admin policies", () => {
 });
 
 test("frontpage replaces the simulated chat markup and controls with a mural", async () => {
-  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
-  const shell = await readFile(new URL("../viewer-shell.js", import.meta.url), "utf8");
+  const html = await readFile(new URL("../src/views/public-tipsters.html", import.meta.url), "utf8");
+  const shell = await readFile(new URL("../src/views/viewer-shell.js", import.meta.url), "utf8");
   assert.match(html, /id="communityMural"/);
   assert.match(html, /id="toggleMural"/);
   assert.match(html, /id="muralForm"/);

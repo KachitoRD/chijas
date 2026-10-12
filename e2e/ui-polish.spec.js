@@ -25,7 +25,7 @@ test("gradiente neon solo en el hero y énfasis del frontpage", async ({ page })
   const visibleText = await hero.evaluate(element => getComputedStyle(element).webkitTextFillColor);
   expect(visibleText).not.toBe("rgba(0, 0, 0, 0)");
   await page.emulateMedia({ forcedColors: "none" });
-  for (const path of ["/admin.html", "/owner.html"]) {
+  for (const path of ["/src/views/tipster-access.html", "/src/views/platform-owner.html"]) {
     await page.goto(path);
     await expect(page.locator(".frontpage, .frontpage-accent")).toHaveCount(0);
     await expect(page.locator("dialog h1")).toHaveCSS("background-image", "none");
@@ -34,8 +34,8 @@ test("gradiente neon solo en el hero y énfasis del frontpage", async ({ page })
 
 for (const surface of [
   { path: "/", panel: "#viewerAuth", open: "#viewerLogin" },
-  { path: "/admin.html", panel: "#loginForm" },
-  { path: "/owner.html", panel: "#creatorLogin" }
+  { path: "/src/views/tipster-access.html", panel: "#loginForm" },
+  { path: "/src/views/platform-owner.html", panel: "#creatorLogin" }
 ]) {
   test(`glass, contraste, botones y retícula responsiva ${surface.path}`, async ({ page }, testInfo) => {
     const errors = [];
@@ -95,7 +95,7 @@ test("skeletons y feedback asíncrono se detienen con reduced motion y al finali
   await page.goto("/");
   await page.locator("#viewerLogin").click();
   await page.evaluate(async () => {
-    const { showSkeleton } = await import("/ui-feedback.js");
+    const { showSkeleton } = await import("/src/components/ui-feedback.js");
     const container = document.createElement("div");
     container.id = "skeletonFixture";
     document.body.append(container);
@@ -124,8 +124,8 @@ test("skeletons y feedback asíncrono se detienen con reduced motion y al finali
 
 for (const surface of [
   { path: "/", dialog: "#viewerAuth", email: "#viewerAuthEmail", open: "#viewerLogin" },
-  { path: "/admin.html", dialog: "#tipsterAuth", email: "#email" },
-  { path: "/owner.html", dialog: "#ownerAuth", email: "#creatorEmail" }
+  { path: "/src/views/tipster-access.html", dialog: "#tipsterAuth", email: "#email" },
+  { path: "/src/views/platform-owner.html", dialog: "#ownerAuth", email: "#creatorEmail" }
 ]) {
   test(`modal protege el texto y cierra con backdrop vacío ${surface.path}`, async ({ page }) => {
     await page.goto(surface.path);
@@ -147,6 +147,6 @@ for (const surface of [
     await page.locator(surface.email).fill("");
     await page.mouse.click(2, 2);
     if (surface.open) await expect(dialog).not.toBeVisible();
-    else await expect(page).toHaveURL(/\/$/);
+    else await expect(page).toHaveURL(/\/src\/views\/public-tipsters\.html$/);
   });
 }

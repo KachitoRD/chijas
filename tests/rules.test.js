@@ -16,6 +16,7 @@ import {
 import {
   collection,
   connectFirestoreEmulator,
+  deleteField,
   deleteDoc,
   doc,
   getDoc,
@@ -176,30 +177,31 @@ async function signInTestUser(context, user) {
 function validPick(userId, overrides = {}) {
   return {
     user_id: userId,
-    deporte: "futbol",
-    evento: "Alianza Lima vs Universitario",
-    seleccion: "Más de 1.5 goles",
-    prediccion: "Más de 1.5 goles",
-    cuota: 1.85,
-    casa_de_apuestas: "betano",
-    casa_apuestas: "betano",
-    fecha_evento: Timestamp.fromDate(new Date("2026-10-05T20:00:00.000Z")),
+    sport: "futbol",
+    event: "Alianza Lima vs Universitario",
+    selection: "Más de 1.5 goles",
+    odds: 1.85,
+    bookmaker: "betano",
+    event_date: Timestamp.fromDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)),
+    league: "Liga 1",
+    market: "Total de goles",
+    stake: 10,
+    analysis: "",
     confianza: 4,
-    nota: null,
     destacada: false,
     show_on_stream: false,
-    estado: "pendiente",
+    status: "pending",
     created_at: serverTimestamp(),
     ...overrides
   };
 }
 
-async function seedPick(userId, status = "pendiente", overrides = {}) {
+async function seedPick(userId, status = "pending", overrides = {}) {
   const id = `pick-${randomUUID()}`;
   const data = {
     ...validPick(userId, {
       created_at: new Date("2026-10-04T12:00:00.000Z"),
-      estado: status,
+      status,
       ...overrides
     })
   };
@@ -287,7 +289,7 @@ async function runCase(name, test) {
   }
 }
 
-async function setupSeededPick(context, user, status = "pendiente") {
+async function setupSeededPick(context, user, status = "pending") {
   return seedPick(user.uid, status);
 }
 
@@ -326,7 +328,7 @@ async function main() {
       "Crear pronóstico con perfil pendiente"
     );
     await expectDenied(
-      () => updateDoc(doc(context.db, "picks", fixture.id), { evento: "Intento de edición" }),
+      () => updateDoc(doc(context.db, "picks", fixture.id), { event: "Intento de edición" }),
       "Editar pronóstico con perfil pendiente"
     );
     await expectDenied(
@@ -336,12 +338,12 @@ async function main() {
   });
 
   const invalidSchemas = [
-    ["deporte con mayúscula", { deporte: "Fútbol" }],
-    ["casa con mayúscula", { casa_de_apuestas: "Betano", casa_apuestas: "Betano" }],
-    ["nota de 501 caracteres", { nota: "x".repeat(501) }],
-    ["cuota superior a 1000", { cuota: 1000.01 }],
+    ["deporte con mayúscula", { sport: "Fútbol" }],
+    ["casa con mayúscula", { bookmaker: "Betano" }],
+    ["análisis superior a 4000 caracteres", { analysis: "x".repeat(4001) }],
+    ["cuota superior a 1000", { odds: 1000.01 }],
     ["confianza igual a 6", { confianza: 6 }],
-    ["seleccion distinta de prediccion", { prediccion: "Menos de 1.5 goles" }],
+    ["selección vacía", { selection: "" }],
     ["created_at antiguo", { created_at: new Date("2020-01-01T00:00:00.000Z") }]
   ];
   for (const [label, overrides] of invalidSchemas) {
@@ -357,14 +359,14 @@ async function main() {
   await runCase("5. Lectura pública: aprobado/anulado permitido, revocado denegado", async context => {
     const approved = await createTestUser(context, "public-approved");
     const revoked = await createTestUser(context, "public-revoked", "revoked");
-    const approvedPick = await setupSeededPick(context, approved, "anulada");
+    const approvedPick = await setupSeededPick(context, approved, "void");
     const revokedPick = await setupSeededPick(context, revoked);
     await signOut(context.auth);
     const approvedProfile = await getDoc(doc(context.db, "perfiles", approved.uid));
     const approvedSocialProfile = await getDoc(doc(context.db, "perfiles_social", approved.uid));
     const anulledPick = await getDoc(doc(context.db, "picks", approvedPick.id));
     if (!approvedProfile.exists() || !approvedSocialProfile.exists()
-      || !anulledPick.exists() || anulledPick.data().estado !== "anulada") {
+      || !anulledPick.exists() || anulledPick.data().status !== "void") {
       throw new Error("No se pudo leer el perfil básico/social aprobado y el pronóstico anulado en modo público.");
     }
     await expectDenied(
@@ -479,7 +481,7 @@ async function main() {
     const pickRef = doc(collection(context.db, "picks"));
     const privateRef = doc(pickRef, "private", "bankroll");
     await expectDenied(() => runTransaction(context.db, async transaction => {
-      transaction.set(pickRef, validPick(owner.uid, { cuota: 0 }));
+      transaction.set(pickRef, validPick(owner.uid, { odds: 0 }));
       transaction.set(privateRef, {
         stakeAmount: 10, stakeMinorUnits: 1000, currency: "EUR",
         created_at: serverTimestamp(), updated_at: serverTimestamp()
@@ -492,8 +494,7 @@ async function main() {
       created_at: serverTimestamp(), updated_at: serverTimestamp()
     });
     await deleteDoc(privateRef);
-    await updateDoc(pickRef, { estado: "ganada" });
-    await deleteDoc(pickRef);
+    await updateDoc(pickRef, { status: "won" });
   });
 
   await runCase("Cash out: estado público y retorno privado coherentes y atómicos", async context => {
@@ -505,38 +506,59 @@ async function main() {
       transaction.set(pickRef, validPick(owner.uid));
       transaction.set(financialRef, stake);
     });
-    await expectDenied(() => updateDoc(pickRef, { estado: "cash_out" }), "Cierre sin retorno privado");
+    await expectDenied(() => updateDoc(pickRef, {
+      status: "cashed_out", cashout_odds: 1.05
+    }), "Cierre sin retorno privado");
     await expectDenied(() => updateDoc(financialRef, {
       returnAmount: 105, returnMinorUnits: 10500, updated_at: serverTimestamp()
     }), "Retorno sin cierre público");
     for (const returned of [-100, 10500.5, 100000000001]) {
       await expectDenied(() => runTransaction(context.db, async transaction => {
-        transaction.update(pickRef, { estado: "cash_out" });
+        transaction.update(pickRef, { status: "cashed_out", cashout_odds: 1.05 });
         transaction.update(financialRef, { returnAmount: returned / 100, returnMinorUnits: returned, updated_at: serverTimestamp() });
       }), "Retorno inválido revierte el estado");
-      if ((await getDoc(pickRef)).data().estado !== "pendiente") throw new Error("Estado parcial tras rollback.");
+      if ((await getDoc(pickRef)).data().status !== "pending") throw new Error("Estado parcial tras rollback.");
     }
     for (const returned of [10500, 8000, 0]) {
+      const candidatePickRef = returned === 10500 ? pickRef : doc(collection(context.db, "picks"));
+      const candidateFinancialRef = doc(candidatePickRef, "private", "bankroll");
+      if (candidatePickRef !== pickRef) {
+        await runTransaction(context.db, async transaction => {
+          transaction.set(candidatePickRef, validPick(owner.uid));
+          transaction.set(candidateFinancialRef, stake);
+        });
+      }
       await runTransaction(context.db, async transaction => {
-        transaction.update(pickRef, { estado: "cash_out" });
-        transaction.update(financialRef, { returnAmount: returned / 100, returnMinorUnits: returned, updated_at: serverTimestamp() });
+        transaction.update(candidatePickRef, { status: "cashed_out", cashout_odds: 1.05 });
+        transaction.update(candidateFinancialRef, {
+          returnAmount: returned / 100,
+          returnMinorUnits: returned,
+          updated_at: serverTimestamp()
+        });
       });
-      if ((await getDoc(financialRef)).data().returnMinorUnits !== returned) throw new Error("Retorno incorrecto.");
+      if ((await getDoc(candidateFinancialRef)).data().returnMinorUnits !== returned) {
+        throw new Error("Retorno incorrecto.");
+      }
     }
     await expectDenied(() => deleteDoc(financialRef), "Eliminar retorno dejando cierre público");
-    await expectDenied(() => updateDoc(pickRef, { estado: "ganada" }), "Cambiar resultado dejando retorno de cash out");
+    await expectDenied(() => updateDoc(pickRef, {
+      status: "won", cashout_odds: deleteField()
+    }), "Cambiar resultado dejando retorno de cash out");
     await signOut(context.auth);
     const publicPick = await getDoc(pickRef);
-    if (publicPick.data().estado !== "cash_out" || "returnAmount" in publicPick.data()) throw new Error("Cierre público incorrecto.");
+    if (publicPick.data().status !== "cashed_out" || "returnAmount" in publicPick.data()) throw new Error("Cierre público incorrecto.");
     await expectDenied(() => getDoc(financialRef), "Leer retorno de cash out sin sesión");
     await signInTestUser(context, owner);
-    await runTransaction(context.db, async transaction => {
+    await expectDenied(() => runTransaction(context.db, async transaction => {
       const financial = await transaction.get(financialRef);
       const { returnAmount, returnMinorUnits, ...original } = financial.data();
-      transaction.update(pickRef, { estado: "anulada" });
+      transaction.update(pickRef, { status: "void", cashout_odds: deleteField() });
       transaction.set(financialRef, { ...original, updated_at: serverTimestamp() });
-    });
-    if ("returnAmount" in (await getDoc(financialRef)).data()) throw new Error("Retorno no eliminado al cambiar estado.");
+    }), "Reabrir el pronóstico y quitar su retorno de cash out");
+    const closedFinancial = (await getDoc(financialRef)).data();
+    if (!("returnAmount" in closedFinancial) || !("returnMinorUnits" in closedFinancial)) {
+      throw new Error("El retorno cambió tras denegar la reapertura.");
+    }
   });
 
   await runCase("7a. URL social http:// denegada por la regla HTTPS", async context => {
@@ -572,6 +594,7 @@ async function main() {
 
   await runCase("9. Usuario no puede cambiar su tipster_status", async context => {
     const user = await createTestUser(context, "status-user");
+    await seedDocument(`perfiles/${user.uid}`, { tipster_status: "approved" });
     await expectDenied(
       () => updateDoc(doc(context.db, "perfiles", user.uid), { tipster_status: "revoked" }),
       "Cambiar tipster_status desde el perfil propio",
@@ -585,7 +608,8 @@ async function main() {
       () => updateDoc(doc(context.db, "perfiles_social", user.uid), {
         kick_url: "https://kick.com/social-owner"
       }),
-      "Editar perfil social directamente"
+      "Editar perfil social directamente",
+      true
     );
   });
 
@@ -597,7 +621,8 @@ async function main() {
       () => updateDoc(doc(context.db, "perfiles_social", userB.uid), {
         kick_url: "https://kick.com/attacker"
       }),
-      "Editar perfil social de B desde A"
+      "Editar perfil social de B desde A",
+      true
     );
   });
 
