@@ -175,9 +175,9 @@ for (const approved of [false, true]) {
       displayName: { stringValue: "" }, photoURL: { nullValue: null },
       created_at: { timestampValue: new Date().toISOString() }
     });
-    await provision(request, `legalAcceptances/${uid}/versions/2026-10-03`, {
-      uid: { stringValue: uid }, terms_version: { stringValue: "2026-10-03" },
-      privacy_version: { stringValue: "2026-10-03" }, age_confirmed: { booleanValue: true },
+    await provision(request, `legalAcceptances/${uid}/versions/2026-10-14`, {
+      uid: { stringValue: uid }, terms_version: { stringValue: "2026-10-14" },
+      privacy_version: { stringValue: "2026-10-14" }, age_confirmed: { booleanValue: true },
       accepted_at: { timestampValue: new Date().toISOString() }
     });
     if (approved) {

@@ -13,9 +13,9 @@ service cloud.firestore {
     }
 
     function acceptedCurrentTerms(userId) {
-      let acceptance = get(/databases/$(database)/documents/legalAcceptances/$(userId)/versions/2026-10-03).data;
-      return acceptance.terms_version == "2026-10-03"
-        && acceptance.privacy_version == "2026-10-03";
+      let acceptance = get(/databases/$(database)/documents/legalAcceptances/$(userId)/versions/2026-10-14).data;
+      return acceptance.terms_version == "2026-10-14"
+        && acceptance.privacy_version == "2026-10-14";
     }
 
     function isPlatformAdmin() {
@@ -71,6 +71,31 @@ service cloud.firestore {
     function profileIsApproved(userId) {
       return exists(/databases/$(database)/documents/perfiles/$(userId))
         && get(/databases/$(database)/documents/perfiles/$(userId)).data.tipster_status == "approved";
+    }
+
+    function profileAllowsUnfollow(profileId) {
+      let profilePath = /databases/$(database)/documents/perfiles/$(profileId);
+      return exists(profilePath)
+        && get(profilePath).data.tipster_status in ["approved", "revoked"];
+    }
+
+    function ownsFollow(profileId) {
+      return request.auth != null
+        && verifiedUser()
+        && exists(/databases/$(database)/documents/follows/$(request.auth.uid + "_" + profileId));
+    }
+
+    function validAdminFollowerMetric(profileId) {
+      let profilePath = /databases/$(database)/documents/perfiles/$(profileId);
+      return hasAdminPermission("tipsters")
+        && exists(profilePath)
+        && get(profilePath).data.tipster_status in ["approved", "revoked"]
+        && getAfter(profilePath).data.tipster_status in ["approved", "revoked"]
+        && (getAfter(profilePath).data.tipster_status != get(profilePath).data.tipster_status
+          || getAfter(profilePath).data.tipster_status == "revoked")
+        && request.resource.data.keys().hasOnly(["followerCount"])
+        && request.resource.data.keys().hasAll(["followerCount"])
+        && request.resource.data.followerCount == followerCount(get(profilePath).data);
     }
 
     function pickExists(pickId) {
@@ -152,25 +177,26 @@ service cloud.firestore {
       return data.get("followerCount", 0);
     }
 
-    function validFollowCounter(profileId) {
+    function validFollowerMetricChange(profileId, previousCount) {
       let followPath = /databases/$(database)/documents/follows/$(request.auth.uid + "_" + profileId);
       let before = exists(followPath);
       let after = existsAfter(followPath);
-      return signedInAs(request.auth.uid)
-        && acceptedCurrentTerms(request.auth.uid)
-        && resource.data.tipster_status == "approved"
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["followerCount", "followerCountUpdatedBy"])
-        && request.resource.data.followerCountUpdatedBy == request.auth.uid
+      return previousCount is int
+        && previousCount >= 0
+        && request.resource.data.keys().hasOnly(["followerCount"])
+        && request.resource.data.keys().hasAll(["followerCount"])
         && request.resource.data.followerCount is int
         && request.resource.data.followerCount >= 0
-        && (( !before && after
+        && ((!before && after
+            && profileIsApproved(profileId)
             && getAfter(followPath).data.followerId == request.auth.uid
             && getAfter(followPath).data.tipsterId == profileId
-            && request.resource.data.followerCount == followerCount(resource.data) + 1)
+            && request.resource.data.followerCount == previousCount + 1)
           || (before && !after
+            && profileAllowsUnfollow(profileId)
             && get(followPath).data.followerId == request.auth.uid
             && get(followPath).data.tipsterId == profileId
-            && request.resource.data.followerCount == followerCount(resource.data) - 1));
+            && request.resource.data.followerCount == previousCount - 1));
     }
 
     // Username claims must match the profile and application written in the same transaction.
@@ -587,7 +613,7 @@ service cloud.firestore {
         let source = get(/databases/$(database)/documents/picks/$(pickId)/comments/$(commentId)).data;
         let pick = get(/databases/$(database)/documents/picks/$(pickId)).data;
         let user = get(/databases/$(database)/documents/users/$(reporterUid)).data;
-        let consent = get(/databases/$(database)/documents/legalAcceptances/$(reporterUid)/versions/2026-10-03).data;
+        let consent = get(/databases/$(database)/documents/legalAcceptances/$(reporterUid)/versions/2026-10-14).data;
         return validReportEvidence(data)
           && data.keys().hasOnly(["pickId", "commentId", "reporterUid", "ownerUid",
             "authorUid", "authorName", "text", "category", "detail", "status", "created_at"])
@@ -658,7 +684,7 @@ service cloud.firestore {
           "uid", "terms_version", "privacy_version", "age_confirmed", "accepted_at"
         ])
         && request.auth.uid == userId
-        && version == "2026-10-03"
+        && version == "2026-10-14"
         && request.resource.data.uid == userId
         && request.resource.data.terms_version == version
         && request.resource.data.privacy_version == version
@@ -756,21 +782,13 @@ service cloud.firestore {
         && request.resource.data.tipster_status == "approved"
         && request.resource.data.created_at == request.time
         && approvedApplicationClaimsUsername(profileId, request.resource.data.username);
-      allow update: if validFollowCounter(profileId) || (isPlatformAdmin()
+      allow update: if isPlatformAdmin()
         && (
           (
             resource.data.tipster_status in ["approved", "revoked"]
             && hasAdminPermission("tipsters")
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["tipster_status"])
             && request.resource.data.tipster_status in ["approved", "revoked"]
-          )
-          || (
-            resource.data.tipster_status == "pending"
-            && hasAdminPermission("tipsters")
-            && validProfile(profileId)
-            && request.resource.data.tipster_status == "approved"
-            && request.resource.data.created_at == resource.data.created_at
-            && approvedApplicationClaimsUsername(profileId, request.resource.data.username)
           )
           || (
             resource.data.tipster_status == "approved"
@@ -784,7 +802,7 @@ service cloud.firestore {
             ])
             && applyingApprovedProfileRequest(profileId)
           )
-        ));
+        );
       allow delete: if false;
     }
 
@@ -836,7 +854,7 @@ service cloud.firestore {
       match /bankrollAccounts/{currency} {
         function canManageBankroll() {
           let userPath = /databases/$(database)/documents/users/$(userId);
-          let acceptancePath = /databases/$(database)/documents/legalAcceptances/$(userId)/versions/2026-10-03;
+          let acceptancePath = /databases/$(database)/documents/legalAcceptances/$(userId)/versions/2026-10-14;
           return signedInAs(userId)
             && exists(userPath) && get(userPath).data.uid == userId
             && profileIsApproved(userId) && acceptedCurrentTerms(userId)
@@ -937,14 +955,20 @@ service cloud.firestore {
 
     match /follows/{followId} {
       function validCounterChange(tipsterId, delta) {
-        let path = /databases/$(database)/documents/perfiles/$(tipsterId);
-        return profileIsApproved(tipsterId)
-          && getAfter(path).data.followerCountUpdatedBy == request.auth.uid
-          && getAfter(path).data.followerCount == followerCount(get(path).data) + delta;
+        let profilePath = /databases/$(database)/documents/perfiles/$(tipsterId);
+        let metricsPath = /databases/$(database)/documents/perfiles_metricas/$(tipsterId);
+        return ((delta == 1 && profileIsApproved(tipsterId))
+            || (delta == -1 && profileAllowsUnfollow(tipsterId)))
+          && getAfter(metricsPath).data.followerCount
+            == (exists(metricsPath)
+              ? get(metricsPath).data.followerCount
+              : followerCount(get(profilePath).data)) + delta;
       }
       // Owners can also read their absent deterministic document before creating it.
       allow get: if verifiedUser()
-        && (resource == null || resource.data.followerId == request.auth.uid);
+        && ((resource == null
+            && followId.matches("^" + request.auth.uid + "_[^/]+$"))
+          || (resource != null && resource.data.followerId == request.auth.uid));
       allow list: if verifiedUser() && resource.data.followerId == request.auth.uid;
       allow create: if signedInAs(request.resource.data.followerId)
         && acceptedCurrentTerms(request.auth.uid)
@@ -972,22 +996,29 @@ service cloud.firestore {
         && existsAfter(/databases/$(database)/documents/perfiles/$(profileId))
         && getAfter(/databases/$(database)/documents/perfiles/$(profileId)).data.tipster_status == "approved";
       allow update: if hasAdminPermission("profiles")
+        && profileIsApproved(profileId)
+        && validSocialProfileApply()
+        && applyingApprovedProfileRequest(profileId);
+      allow delete: if false;
+    }
+
+    // Follower totals are isolated from profile updates and only change atomically with a follow.
+    match /perfiles_metricas/{profileId} {
+      allow read: if ownsFollow(profileId)
+        || signedInAs(profileId)
+        || isPlatformAdmin()
+        || profileIsApproved(profileId);
+      allow create: if request.auth != null
         && (
-          (
-            profileIsApproved(profileId)
-            && validSocialProfileApply()
-            && applyingApprovedProfileRequest(profileId)
-          )
-          || (
-            exists(/databases/$(database)/documents/perfiles/$(profileId))
-            && get(/databases/$(database)/documents/perfiles/$(profileId)).data.tipster_status == "pending"
-            && validSocialProfile()
-            && approvedApplicationClaimsUsername(
+          (profileIsApproved(profileId)
+            && validFollowerMetricChange(
               profileId,
-              getAfter(/databases/$(database)/documents/tipsterApplications/$(profileId)).data.requested_username
-            )
-          )
+              followerCount(get(/databases/$(database)/documents/perfiles/$(profileId)).data)
+            ))
+          || validAdminFollowerMetric(profileId)
         );
+      allow update: if request.auth != null
+        && validFollowerMetricChange(profileId, resource.data.followerCount);
       allow delete: if false;
     }
 

@@ -138,8 +138,8 @@ function socialProfileDocument() {
 function acceptedTerms(uid) {
   return {
     uid,
-    terms_version: "2026-10-03",
-    privacy_version: "2026-10-03",
+    terms_version: "2026-10-14",
+    privacy_version: "2026-10-14",
     age_confirmed: true,
     accepted_at: new Date("2026-10-04T12:00:00.000Z")
   };
@@ -172,10 +172,12 @@ async function createTestUser(auth, email, username, status = "approved", option
   }
 
   // Crear documentos en Firestore
-  await seedDocument(`perfiles/${user.uid}`, profileDocument(user.uid, status, username));
-  await seedDocument(`perfiles_social/${user.uid}`, socialProfileDocument());
+  if (status !== "pending") {
+    await seedDocument(`perfiles/${user.uid}`, profileDocument(user.uid, status, username));
+    await seedDocument(`perfiles_social/${user.uid}`, socialProfileDocument());
+  }
   await seedDocument(`usernames/${username}`, { uid: user.uid });
-  await seedDocument(`legalAcceptances/${user.uid}/versions/2026-10-03`, acceptedTerms(user.uid));
+  await seedDocument(`legalAcceptances/${user.uid}/versions/2026-10-14`, acceptedTerms(user.uid));
 
   if (options.admin) {
     await seedDocument(`platformAdmins/${user.uid}`, { enabled: true });

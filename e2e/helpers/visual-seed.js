@@ -81,8 +81,8 @@ export async function seedVisualAccounts(request) {
     await writeVisualDocument(request, `users/${uid}`, {
       uid, role, displayName: account.name, photoURL: null, created_at: new Date()
     });
-    await writeVisualDocument(request, `legalAcceptances/${uid}/versions/2026-10-03`, {
-      uid, terms_version: "2026-10-03", privacy_version: "2026-10-03", age_confirmed: true, accepted_at: new Date()
+    await writeVisualDocument(request, `legalAcceptances/${uid}/versions/2026-10-14`, {
+      uid, terms_version: "2026-10-14", privacy_version: "2026-10-14", age_confirmed: true, accepted_at: new Date()
     });
   }
   const uid = accounts.tipster.uid;

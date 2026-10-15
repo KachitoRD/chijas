@@ -34,8 +34,8 @@ export async function bankrollFixture(request) {
     avatar_url: null, banner_url: null, kick_url: null, twitch_url: null,
     youtube_url: null, telegram_url: null, twitter_url: null, instagram_url: null
   });
-  await write(`legalAcceptances/${uid}/versions/2026-10-03`, {
-    uid, terms_version: "2026-10-03", privacy_version: "2026-10-03",
+  await write(`legalAcceptances/${uid}/versions/2026-10-14`, {
+    uid, terms_version: "2026-10-14", privacy_version: "2026-10-14",
     age_confirmed: true, accepted_at: new Date()
   });
   return {

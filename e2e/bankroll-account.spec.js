@@ -194,7 +194,7 @@ test("respuesta perdida no duplica movimientos; caché, unmount, logout y térmi
     await page.goto("/#view=tipster");
     await page.getByTestId("bankroll-tab").click();
     await expect(page.getByTestId("bankroll-equity")).toContainText("12.34");
-    await fixture.write(`legalAcceptances/${fixture.uid}/versions/2026-10-03`, { terms_version: "old" });
+    await fixture.write(`legalAcceptances/${fixture.uid}/versions/2026-10-14`, { terms_version: "old" });
     await expect(page.getByTestId("bankroll-account-status")).toContainText("desactivado");
     await expect(page.getByTestId("bankroll-equity")).toHaveCount(0);
     await expect(page.getByTestId("bankroll-movement-row")).toHaveCount(0);

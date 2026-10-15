@@ -10,6 +10,7 @@ let account;
 let oobEndpoint;
 
 test.beforeEach(async ({ request, page }) => {
+  await page.addInitScript(() => localStorage.setItem("fijas-cookie-consent", "accepted"));
   const email = `auth-${randomUUID()}@example.test`;
   const response = await request.post(`${authRoot}/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo-key`, {
     data: { email, password, returnSecureToken: true }
@@ -19,11 +20,11 @@ test.beforeEach(async ({ request, page }) => {
   const claims = JSON.parse(Buffer.from(account.idToken.split(".")[1], "base64url").toString("utf8"));
   expect(["demo-fijas-vivo", "chijas"], "Proyecto efectivo del Auth Emulator").toContain(claims.aud);
   oobEndpoint = `${authRoot}/emulator/v1/projects/${encodeURIComponent(claims.aud)}/oobCodes`;
-  await request.patch(`${firestoreRoot}/legalAcceptances/${account.localId}/versions/2026-10-03`, {
+  await request.patch(`${firestoreRoot}/legalAcceptances/${account.localId}/versions/2026-10-14`, {
     headers: { Authorization: "Bearer owner" },
     data: { fields: {
-      uid: { stringValue: account.localId }, terms_version: { stringValue: "2026-10-03" },
-      privacy_version: { stringValue: "2026-10-03" }, age_confirmed: { booleanValue: true },
+      uid: { stringValue: account.localId }, terms_version: { stringValue: "2026-10-14" },
+      privacy_version: { stringValue: "2026-10-14" }, age_confirmed: { booleanValue: true },
       accepted_at: { timestampValue: new Date().toISOString() }
     } }
   });
@@ -43,14 +44,14 @@ test.afterEach(async ({ request, page }, testInfo) => {
     });
     if (user && user.uid !== account.localId) {
       await request.delete(`${firestoreRoot}/users/${user.uid}`, { headers: { Authorization: "Bearer owner" } });
-      await request.delete(`${firestoreRoot}/legalAcceptances/${user.uid}/versions/2026-10-03`, { headers: { Authorization: "Bearer owner" } });
+      await request.delete(`${firestoreRoot}/legalAcceptances/${user.uid}/versions/2026-10-14`, { headers: { Authorization: "Bearer owner" } });
       await request.post(`${authRoot}/identitytoolkit.googleapis.com/v1/accounts:delete?key=demo-key`, { data: { idToken: user.idToken } });
     }
   }
   await request.delete(`${firestoreRoot}/users/${account.localId}`, { headers: { Authorization: "Bearer owner" } });
   await request.delete(`${firestoreRoot}/viewerPresence/${account.localId}`, { headers: { Authorization: "Bearer owner" } });
   await request.delete(`${firestoreRoot}/platformAdmins/${account.localId}`, { headers: { Authorization: "Bearer owner" } });
-  await request.delete(`${firestoreRoot}/legalAcceptances/${account.localId}/versions/2026-10-03`, { headers: { Authorization: "Bearer owner" } });
+  await request.delete(`${firestoreRoot}/legalAcceptances/${account.localId}/versions/2026-10-14`, { headers: { Authorization: "Bearer owner" } });
   await request.delete(`${firestoreRoot}/tipsterApplications/${account.localId}`, { headers: { Authorization: "******" } });
   const response = await request.post(`${authRoot}/identitytoolkit.googleapis.com/v1/accounts:delete?key=demo-key`, { data: { idToken: account.idToken } });
   expect(response.ok()).toBeTruthy();
@@ -179,10 +180,17 @@ test("cuenta privada: viewer puede solicitar acceso y compartir solo sus datos p
     const { getAuth } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
     return getAuth().currentUser.getIdToken();
   });
-  const submitted = await request.get(`${firestoreRoot}/tipsterApplications/${account.localId}`, {
+  let submitted = await request.get(`${firestoreRoot}/tipsterApplications/${account.localId}`, {
     headers: { Authorization: `Bearer ${idToken}` }
   });
-  expect(submitted.ok(), await submitted.text()).toBeTruthy();
+  await expect.poll(async () => {
+    if (!submitted.ok()) {
+      submitted = await request.get(`${firestoreRoot}/tipsterApplications/${account.localId}`, {
+        headers: { Authorization: `Bearer ${idToken}` }
+      });
+    }
+    return submitted.ok();
+  }, { message: "La solicitud aceptada debe estar disponible en Firestore", timeout: 5000 }).toBeTruthy();
   const application = (await submitted.json()).fields;
   expect(application.public_data.mapValue.fields.bio.stringValue).toBe("Biografía elegida por el viewer.");
   expect(application.public_data.mapValue.fields.avatar_url.stringValue).toBe("https://example.test/viewer-avatar.png");

@@ -52,7 +52,7 @@
     .dashboard-table .numeric { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
     .dashboard-table .pick-description { min-width: 180px; max-width: 280px; overflow-wrap: anywhere; }
     .dashboard-table .pick-actions { width: 76px; min-width: 76px; text-align: center; }
-    .pick-action-trigger { display: inline-grid; place-items: center; width: 44px; height: 44px; border: 1px solid rgb(255 255 255 / .1); border-radius: 8px; }
+    .pick-action-trigger { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 1px solid rgb(255 255 255 / .1); border-radius: 8px; }
     .pick-action-trigger:hover, .pick-action-trigger[aria-expanded="true"] { background: rgb(255 255 255 / .06); }
     .pick-action-popup { position: fixed; inset: auto; margin: 0; width: min(280px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow-y: auto; padding: 12px; border: 1px solid rgb(255 255 255 / .1); border-radius: 10px; background: #111114; color: #f4f4f5; text-align: left; font-size: 12px; box-shadow: 0 8px 24px rgb(0 0 0 / .2); }
     .pick-action-popup button, .pick-action-popup select, .pick-action-popup summary { min-height: 40px; }
@@ -86,7 +86,7 @@
       .pick-note-trigger { display: inline-grid; place-items: center; flex: 0 0 auto; width: 28px; min-width: 28px; height: 28px; min-height: 28px; padding: 0; margin-top: -4px; border: 1px solid transparent; border-radius: 7px; color: #a7f3d0; background: transparent; }
       .pick-note-trigger:hover, .pick-note-trigger[aria-expanded="true"] { border-color: rgb(110 231 183 / .22); background: rgb(110 231 183 / .08); }
       .pick-note-popup { width: min(340px, calc(100vw - 24px)); }
-      .pick-lock-badge { display: inline-grid; place-items: center; flex: 0 0 auto; width: 28px; min-width: 28px; height: 28px; min-height: 28px; padding: 0; border: 1px solid rgb(110 231 183 / .2); border-radius: 7px; color: #a7f3d0; background: rgb(110 231 183 / .06); }
+      .pick-lock-badge { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 44px; min-width: 44px; height: 44px; min-height: 44px; padding: 0; border: 1px solid rgb(110 231 183 / .2); border-radius: 7px; color: #a7f3d0; background: rgb(110 231 183 / .06); }
       .pick-lock-badge[data-locked="true"] { color: #fde68a; border-color: rgb(252 211 77 / .22); background: rgb(252 211 77 / .07); }
       .pick-lock-badge:hover { background: rgb(110 231 183 / .12); }
       .pick-lock-badge[data-locked="true"]:hover { background: rgb(252 211 77 / .13); }
@@ -103,7 +103,6 @@
       @media (pointer: coarse) {
         .pick-note-trigger { width: 44px; min-width: 44px; height: 44px; min-height: 44px; margin-top: -8px; }
         .pick-stream-control { width: 44px; min-height: 44px; }
-        .pick-lock-badge { width: 44px; min-width: 44px; height: 44px; min-height: 44px; }
       }
 }
 

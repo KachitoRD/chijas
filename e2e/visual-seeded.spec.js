@@ -235,7 +235,11 @@ test("recorrido visual con viewer, tipster, OBS y owner sembrados", async ({ bro
   const tipsterUid = (await profileResponse.json()).fields.uid.stringValue;
   const profile = await request.get(`${firestoreRoot}/perfiles/${tipsterUid}`, { headers });
   expect(profile.ok()).toBeTruthy();
-  const initialCount = Number((await profile.json()).fields.followerCount.integerValue);
+  const metrics = await request.get(`${firestoreRoot}/perfiles_metricas/${tipsterUid}`, { headers });
+  const initialCount = metrics.ok()
+    ? Number((await metrics.json()).fields.followerCount.integerValue)
+    : Number((await profile.json()).fields.followerCount.integerValue);
+  if (!metrics.ok()) expect(metrics.status()).toBe(404);
   let baseline;
   async function newPage() {
     const context = await browser.newContext({ baseURL: "http://127.0.0.1:5502" });

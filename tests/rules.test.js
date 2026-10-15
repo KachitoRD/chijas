@@ -132,8 +132,8 @@ function socialProfileDocument() {
 function acceptedTerms(uid) {
   return {
     uid,
-    terms_version: "2026-10-03",
-    privacy_version: "2026-10-03",
+    terms_version: "2026-10-14",
+    privacy_version: "2026-10-14",
     age_confirmed: true,
     accepted_at: new Date("2026-10-04T12:00:00.000Z")
   };
@@ -159,10 +159,12 @@ async function createTestUser(context, label, status = "approved", options = {})
   }
   await user.getIdToken(true);
 
-  await seedDocument(`perfiles/${user.uid}`, profileDocument(user.uid, status, label));
-  await seedDocument(`perfiles_social/${user.uid}`, socialProfileDocument());
+  if (status !== "pending") {
+    await seedDocument(`perfiles/${user.uid}`, profileDocument(user.uid, status, label));
+    await seedDocument(`perfiles_social/${user.uid}`, socialProfileDocument());
+  }
   await seedDocument(`usernames/${label}`, { uid: user.uid });
-  await seedDocument(`legalAcceptances/${user.uid}/versions/2026-10-03`, acceptedTerms(user.uid));
+  await seedDocument(`legalAcceptances/${user.uid}/versions/2026-10-14`, acceptedTerms(user.uid));
   if (options.admin) {
     await seedDocument(`platformAdmins/${user.uid}`, { enabled: true });
   }
@@ -301,6 +303,22 @@ async function main() {
   await assertEmulatorPort(AUTH_HOST, AUTH_PORT, "Auth");
   await assertEmulatorPort(FIRESTORE_HOST, FIRESTORE_PORT, "Firestore");
   await clearEmulatorData();
+
+  await runCase("Aceptación legal vigente: permite crear 2026-10-14", async context => {
+    const credential = await createUserWithEmailAndPassword(
+      context.auth,
+      `legal-acceptance-${randomUUID()}@example.test`,
+      TEST_PASSWORD
+    );
+    const user = credential.user;
+    await setDoc(doc(context.db, "legalAcceptances", user.uid, "versions", "2026-10-14"), {
+      uid: user.uid,
+      terms_version: "2026-10-14",
+      privacy_version: "2026-10-14",
+      age_confirmed: true,
+      accepted_at: serverTimestamp()
+    });
+  });
 
   await runCase("1. Alta válida", async context => {
     const admin = await createTestUser(context, "admin", "approved", { admin: true });
@@ -602,6 +620,52 @@ async function main() {
     );
   });
 
+  await runCase("9a. Admin puede revocar un perfil aprobado", async context => {
+    const admin = await createTestUser(context, "status-admin", "approved", { admin: true });
+    const tipster = await createTestUser(context, "status-tipster");
+    await signInTestUser(context, admin);
+    const profileRef = doc(context.db, "perfiles", tipster.uid);
+    const metricsRef = doc(context.db, "perfiles_metricas", tipster.uid);
+    const legacyProfile = profileDocument(tipster.uid, "approved", "status-tipster");
+    legacyProfile.followerCount = 2;
+    await seedDocument(`perfiles/${tipster.uid}`, legacyProfile);
+    await runTransaction(context.db, async transaction => {
+      const [profile, metrics] = await Promise.all([
+        transaction.get(profileRef), transaction.get(metricsRef)
+      ]);
+      if (!profile.exists() || metrics.exists()) throw new Error("Estado inicial de revocación inválido.");
+      transaction.update(profileRef, { tipster_status: "revoked" });
+      transaction.set(metricsRef, { followerCount: profile.data().followerCount });
+    });
+    const [profile, metrics] = await Promise.all([getDoc(profileRef), getDoc(metricsRef)]);
+    if (profile.data().tipster_status !== "revoked" || metrics.data().followerCount !== 2) {
+      throw new Error("La revocación no preservó el contador histórico.");
+    }
+  });
+
+  await runCase("9b. Admin puede inicializar métrica de perfil revocado legado", async context => {
+    const admin = await createTestUser(context, "legacy-metric-admin", "approved", { admin: true });
+    const tipster = await createTestUser(context, "legacy-revoked-tipster", "revoked");
+    const legacyProfile = profileDocument(tipster.uid, "revoked", "legacy-revoked-tipster");
+    legacyProfile.followerCount = 3;
+    await seedDocument(`perfiles/${tipster.uid}`, legacyProfile);
+    await signInTestUser(context, admin);
+    const profileRef = doc(context.db, "perfiles", tipster.uid);
+    const metricsRef = doc(context.db, "perfiles_metricas", tipster.uid);
+    await runTransaction(context.db, async transaction => {
+      const [profile, metrics] = await Promise.all([
+        transaction.get(profileRef), transaction.get(metricsRef)
+      ]);
+      if (!profile.exists() || metrics.exists() || profile.data().tipster_status !== "revoked") {
+        throw new Error("El estado inicial de la métrica revocada no es válido.");
+      }
+      transaction.set(metricsRef, { followerCount: profile.data().followerCount });
+    });
+    if ((await getDoc(metricsRef)).data().followerCount !== 3) {
+      throw new Error("La inicialización no preservó el contador legado.");
+    }
+  });
+
   await runCase("10. Tipster no puede editar directamente perfiles_social", async context => {
     const user = await createTestUser(context, "social-owner");
     await expectDenied(
@@ -624,6 +688,218 @@ async function main() {
       "Editar perfil social de B desde A",
       true
     );
+  });
+
+  await runCase("11a. Seguir actualiza el contador dentro de la transacción", async context => {
+    const follower = await createTestUser(context, "follower");
+    const tipster = await createTestUser(context, "followed-tipster");
+    const legacyProfile = profileDocument(tipster.uid, "approved", "followed-tipster");
+    legacyProfile.followerCount = 2;
+    await seedDocument(`perfiles/${tipster.uid}`, legacyProfile);
+    await seedDocument(`users/${follower.uid}`, {
+      uid: follower.uid,
+      role: "viewer",
+      displayName: "Follower",
+      photoURL: null,
+      email: follower.email,
+      created_at: new Date("2026-10-04T12:00:00.000Z")
+    });
+    await signInTestUser(context, follower);
+    const followRef = doc(context.db, "follows", `${follower.uid}_${tipster.uid}`);
+    const profileRef = doc(context.db, "perfiles", tipster.uid);
+    const metricsRef = doc(context.db, "perfiles_metricas", tipster.uid);
+    await runTransaction(context.db, async transaction => {
+      const [follow, profile, metrics] = await Promise.all([
+        transaction.get(followRef),
+        transaction.get(profileRef),
+        transaction.get(metricsRef)
+      ]);
+      if (follow.exists() || !profile.exists() || metrics.exists()) {
+        throw new Error("El estado inicial del follow no es válido.");
+      }
+      const count = profile.data().followerCount ?? 0;
+      transaction.set(followRef, {
+        followerId: follower.uid,
+        tipsterId: tipster.uid,
+        created_at: serverTimestamp()
+      });
+      transaction.set(metricsRef, { followerCount: count + 1 });
+    });
+    const [profileAfterFollow, metricsAfterFollow] = await Promise.all([
+      getDoc(profileRef),
+      getDoc(metricsRef)
+    ]);
+    if (profileAfterFollow.data().followerCount !== 2
+      || metricsAfterFollow.data().followerCount !== 3) {
+      throw new Error("El follow no preservó el contador histórico ni lo incrementó.");
+    }
+    await runTransaction(context.db, async transaction => {
+      const [follow, metrics] = await Promise.all([
+        transaction.get(followRef),
+        transaction.get(metricsRef)
+      ]);
+      if (!follow.exists() || !metrics.exists()) {
+        throw new Error("El estado inicial del unfollow no es válido.");
+      }
+      transaction.delete(followRef);
+      transaction.update(metricsRef, { followerCount: metrics.data().followerCount - 1 });
+    });
+    const [profileAfterUnfollow, metricsAfterUnfollow, removedFollow] = await Promise.all([
+      getDoc(profileRef),
+      getDoc(metricsRef),
+      getDoc(followRef)
+    ]);
+    if (profileAfterUnfollow.data().followerCount !== 2
+      || metricsAfterUnfollow.data().followerCount !== 2
+      || removedFollow.exists()) {
+      throw new Error("El unfollow no restauró el contador.");
+    }
+  });
+
+  await runCase("11b. No se puede alterar el contador sin cambiar un follow", async context => {
+    const user = await createTestUser(context, "metrics-counter-user");
+    const tipster = await createTestUser(context, "metrics-counter-tipster");
+    await signInTestUser(context, user);
+    await expectDenied(
+      () => setDoc(doc(context.db, "perfiles_metricas", tipster.uid), { followerCount: 1 }),
+      "Crear el contador sin crear el follow correspondiente"
+    );
+    await seedDocument(`perfiles_metricas/${tipster.uid}`, { followerCount: 0 });
+    await expectDenied(
+      () => updateDoc(doc(context.db, "perfiles_metricas", tipster.uid), { followerCount: 500 }),
+      "Alterar el contador sin crear o borrar el follow correspondiente"
+    );
+  });
+
+  await runCase("11c. Unfollow legado inicializa la métrica separada", async context => {
+    const follower = await createTestUser(context, "legacy-unfollow-follower");
+    const tipster = await createTestUser(context, "legacy-unfollow-tipster");
+    const legacyProfile = profileDocument(tipster.uid, "approved", "legacy-unfollow-tipster");
+    legacyProfile.followerCount = 2;
+    await seedDocument(`perfiles/${tipster.uid}`, legacyProfile);
+    const followRef = doc(context.db, "follows", `${follower.uid}_${tipster.uid}`);
+    await seedDocument(followRef.path, {
+      followerId: follower.uid,
+      tipsterId: tipster.uid,
+      created_at: new Date("2026-10-04T12:00:00.000Z")
+    });
+    await signInTestUser(context, follower);
+    const profileRef = doc(context.db, "perfiles", tipster.uid);
+    const metricsRef = doc(context.db, "perfiles_metricas", tipster.uid);
+    await runTransaction(context.db, async transaction => {
+      const [follow, profile, metrics] = await Promise.all([
+        transaction.get(followRef), transaction.get(profileRef), transaction.get(metricsRef)
+      ]);
+      if (!follow.exists() || !profile.exists() || metrics.exists()) {
+        throw new Error("El estado inicial del unfollow legado no es válido.");
+      }
+      transaction.delete(followRef);
+      transaction.set(metricsRef, { followerCount: profile.data().followerCount - 1 });
+    });
+    const [follow, metrics] = await Promise.all([getDoc(followRef), getDoc(metricsRef)]);
+    if (follow.exists() || metrics.data().followerCount !== 1) {
+      throw new Error("El unfollow legado no migró y decrementó el contador.");
+    }
+  });
+
+  await runCase("11d. Viewer puede dejar de seguir un tipster revocado", async context => {
+    const follower = await createTestUser(context, "revoked-unfollow-follower");
+    const tipster = await createTestUser(context, "revoked-unfollow-tipster");
+    await seedDocument(`perfiles/${tipster.uid}`, profileDocument(tipster.uid, "revoked", "revoked-unfollow-tipster"));
+    await seedDocument(`perfiles_metricas/${tipster.uid}`, { followerCount: 1 });
+    const followRef = doc(context.db, "follows", `${follower.uid}_${tipster.uid}`);
+    await seedDocument(followRef.path, {
+      followerId: follower.uid,
+      tipsterId: tipster.uid,
+      created_at: new Date("2026-10-04T12:00:00.000Z")
+    });
+    await signInTestUser(context, follower);
+    await expectDenied(
+      () => getDoc(doc(context.db, "perfiles", tipster.uid)),
+      "Leer el perfil revocado desde otro usuario"
+    );
+    const metricsRef = doc(context.db, "perfiles_metricas", tipster.uid);
+    if (!(await getDoc(followRef)).exists()) throw new Error("El follow de la fixture no es legible por su dueño.");
+    const metricSnapshot = await getDoc(metricsRef);
+    if (!metricSnapshot.exists()) throw new Error("La métrica del perfil revocado no existe.");
+    await runTransaction(context.db, async transaction => {
+      const [follow, metrics] = await Promise.all([
+        transaction.get(followRef), transaction.get(metricsRef)
+      ]);
+      if (!follow.exists() || !metrics.exists()) throw new Error("El estado inicial del unfollow revocado no es válido.");
+      transaction.delete(followRef);
+      transaction.update(metricsRef, { followerCount: metrics.data().followerCount - 1 });
+    });
+    if ((await getDoc(followRef)).exists()) {
+      throw new Error("El viewer no pudo eliminar el follow del perfil revocado.");
+    }
+    await signInTestUser(context, tipster);
+    const metrics = await getDoc(metricsRef);
+    if (metrics.data().followerCount !== 0) {
+      throw new Error("El viewer no pudo eliminar el follow del perfil revocado.");
+    }
+  });
+
+  await runCase("11e. Viewer no puede sondear follows ausentes de terceros", async context => {
+    const viewer = await createTestUser(context, "follow-probe-viewer");
+    const other = await createTestUser(context, "follow-probe-other");
+    await signInTestUser(context, viewer);
+    const ownMissingFollow = await getDoc(doc(context.db, "follows", `${viewer.uid}_${other.uid}`));
+    if (ownMissingFollow.exists()) throw new Error("La relación propia debería estar ausente.");
+    await expectDenied(
+      () => getDoc(doc(context.db, "follows", `${other.uid}_${viewer.uid}`)),
+      "Consultar una relación inexistente de otro usuario",
+      true
+    );
+  });
+
+  await runCase("11f. Backfill admin permite unfollow histórico revocado", async context => {
+    const follower = await createTestUser(context, "revoked-legacy-follower");
+    const tipster = await createTestUser(context, "revoked-legacy-tipster", "revoked");
+    const admin = await createTestUser(context, "revoked-legacy-admin", "approved", { admin: true });
+    const legacyProfile = profileDocument(tipster.uid, "revoked", "revoked-legacy-tipster");
+    legacyProfile.followerCount = 1;
+    await seedDocument(`perfiles/${tipster.uid}`, legacyProfile);
+    const followRef = doc(context.db, "follows", `${follower.uid}_${tipster.uid}`);
+    const profileRef = doc(context.db, "perfiles", tipster.uid);
+    const metricsRef = doc(context.db, "perfiles_metricas", tipster.uid);
+    await seedDocument(followRef.path, {
+      followerId: follower.uid,
+      tipsterId: tipster.uid,
+      created_at: new Date("2026-10-04T12:00:00.000Z")
+    });
+
+    await signInTestUser(context, admin);
+    await runTransaction(context.db, async transaction => {
+      const [profile, metrics] = await Promise.all([
+        transaction.get(profileRef), transaction.get(metricsRef)
+      ]);
+      if (!profile.exists() || metrics.exists() || profile.data().tipster_status !== "revoked") {
+        throw new Error("El estado inicial del backfill revocado no es válido.");
+      }
+      transaction.set(metricsRef, { followerCount: profile.data().followerCount });
+    });
+
+    await signInTestUser(context, follower);
+    await runTransaction(context.db, async transaction => {
+      const [follow, metrics] = await Promise.all([
+        transaction.get(followRef), transaction.get(metricsRef)
+      ]);
+      if (!follow.exists() || !metrics.exists()) {
+        throw new Error("El backfill no habilitó la lectura de la relación y su métrica.");
+      }
+      transaction.delete(followRef);
+      transaction.update(metricsRef, { followerCount: metrics.data().followerCount - 1 });
+    });
+    if ((await getDoc(followRef)).exists()) {
+      throw new Error("El viewer no pudo dejar de seguir tras el backfill administrativo.");
+    }
+
+    await signInTestUser(context, tipster);
+    const metrics = await getDoc(metricsRef);
+    if (metrics.data().followerCount !== 0) {
+      throw new Error("El viewer no pudo dejar de seguir tras el backfill administrativo.");
+    }
   });
 
   await runCase("12. Tipster crea una solicitud válida con reserva pendiente", async context => {
@@ -700,6 +976,39 @@ async function main() {
     ]);
     if (savedRequest.data().estado !== "aprobada" || savedProfile.data().bio !== "Descripción aprobada" || reservation.exists()) {
       throw new Error("La aprobación no aplicó el cambio o no liberó la reserva.");
+    }
+  });
+
+  await runCase("14a. Admin aprueba cambios de perfil social", async context => {
+    const admin = await createTestUser(context, "social-request-admin", "approved", { admin: true });
+    const user = await createTestUser(context, "social-request-user");
+    await signInTestUser(context, user);
+    const request = await submitProfileRequest(context, user, {
+      kick_url: "https://kick.com/approved-channel"
+    });
+    await signInTestUser(context, admin);
+    const socialRef = doc(context.db, "perfiles_social", user.uid);
+    await runTransaction(context.db, async transaction => {
+      const social = await transaction.get(socialRef);
+      if (!social.exists()) throw new Error("Falta el perfil social.");
+      transaction.update(socialRef, { kick_url: "https://kick.com/approved-channel" });
+      transaction.update(request.requestRef, {
+        estado: "aprobada",
+        motivoRechazo: null,
+        revisado_at: serverTimestamp(),
+        revisado_por: admin.uid
+      });
+      transaction.delete(request.reservationRef);
+    });
+    const [savedSocial, savedRequest, reservation] = await Promise.all([
+      getDoc(socialRef),
+      getDoc(request.requestRef),
+      getDoc(request.reservationRef)
+    ]);
+    if (savedSocial.data().kick_url !== "https://kick.com/approved-channel"
+      || savedRequest.data().estado !== "aprobada"
+      || reservation.exists()) {
+      throw new Error("La aprobación social no se aplicó o no liberó la reserva.");
     }
   });
 
@@ -800,7 +1109,7 @@ async function main() {
       if (!application.exists() || username.exists()) throw new Error("Fixtures de aprobación inválidos.");
       const basic = profileDocument(applicant.uid, "approved", "new-approval");
       basic.nombre_publico = "Aprobación de prueba";
-      basic.created_at = profile.data().created_at;
+      basic.created_at = profile.exists() ? profile.data().created_at : serverTimestamp();
       transaction.set(profileRef, basic);
       transaction.set(socialRef, socialProfileDocument());
       transaction.set(usernameRef, { uid: applicant.uid });

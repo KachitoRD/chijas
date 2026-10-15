@@ -42,6 +42,7 @@ async function seedDocuments(request, documents, { createOnly = true } = {}) {
 
 function tipsterDocuments(id, index) {
   const username = `${fixture.prefix}-${index}`;
+  fixture.documents.add(`perfiles_metricas/${id}`);
   return {
   [`perfiles/${id}`]: {
     id, username, nombre_publico: `Comunidad ${index}`, bio: null, color_primario: "#34d399",
@@ -73,7 +74,7 @@ function trackUser(user) {
   fixture.documents.add(`users/${user.uid}`);
   fixture.documents.add(`presencia/${user.uid}`);
   fixture.documents.add(`viewerPresence/${user.uid}`);
-  fixture.documents.add(`legalAcceptances/${user.uid}/versions/2026-10-03`);
+  fixture.documents.add(`legalAcceptances/${user.uid}/versions/2026-10-14`);
   fixture.documents.add(`commentRateLimits/${user.uid}`);
   for (const id of fixture.ids) fixture.documents.add(`follows/${user.uid}_${id}`);
 }
@@ -96,21 +97,28 @@ async function signInGoogle(page, label) {
 }
 
 async function acceptTerms(request, user) {
-  await seed(request, `legalAcceptances/${user.uid}/versions/2026-10-03`, {
-    uid: user.uid, terms_version: "2026-10-03", privacy_version: "2026-10-03",
+  await seed(request, `legalAcceptances/${user.uid}/versions/2026-10-14`, {
+    uid: user.uid, terms_version: "2026-10-14", privacy_version: "2026-10-14",
     age_confirmed: true, accepted_at: new Date()
   });
 }
 
 async function readCount(request, id) {
-  const response = await request.get(`${root}/perfiles/${id}`, { headers });
-  expect(response.ok()).toBeTruthy();
-  const body = await response.json();
-  return Number(body.fields.followerCount?.integerValue || 0);
+  const metrics = await request.get(`${root}/perfiles_metricas/${id}`, { headers });
+  if (metrics.ok()) {
+    const body = await metrics.json();
+    return Number(body.fields.followerCount?.integerValue ?? body.fields.followerCount?.doubleValue ?? 0);
+  }
+  expect(metrics.status()).toBe(404);
+  const profile = await request.get(`${root}/perfiles/${id}`, { headers });
+  expect(profile.ok()).toBeTruthy();
+  const body = await profile.json();
+  return Number(body.fields.followerCount?.integerValue ?? body.fields.followerCount?.doubleValue ?? 0);
 }
 
 test.describe.configure({ mode: "serial" });
 test.beforeEach(async ({ request, page }) => {
+  await page.addInitScript(() => localStorage.setItem("fijas-cookie-consent", "accepted"));
   fixture = { prefix: `cm${randomUUID().replaceAll("-", "").slice(0, 12)}`, ids: [], documents: new Set(), users: new Map() };
   if (process.env.COMMUNITY_TIMING === "1" && test.info().title.startsWith("categorías filtran")) fixture.timing = performance.now();
   traceCategory("preparación iniciada");
@@ -284,6 +292,9 @@ test("solo la ACL comunitaria puede editar la blacklist dinámica", async ({ pag
   await page.locator("#muralInput").fill("Hablemos por whatsapp");
   await expect(page.locator("#muralSend")).toBeEnabled();
   await page.locator("#muralSend").click();
+  await expect(page.locator("#muralNotice")).toContainText("término bloqueado");
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent("fijas:dashboard", { detail: { open: false } })));
+  await expect(page.locator("#muralContext")).toContainText("Evento comunidad 0");
   await expect(page.locator("#muralNotice")).toContainText("término bloqueado");
   await expect(page.locator("#muralEntries .mural-entry")).toHaveCount(0);
 });
@@ -639,7 +650,7 @@ test("reglas bloquean escalada, suplantación, contadores aislados y relaciones 
   await expect.poll(() => readCount(request, id)).toBe(1);
   const button = page.locator(`#directoryList button[data-follow="${id}"]`);
   await expect(button).toHaveAttribute("aria-pressed", "true");
-  const beforeConsent = await request.delete(`${root}/legalAcceptances/${user.uid}/versions/2026-10-03`, { headers });
+  const beforeConsent = await request.delete(`${root}/legalAcceptances/${user.uid}/versions/2026-10-14`, { headers });
   expect(beforeConsent.ok()).toBeTruthy();
   await page.reload();
   await expect(button).toBeEnabled();

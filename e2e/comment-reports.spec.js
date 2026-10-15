@@ -134,11 +134,11 @@ test("modelo: límites, categorías y terminales no se reabren", () => {
             await f.reporter.write(`users/${f.reporter.uid}`, { status: "suspended" });
             expect(await sdkAttempt(page, f, "create")).toBe("permission-denied");
             await f.reporter.write(`users/${f.reporter.uid}`, { status: "active" });
-            await f.reporter.write(`legalAcceptances/${f.reporter.uid}/versions/2026-10-03`, { age_confirmed: false });
+            await f.reporter.write(`legalAcceptances/${f.reporter.uid}/versions/2026-10-14`, { age_confirmed: false });
             expect(await sdkAttempt(page, f, "create")).toBe("permission-denied");
-            await f.reporter.write(`legalAcceptances/${f.reporter.uid}/versions/2026-10-03`, { age_confirmed: true, terms_version: "old" });
+            await f.reporter.write(`legalAcceptances/${f.reporter.uid}/versions/2026-10-14`, { age_confirmed: true, terms_version: "old" });
             expect(await sdkAttempt(page, f, "create")).toBe("permission-denied");
-            await f.reporter.write(`legalAcceptances/${f.reporter.uid}/versions/2026-10-03`, { terms_version: "2026-10-03" });
+            await f.reporter.write(`legalAcceptances/${f.reporter.uid}/versions/2026-10-14`, { terms_version: "2026-10-03" });
             await request.post("http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:update?key=demo-key",
               { headers: { Authorization: "Bearer owner" }, data: { localId: f.reporter.uid, emailVerified: false } });
             await login(page, f.reporter);

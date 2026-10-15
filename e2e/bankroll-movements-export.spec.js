@@ -36,7 +36,7 @@ test("exporta CSV privado de la moneda seleccionada en SPA y standalone y bloque
     await button.focus();
     await page.keyboard.press("Enter");
     expect((await downloaded).suggestedFilename()).toBe("bankroll-movimientos-PEN.csv");
-    await fixture.write(`legalAcceptances/${fixture.uid}/versions/2026-10-03`, { age_confirmed: false });
+    await fixture.write(`legalAcceptances/${fixture.uid}/versions/2026-10-14`, { age_confirmed: false });
     await expect(button).toBeDisabled();
     await expect(page.getByTestId("bankroll-export-status")).toBeEmpty();
   } finally {

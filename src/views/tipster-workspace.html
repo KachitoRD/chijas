@@ -14,6 +14,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/dist/styles.min.css">
+  <link rel="stylesheet" href="/src/components/cookie-consent.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
   <link rel="stylesheet" href="/src/styles/button-styles.css">
   <script src="/src/components/legacy-cache-cleanup.js"></script>
@@ -49,7 +50,7 @@
           </label>
           <label class="flex items-start gap-3 text-xs leading-5 text-zinc-300">
             <input id="registrationTerms" class="mt-1 accent-emerald-300" type="checkbox">
-            <span>He leído y acepto los <a class="font-semibold text-emerald-200 underline underline-offset-4" href="/src/views/legal-notice.html#terminos" target="_blank" rel="noopener noreferrer">Términos y condiciones</a> y el <a class="font-semibold text-emerald-200 underline underline-offset-4" href="/src/views/legal-notice.html#privacidad" target="_blank" rel="noopener noreferrer">Aviso de privacidad</a>.</span>
+            <span>He leído y acepto los <a class="font-semibold text-emerald-200 underline underline-offset-4" href="/src/views/legal-notice.html#terminos" target="_blank" rel="noopener noreferrer">Términos y condiciones</a> y la <a class="font-semibold text-emerald-200 underline underline-offset-4" href="/src/views/legal-notice.html#privacidad" target="_blank" rel="noopener noreferrer">Política de Privacidad</a>.</span>
           </label>
         </fieldset>
         <p id="loginMessage" class="hidden rounded-lg border px-3 py-2.5 text-sm leading-5" role="alert"></p>
@@ -75,7 +76,7 @@
         </label>
         <label class="flex items-start gap-3 text-sm leading-6 text-zinc-300">
           <input id="acceptanceTerms" class="mt-1 accent-emerald-300" type="checkbox" required>
-          <span>He leído y acepto los <a class="font-semibold text-emerald-200 underline underline-offset-4" href="/src/views/legal-notice.html#terminos" target="_blank" rel="noopener noreferrer">Términos y condiciones</a> y el <a class="font-semibold text-emerald-200 underline underline-offset-4" href="/src/views/legal-notice.html#privacidad" target="_blank" rel="noopener noreferrer">Aviso de privacidad</a>.</span>
+          <span>He leído y acepto los <a class="font-semibold text-emerald-200 underline underline-offset-4" href="/src/views/legal-notice.html#terminos" target="_blank" rel="noopener noreferrer">Términos y condiciones</a> y la <a class="font-semibold text-emerald-200 underline underline-offset-4" href="/src/views/legal-notice.html#privacidad" target="_blank" rel="noopener noreferrer">Política de Privacidad</a>.</span>
         </label>
         <p id="legalAcceptanceMessage" class="hidden rounded-lg border px-3 py-2.5 text-sm leading-5" role="alert"></p>
         <button id="legalAcceptanceButton" type="submit" class="control min-h-11 w-full rounded-xl bg-emerald-300 px-4 text-sm font-bold text-zinc-950 hover:bg-emerald-200 disabled:cursor-wait disabled:opacity-60">Aceptar y continuar</button>
@@ -427,5 +428,6 @@
     //   });
     // }
   </script>
+  <script type="module" src="/src/components/cookie-consent.js"></script>
 </body>
 </html>

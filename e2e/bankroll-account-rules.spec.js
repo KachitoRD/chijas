@@ -117,9 +117,9 @@ test("SDK real: bankroll privado, schema estricto, request.time, inmutabilidad y
     for (const reason of ["revoked", "suspended", "terms", "privacy", "age", "unverified", "parent", "missing-parent"]) {
       if (reason === "revoked") await owner.write(`perfiles/${owner.uid}`, { tipster_status: "revoked" });
       if (reason === "suspended") await owner.write(`users/${owner.uid}`, { status: "suspended" });
-      if (reason === "terms") await owner.write(`legalAcceptances/${owner.uid}/versions/2026-10-03`, { terms_version: "old" });
-      if (reason === "privacy") await owner.write(`legalAcceptances/${owner.uid}/versions/2026-10-03`, { privacy_version: "old" });
-      if (reason === "age") await owner.write(`legalAcceptances/${owner.uid}/versions/2026-10-03`, { age_confirmed: false });
+      if (reason === "terms") await owner.write(`legalAcceptances/${owner.uid}/versions/2026-10-14`, { terms_version: "old" });
+      if (reason === "privacy") await owner.write(`legalAcceptances/${owner.uid}/versions/2026-10-14`, { privacy_version: "old" });
+      if (reason === "age") await owner.write(`legalAcceptances/${owner.uid}/versions/2026-10-14`, { age_confirmed: false });
       if (reason === "unverified") {
         const response = await request.post("http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:update?key=demo-key",
           { headers: { Authorization: "Bearer owner" }, data: { localId: owner.uid, emailVerified: false } });
@@ -143,8 +143,8 @@ test("SDK real: bankroll privado, schema estricto, request.time, inmutabilidad y
       await owner.write(`perfiles/${owner.uid}`, { tipster_status: "approved" });
       await owner.write(`users/${owner.uid}`, { status: "active", uid: owner.uid, role: "viewer", email: owner.email,
         displayName: "Bankroll de prueba", photoURL: null, created_at: new Date() });
-      await owner.write(`legalAcceptances/${owner.uid}/versions/2026-10-03`, {
-        terms_version: "2026-10-03", privacy_version: "2026-10-03", age_confirmed: true
+      await owner.write(`legalAcceptances/${owner.uid}/versions/2026-10-14`, {
+        terms_version: "2026-10-14", privacy_version: "2026-10-14", age_confirmed: true
       });
       await request.post("http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:update?key=demo-key",
         { headers: { Authorization: "Bearer owner" }, data: { localId: owner.uid, emailVerified: true } });

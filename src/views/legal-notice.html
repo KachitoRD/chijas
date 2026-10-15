@@ -4,7 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#09090b">
-  <title>Términos y privacidad | Fijas en vivo</title>
+  <title>Términos, privacidad y cookies | Fijas en vivo</title>
+  <link rel="stylesheet" href="/src/components/cookie-consent.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -27,73 +28,96 @@
 
   <main class="mx-auto max-w-4xl px-4 pb-20 pt-10 sm:px-6 sm:pt-14">
     <div class="max-w-3xl">
-      <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">Términos y privacidad</h1>
-      <p class="mt-3 text-sm leading-6 text-zinc-400">Versión 2026-10-03 · Borrador inicial para revisión legal en Perú.</p>
+      <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">Términos, privacidad y cookies</h1>
+      <p class="mt-3 text-sm leading-6 text-zinc-400">Versión 2026-10-14 · Aplicable desde su publicación.</p>
       <div class="mt-6 rounded-xl border border-amber-200/20 bg-amber-200/[.06] p-4 text-sm leading-6 text-amber-100" role="note">
-        <strong class="font-semibold">Pendiente antes de abrir el registro al público:</strong> reemplazar los datos del operador y contacto indicados abajo y solicitar revisión de un abogado en Perú. Este borrador no garantiza inmunidad ni cumplimiento en todos los países.
+        <strong class="font-semibold">Fase Beta / MVP:</strong> esta versión de prueba es informativa; en esta etapa no se realizan cobros ni transacciones financieras, ni se almacenan datos bancarios.
       </div>
       <nav class="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm" aria-label="Secciones legales">
         <a class="text-emerald-200 underline underline-offset-4" href="#terminos">Términos y condiciones</a>
-        <a class="text-emerald-200 underline underline-offset-4" href="#privacidad">Aviso de privacidad</a>
+        <a class="text-emerald-200 underline underline-offset-4" href="#privacidad">Política de Privacidad</a>
+        <a class="text-emerald-200 underline underline-offset-4" href="#cookies">Cookies y almacenamiento local</a>
       </nav>
 
       <section id="terminos" class="mt-12 scroll-mt-6 border-t border-white/[.08] pt-8">
         <h2 class="text-2xl font-bold tracking-tight">Términos y condiciones</h2>
         <p class="mt-3 text-sm leading-6 text-zinc-400">Al crear una cuenta o utilizar Fijas en vivo, confirmas que has leído y aceptas estos términos. Si no estás de acuerdo, no crees una cuenta ni uses las funciones que requieren registro.</p>
 
-        <h3 class="mt-8 text-lg font-semibold">1. Quién opera el servicio</h3>
-        <p class="mt-2 text-sm leading-6 text-zinc-300">Fijas en vivo es un medio digital para publicar, consultar y compartir información y opiniones sobre pronósticos deportivos. No es una casa de apuestas, casino, intermediario de apuestas, asesor financiero ni operador de juegos de azar; no acepta, recibe, custodia ni paga apuestas, y no organiza apuestas entre usuarios.</p>
-        <p class="mt-2 text-sm leading-6 text-zinc-300"><strong class="text-white">Operador legal:</strong> [COMPLETAR: nombre legal de la persona o empresa responsable y país de constitución]. <strong class="text-white">Contacto para asuntos legales y privacidad:</strong> [COMPLETAR: correo electrónico de contacto].</p>
+        <h3 class="mt-8 text-lg font-semibold">Naturaleza del servicio y operador</h3>
+        <p class="mt-2 text-sm leading-6 text-zinc-300">Fijas en vivo es exclusivamente una comunidad e interfaz informativa, publicitaria y de análisis deportivo para consultar perfiles, pronósticos y contenido de tipsters. <strong class="text-white">No es una casa de apuestas ni un operador de juegos de azar:</strong> no ofrece ni explota juegos, no procesa, acepta o registra jugadas, no recibe ni recauda dinero para apuestas, no paga premios y no actúa como intermediario entre apostadores y operadores.</p>
+        <p class="mt-2 text-sm leading-6 text-zinc-300">Como versión de prueba / MVP informativa, en esta etapa la plataforma no realiza cobros, transacciones financieras ni almacena datos bancarios.</p>
+        <p class="mt-2 text-sm leading-6 text-zinc-300">El servicio no acepta apuestas ni opera una actividad de juego sujeta a autorización de MINCETUR bajo la Ley N.° 31557 y el D.S. N.° 005-2023-MINCETUR. Esta descripción corresponde al funcionamiento previsto de la plataforma y no sustituye la evaluación legal de sus actividades concretas.</p>
+        <p class="mt-2 text-sm leading-6 text-zinc-300"><strong class="text-white">Responsable del Tratamiento de Datos:</strong> Roberto Darcourt Rivera (Administrador del Proyecto). <strong class="text-white">Naturaleza del Servicio:</strong> Plataforma web, directorio e interfaz informativa de pronósticos deportivos en Fase Beta / MVP (Acceso 100% Gratuito). <strong class="text-white">Contacto Oficial y Derechos ARCO (Ley N.° 29733):</strong> <a class="text-emerald-200 underline underline-offset-4" href="mailto:proyecto.tipsters.peru@gmail.com">proyecto.tipsters.peru@gmail.com</a>. <strong class="text-white">Ubicación:</strong> San Miguel, Lima, Perú.</p>
 
-        <h3 class="mt-8 text-lg font-semibold">2. Edad y disponibilidad</h3>
+        <h3 class="mt-8 text-lg font-semibold">Edad y disponibilidad</h3>
         <p class="mt-2 text-sm leading-6 text-zinc-300">La cuenta y el contenido relacionado con apuestas están dirigidos exclusivamente a personas que tengan al menos 18 años y cumplan la edad mínima superior que pueda exigir la ley aplicable en su lugar de residencia. Al registrarte declaras cumplir ese requisito. La plataforma no verifica de forma independiente tu edad o identidad, y puede suspender o cerrar cuentas si tiene motivos razonables para creer que no se cumple el requisito. El acceso no está permitido donde el uso de este servicio o de dicho contenido sea ilegal.</p>
 
-        <h3 class="mt-8 text-lg font-semibold">3. Información, riesgo y juego responsable</h3>
+        <h3 id="juego-responsable" class="mt-8 scroll-mt-6 text-lg font-semibold">Juego responsable</h3>
+        <p class="mt-2 rounded-lg border border-amber-200/20 bg-amber-200/[.06] p-3 text-sm font-semibold leading-6 text-amber-100">El juego interactivo en exceso puede causar ludopatía. Prohibido para menores de 18 años (+18).</p>
+        <p class="mt-2 text-sm leading-6 text-zinc-300">El juego debe ser recreativo y responsable. No apuestes dinero que no puedas permitirte perder, no persigas pérdidas y detente si deja de ser una actividad recreativa. Si el juego te causa daño o preocupación, busca apoyo profesional. Esta plataforma no recomienda apostar ni ofrece ayuda clínica.</p>
+
+        <h3 class="mt-8 text-lg font-semibold">Información deportiva y responsabilidad</h3>
         <p class="mt-2 text-sm leading-6 text-zinc-300">Los pronósticos, cuotas, resultados, comentarios y enlaces son información u opiniones de sus respectivos autores; pueden ser incompletos, inexactos, cambiar o publicarse con retraso. No constituyen una recomendación ni una garantía de resultado o ganancia. El rendimiento pasado no asegura resultados futuros. Las cuotas y condiciones dependen de terceros y pueden cambiar sin aviso.</p>
         <p class="mt-2 text-sm leading-6 text-zinc-300"><strong class="text-white">Cualquier apuesta es voluntaria y se realiza bajo tu propio riesgo y responsabilidad.</strong> Antes de apostar, verifica la información y la legalidad de hacerlo en tu jurisdicción. No apuestes dinero que no puedas permitirte perder, no persigas pérdidas y busca ayuda profesional si el juego deja de ser recreativo. Fijas en vivo no recomienda apostar ni garantiza recuperar pérdidas.</p>
 
-        <h3 class="mt-8 text-lg font-semibold">4. Contenido publicado por usuarios</h3>
+        <h3 class="mt-8 text-lg font-semibold">Contenido publicado por usuarios</h3>
         <p class="mt-2 text-sm leading-6 text-zinc-300">Cada usuario es responsable del contenido que publica y de contar con los derechos y permisos necesarios. No publiques contenido ilegal, engañoso, fraudulento, difamatorio, que infrinja derechos de terceros, que promueva apuestas dirigidas a menores o que suplante a otra persona. Debes identificar de forma clara cualquier relación comercial, patrocinio o incentivo relacionado con tus publicaciones.</p>
         <p class="mt-2 text-sm leading-6 text-zinc-300">Conservas la titularidad de tu contenido. Al publicarlo, autorizas al operador, de forma no exclusiva y gratuita mientras el contenido permanezca en el servicio, a alojarlo, reproducirlo, mostrarlo y distribuirlo dentro de Fijas en vivo y en las funciones de widget que tú habilites. Puedes dejar de mostrar un pronóstico en tu widget o solicitar la retirada de contenido mediante el contacto legal una vez completado; esta licencia no transfiere tu propiedad ni permite usos ajenos al servicio.</p>
 
-        <h3 class="mt-8 text-lg font-semibold">5. Moderación, cuentas y disponibilidad</h3>
+        <h3 class="mt-8 text-lg font-semibold">Moderación, cuentas y disponibilidad</h3>
         <p class="mt-2 text-sm leading-6 text-zinc-300">La aprobación como tipster permite acceder a funciones de publicación, pero no es una certificación de habilidad, exactitud, rentabilidad o fiabilidad. Podemos revisar, limitar, ocultar o retirar contenido y suspender cuentas ante incumplimientos, riesgos para usuarios o requerimientos legales. Procuraremos actuar de forma razonable; no garantizamos disponibilidad continua, conservación permanente de contenido ni ausencia de errores o interrupciones.</p>
         <p class="mt-2 text-sm leading-6 text-zinc-300">Debes proteger tus credenciales y avisarnos de cualquier uso no autorizado. No compartas acceso, intentes acceder a cuentas ajenas, interfieras con el servicio ni eludas controles de seguridad.</p>
 
-        <h3 class="mt-8 text-lg font-semibold">6. Servicios y enlaces de terceros</h3>
-        <p class="mt-2 text-sm leading-6 text-zinc-300">La plataforma puede mostrar enlaces, cuotas, marcas o contenido de terceros y utiliza servicios de infraestructura de terceros. No controlamos ni garantizamos sus servicios, exactitud, disponibilidad, condiciones o prácticas. Tu relación con una casa de apuestas u otro tercero se rige por sus propios términos y por la ley aplicable.</p>
+        <h3 class="mt-8 text-lg font-semibold">Enlaces, publicidad y operadores de apuestas</h3>
+        <p class="mt-2 text-sm leading-6 text-zinc-300">La plataforma podrá mostrar enlaces o publicidad de marcas de terceros. Si se publican enlaces o anuncios de casas de apuestas, corresponderán únicamente a marcas u operadores que cuenten con autorización formal vigente de MINCETUR para operar en la República del Perú. Los enlaces publicitarios, patrocinados o de afiliación se identificarán claramente. La presencia de un enlace no convierte a Fijas en vivo en intermediario, no constituye recomendación y no garantiza resultados; verifica la autorización y las condiciones directamente con el operador antes de cualquier interacción.</p>
+        <p class="mt-2 text-sm leading-6 text-zinc-300">Servicios como Firebase Authentication y Cloud Firestore son prestados por terceros bajo sus propias condiciones. No controlamos ni garantizamos la disponibilidad, exactitud o prácticas de servicios externos.</p>
 
-        <h3 class="mt-8 text-lg font-semibold">7. Responsabilidad y derechos obligatorios</h3>
+        <h3 class="mt-8 text-lg font-semibold">Servicios digitales, pagos y suscripciones</h3>
+        <p class="mt-2 text-sm leading-6 text-zinc-300">En esta versión no se ofrecen cobros ni suscripciones de pago. Si en el futuro se habilitan tarifas, planes VIP o pagos, corresponderán exclusivamente a la venta de servicios digitales, contenido analítico elaborado por tipsters y/o acceso a funciones de la plataforma; nunca serán fondos para apostar, apuestas o promesas de retorno económico.</p>
+        <p class="mt-2 text-sm leading-6 text-zinc-300">Antes de contratar, se informarán precio, duración, renovación, forma de cancelación y demás condiciones aplicables. El pago garantiza el acceso contratado a información o herramientas, no una ganancia, resultado deportivo o retorno por apuestas. No se efectuarán reembolsos por el resultado de un evento deportivo o por la pérdida de una apuesta basada en el contenido; esta regla no limita derechos de devolución, reembolso o protección al consumidor que sean irrenunciables conforme a la ley aplicable. La venta se realizará cumpliendo las obligaciones tributarias y de comprobantes de pago que correspondan ante SUNAT.</p>
+
+        <h3 class="mt-8 text-lg font-semibold">Responsabilidad y derechos obligatorios</h3>
         <p class="mt-2 text-sm leading-6 text-zinc-300">En la máxima medida permitida por la ley aplicable, el operador no responde por decisiones de apuesta, pérdidas, daños derivados de confiar en contenido de usuarios o terceros, interrupciones, errores, ni actos u omisiones de otros usuarios o proveedores. El operador no garantiza ganancias, resultados, exactitud, disponibilidad ni idoneidad del contenido para un propósito particular.</p>
         <p class="mt-2 text-sm leading-6 text-zinc-300">Nada en estos términos excluye o limita responsabilidades o derechos que la ley aplicable no permita excluir o limitar, incluidos los derechos irrenunciables de consumidores y cualquier responsabilidad que no pueda limitarse legalmente. Estos términos no pretenden privarte de protecciones obligatorias que te correspondan en tu país.</p>
 
-        <h3 class="mt-8 text-lg font-semibold">8. Cambios y ley aplicable</h3>
+        <h3 class="mt-8 text-lg font-semibold">Cambios y ley aplicable</h3>
         <p class="mt-2 text-sm leading-6 text-zinc-300">Podremos actualizar estos términos para reflejar cambios del servicio o legales. Si un cambio requiere nuevo consentimiento, volveremos a solicitarlo antes de permitir el uso de la cuenta. Para asuntos no sujetos a normas imperativas distintas, se propone aplicar la ley de Perú; esta referencia no desplaza las normas de protección obligatorias que correspondan a consumidores de otros países. La resolución de controversias y cualquier foro competente deben confirmarse en la revisión legal del operador.</p>
-        <p class="mt-2 text-sm leading-6 text-zinc-300">Si una disposición no pudiera aplicarse, las demás permanecerán vigentes en la medida permitida por la ley. Para consultas o reportes, utiliza el contacto legal que el operador debe completar antes del lanzamiento.</p>
+        <p class="mt-2 text-sm leading-6 text-zinc-300">Si una disposición no pudiera aplicarse, las demás permanecerán vigentes en la medida permitida por la ley. Para consultas o reportes, utiliza el contacto oficial <a class="text-emerald-200 underline underline-offset-4" href="mailto:proyecto.tipsters.peru@gmail.com">proyecto.tipsters.peru@gmail.com</a>.</p>
       </section>
 
       <section id="privacidad" class="mt-12 scroll-mt-6 border-t border-white/[.08] pt-8">
-        <h2 class="text-2xl font-bold tracking-tight">Aviso de privacidad</h2>
-        <p class="mt-3 text-sm leading-6 text-zinc-400">Este aviso describe el tratamiento de datos en la versión actual del servicio. Debe ser revisado y completado por el operador antes de abrir el registro al público.</p>
+        <h2 class="text-2xl font-bold tracking-tight">Política de Privacidad</h2>
+        <p class="mt-3 text-sm leading-6 text-zinc-400">Este aviso describe el tratamiento de datos en la versión Beta / MVP informativa del servicio.</p>
 
-        <h3 class="mt-8 text-lg font-semibold">1. Responsable y contacto</h3>
-        <p class="mt-2 text-sm leading-6 text-zinc-300">El responsable del tratamiento es [COMPLETAR: nombre legal del operador, domicilio y, si corresponde, identificación registral]. Para ejercer derechos o hacer consultas sobre privacidad, escribe a [COMPLETAR: correo de privacidad]. No publiques información personal sensible en tu perfil o pronósticos.</p>
+        <h3 class="mt-8 text-lg font-semibold">Responsable del tratamiento y contacto</h3>
+        <p class="mt-2 text-sm leading-6 text-zinc-300"><strong class="text-white">Responsable del Tratamiento de Datos:</strong> Roberto Darcourt Rivera (Administrador del Proyecto). <strong class="text-white">Naturaleza del Servicio:</strong> Plataforma web, directorio e interfaz informativa de pronósticos deportivos en Fase Beta / MVP (Acceso 100% Gratuito). <strong class="text-white">Contacto Oficial y Derechos ARCO (Ley N.° 29733):</strong> <a class="text-emerald-200 underline underline-offset-4" href="mailto:proyecto.tipsters.peru@gmail.com">proyecto.tipsters.peru@gmail.com</a>. <strong class="text-white">Ubicación:</strong> San Miguel, Lima, Perú. No publiques información personal sensible en tu perfil o pronósticos.</p>
 
-        <h3 class="mt-8 text-lg font-semibold">2. Datos y finalidades</h3>
-        <p class="mt-2 text-sm leading-6 text-zinc-300">La plataforma trata los datos necesarios para crear y proteger cuentas (correo electrónico, identificador de cuenta y nombre de perfil), gestionar solicitudes de tipster, mostrar perfiles y pronósticos que los usuarios publican, operar el widget que cada tipster configura, guardar la aceptación de estos documentos y atender solicitudes o incidentes. El registro de aceptación conserva la versión de los documentos, la fecha y hora del servidor y la confirmación de edad declarada; no es una verificación de identidad o edad.</p>
+        <h3 class="mt-8 text-lg font-semibold">Datos personales tratados y finalidades</h3>
+        <p class="mt-2 text-sm leading-6 text-zinc-300">Para gestionar y proteger la cuenta se procesan el correo electrónico y la contraseña que proporcionas mediante Firebase Authentication v10.14.1. La contraseña se administra en el servicio de autenticación y no se guarda como texto en los documentos de perfil de Firestore. También se tratan identificador de cuenta, nombre de perfil y datos que el usuario decida proporcionar. El inicio de sesión con Google puede procesar los datos de cuenta que ese proveedor comunique.</p>
+        <p class="mt-2 text-sm leading-6 text-zinc-300">Las imágenes de perfil (avatar) y de banner que el usuario carga pueden almacenarse codificadas en Base64 dentro de documentos de Cloud Firestore. Se usan para gestionar la cuenta y mostrar el perfil en el directorio. También se tratan los datos que el usuario publica (biografía, enlaces, pronósticos y preferencias del widget), y los datos necesarios para registrar la aceptación de estos documentos y atender solicitudes o incidentes.</p>
+        <p class="mt-2 text-sm leading-6 text-zinc-300">Las finalidades son crear y administrar cuentas, autenticar usuarios, atender solicitudes de tipster, operar el directorio y las funciones de comunidad, mostrar el contenido público que cada persona publica o decide compartir y mantener la seguridad del servicio. El registro de aceptación guarda versiones de los documentos, fecha y hora del servidor y confirmación de edad declarada; no constituye verificación independiente de identidad ni edad.</p>
 
-        <h3 class="mt-8 text-lg font-semibold">3. Datos públicos y proveedores</h3>
-        <p class="mt-2 text-sm leading-6 text-zinc-300">Los nombres de perfil, biografías, enlaces, pronósticos, resultados y selecciones de widget son públicos y pueden ser consultados por cualquier visitante o mostrados en una transmisión cuando el tipster activa esa opción. No incluyas datos privados en esos campos. Firebase Authentication y Cloud Firestore, prestados por Google, procesan información necesaria para autenticación, alojamiento de datos y funcionamiento. Google puede tratar datos técnicos conforme a sus propios términos y políticas. El operador debe confirmar proveedores, ubicaciones de tratamiento y transferencias internacionales aplicables.</p>
+        <h3 class="mt-8 text-lg font-semibold">Datos visibles, proveedores y transferencias</h3>
+        <p class="mt-2 text-sm leading-6 text-zinc-300">Los nombres públicos, biografías, enlaces, imágenes de perfil y banner, pronósticos, resultados y contenido configurado para el widget pueden ser visibles para cualquier visitante o mostrarse en una transmisión cuando el tipster activa esa opción. No incluyas datos privados en campos públicos. Firebase Authentication y Cloud Firestore son servicios de Google utilizados para autenticación y alojamiento de datos. Google Fonts, cdn.tailwindcss.com y cdnjs.cloudflare.com entregan fuentes o bibliotecas técnicas; sus servidores pueden recibir datos de conexión como la dirección IP y el agente del navegador al solicitar esos recursos. No se emplean para publicidad personalizada. La ubicación concreta del almacenamiento y cualquier transferencia internacional se regirán por la configuración de Firebase y los términos aplicables, que el operador debe confirmar antes de la publicación definitiva.</p>
 
-        <h3 class="mt-8 text-lg font-semibold">4. Conservación y derechos</h3>
-        <p class="mt-2 text-sm leading-6 text-zinc-300">Los datos se conservan mientras sean necesarios para prestar el servicio, cumplir obligaciones legales, atender disputas y mantener evidencia de consentimiento, según los plazos que defina el responsable conforme a la normativa aplicable. Puedes solicitar acceso, rectificación, actualización, oposición, eliminación u otros derechos reconocidos por la ley aplicable contactando al responsable. El operador debe completar un procedimiento y plazos de atención antes del lanzamiento. La eliminación de una cuenta puede no retirar copias previamente compartidas o información que debamos conservar legalmente.</p>
+        <h3 class="mt-8 text-lg font-semibold">Conservación y derechos ARCO</h3>
+        <p class="mt-2 text-sm leading-6 text-zinc-300">Los datos se conservarán durante el tiempo necesario para prestar el servicio y, después, por el plazo requerido para cumplir obligaciones legales, atender controversias o conservar evidencia de consentimientos, aplicando los criterios y plazos que establezca el responsable conforme a la Ley N.° 29733 y su reglamento vigente.</p>
+        <p class="mt-2 text-sm leading-6 text-zinc-300">Conforme a la Ley N.° 29733, puedes ejercer tus derechos de <strong class="text-white">Acceso, Rectificación, Cancelación y Oposición (ARCO)</strong> mediante una solicitud a <a class="text-emerald-200 underline underline-offset-4" href="mailto:proyecto.tipsters.peru@gmail.com">proyecto.tipsters.peru@gmail.com</a>. Indica el derecho que deseas ejercer, los datos necesarios para localizar tu cuenta y la información razonable para verificar tu identidad. El responsable atenderá la solicitud en los plazos y condiciones establecidos por la normativa peruana; si corresponde, podrás acudir a la Autoridad Nacional de Protección de Datos Personales. La cancelación podrá estar sujeta a conservación obligatoria prevista por ley, y no elimina copias que terceros hayan obtenido legítimamente antes de retirar contenido público.</p>
 
-        <h3 class="mt-8 text-lg font-semibold">5. Seguridad, menores y cambios</h3>
-        <p class="mt-2 text-sm leading-6 text-zinc-300">Aplicamos controles técnicos disponibles en los servicios utilizados, pero ningún sistema puede garantizar seguridad absoluta. Si detectas un incidente, repórtalo al contacto de privacidad. El servicio no está dirigido a menores ni pretende recopilar deliberadamente sus datos; si crees que un menor creó una cuenta, avisa al responsable. Publicaremos aquí los cambios del aviso y solicitaremos una nueva aceptación cuando sea necesario.</p>
+        <h3 class="mt-8 text-lg font-semibold">Seguridad, menores y cambios</h3>
+        <p class="mt-2 text-sm leading-6 text-zinc-300">Se aplican los controles técnicos disponibles en los servicios utilizados, sin que exista garantía de seguridad absoluta. Si detectas un incidente relacionado con tus datos, comunícalo a <a class="text-emerald-200 underline underline-offset-4" href="mailto:proyecto.tipsters.peru@gmail.com">proyecto.tipsters.peru@gmail.com</a>. El servicio no está dirigido a menores de 18 años y no pretende recopilar deliberadamente sus datos; si un menor creó una cuenta, el adulto responsable puede solicitar su revisión y eliminación mediante el canal de privacidad.</p>
+        <p class="mt-2 text-sm leading-6 text-zinc-300">Este aviso se interpreta conforme a la Ley N.° 29733, su reglamento aprobado por el D.S. N.° 016-2024-JUS y las normas que resulten aplicables. Publicaremos los cambios en esta página y solicitaremos una nueva aceptación cuando la ley o la naturaleza del cambio lo requieran.</p>
       </section>
 
-      <p class="mt-12 border-t border-white/[.08] pt-6 text-xs leading-5 text-zinc-500">Borrador de producto, no asesoría legal. La versión aplicable debe ser validada por el operador con asesoría legal en Perú y adaptada a cada mercado donde se ofrezca el servicio.</p>
+      <section id="cookies" class="mt-12 scroll-mt-6 border-t border-white/[.08] pt-8">
+        <h2 class="text-2xl font-bold tracking-tight">Cookies y almacenamiento local</h2>
+        <p class="mt-3 text-sm leading-6 text-zinc-300">La plataforma utiliza <code>localStorage</code> para recordar si aceptaste este aviso y Firebase Authentication con persistencia local del navegador para mantener tu sesión activa. La autenticación del proyecto está configurada con <code>browserLocalPersistence</code>; la sesión no depende de cookies publicitarias.</p>
+        <p class="mt-2 text-sm leading-6 text-zinc-300">No empleamos cookies de seguimiento ni rastreadores publicitarios intrusivos. Si algún proveedor técnico llegara a utilizar cookies estrictamente necesarias para prestar una función solicitada por el usuario, se limitarán a esa finalidad. Puedes borrar los datos locales desde la configuración de tu navegador; al hacerlo, podrías cerrar la sesión o volver a ver este aviso.</p>
+      </section>
+
+      <p class="mt-12 border-t border-white/[.08] pt-6 text-xs leading-5 text-zinc-500">Este documento tiene carácter informativo y no reemplaza asesoría legal ni altera los derechos irrenunciables reconocidos por la normativa aplicable.</p>
     </div>
   </main>
+  <script type="module" src="/src/components/cookie-consent.js"></script>
 </body>
 </html>

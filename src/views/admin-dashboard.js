@@ -618,6 +618,11 @@ function renderTipsters() {
     const actions = node("td");
     const actionList = node("div", "", "admin-tipster-actions");
     actionList.append(button(profile.tipster_status === "approved" ? "Revocar publicación" : "Restaurar publicación", "toggle-tipster", profile.id));
+    if (profile.tipster_status === "revoked") {
+      const metricsButton = button("Asegurar contador histórico", "initialize-tipster-metrics", profile.id);
+      metricsButton.id = `initialize-tipster-metrics-${profile.id}`;
+      actionList.append(metricsButton);
+    }
     if (profile.username) {
       const link = node("a", "Ver perfil público", "admin-button");
       link.href = `/src/views/public-tipsters.html?u=${encodeURIComponent(profile.username)}`;
@@ -1172,10 +1177,31 @@ $("dashboard").addEventListener("click", event => {
   } else if (action === "toggle-tipster") {
     perform(control, () => runTransaction(db, async transaction => {
       const ref = doc(db, "perfiles", id);
-      const profile = await transaction.get(ref);
+      const metricsRef = doc(db, "perfiles_metricas", id);
+      const [profile, metrics] = await Promise.all([
+        transaction.get(ref), transaction.get(metricsRef)
+      ]);
       if (!profile.exists()) throw new Error("El perfil ya no existe.");
-      transaction.update(ref, { tipster_status: profile.data().tipster_status === "approved" ? "revoked" : "approved" });
+      const nextStatus = profile.data().tipster_status === "approved" ? "revoked" : "approved";
+      transaction.update(ref, { tipster_status: nextStatus });
+      if (!metrics.exists()) {
+        transaction.set(metricsRef, { followerCount: profile.data().followerCount ?? 0 });
+      }
     }), "Permiso de publicación actualizado.");
+  } else if (action === "initialize-tipster-metrics") {
+    perform(control, () => runTransaction(db, async transaction => {
+      const profileRef = doc(db, "perfiles", id);
+      const metricsRef = doc(db, "perfiles_metricas", id);
+      const [profile, metrics] = await Promise.all([
+        transaction.get(profileRef), transaction.get(metricsRef)
+      ]);
+      if (!profile.exists() || profile.data().tipster_status !== "revoked") {
+        throw new Error("Solo se puede inicializar el contador de un perfil revocado.");
+      }
+      if (!metrics.exists()) {
+        transaction.set(metricsRef, { followerCount: profile.data().followerCount ?? 0 });
+      }
+    }), "Contador histórico verificado.");
   } else if (action === "go-to-review") {
     const tab = control.dataset.kind === "tipster" ? "operations" : "profiles";
     selectTab(tab);

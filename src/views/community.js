@@ -1,7 +1,7 @@
 import { firebaseAuth, firebaseDb } from "../services/firebase-config.js?v=2";
 import { normalizePick } from "../models/pick-schema.js";
 import { signInGoogle } from "../services/google-sign-in.js";
-import { collection, doc, increment, limit, onSnapshot, orderBy, query, runTransaction, serverTimestamp, where } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { collection, doc, getDoc, limit, onSnapshot, orderBy, query, runTransaction, serverTimestamp, where } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 export function signInViewer() {
   if (!firebaseAuth) throw new Error("Firebase Auth no está configurado.");
@@ -44,29 +44,49 @@ async function commitFollowing(user, tipsterId, following) {
   if (!user || firebaseAuth.currentUser?.uid !== user.uid) throw new Error("Inicia sesión para seguir tipsters.");
   const followRef = doc(firebaseDb, "follows", `${user.uid}_${tipsterId}`);
   const profileRef = doc(firebaseDb, "perfiles", tipsterId);
-  return runTransaction(firebaseDb, async transaction => {
-    const [follow, profile] = await Promise.all([
-      transaction.get(followRef), transaction.get(profileRef)
+  const metricsRef = doc(firebaseDb, "perfiles_metricas", tipsterId);
+  let lastAttemptMetricState = null, lastAttemptFollowExists = false;
+  const transact = () => runTransaction(firebaseDb, async transaction => {
+    const [follow, metrics] = await Promise.all([
+      transaction.get(followRef), transaction.get(metricsRef)
     ]);
-    if (!profile.exists() || profile.data().tipster_status !== "approved") {
-      throw new Error("Este tipster ya no está disponible.");
-    }
+    lastAttemptMetricState = metrics.exists() ? metrics.data().followerCount : null;
+    lastAttemptFollowExists = follow.exists();
     if (follow.exists() === following) return following;
-    const count = profile.data().followerCount ?? 0;
+    let profile = null;
+    if (following || !metrics.exists()) {
+      profile = await transaction.get(profileRef);
+      const status = profile.data()?.tipster_status;
+      if (!profile.exists() || status !== "approved") {
+        throw new Error("Este tipster ya no está disponible.");
+      }
+    }
+    const count = metrics.exists()
+      ? metrics.data().followerCount
+      : profile.data().followerCount ?? 0;
     if (!Number.isSafeInteger(count) || count < 0 || (!following && count === 0)) {
       throw new Error("El contador de seguidores necesita revisión. Contacta al administrador.");
     }
+    const nextCount = count + (following ? 1 : -1);
     if (following) transaction.set(followRef, {
       followerId: user.uid, tipsterId, created_at: serverTimestamp()
     });
     else transaction.delete(followRef);
-    // The actor lets rules prove that this delta has a matching follow mutation.
-    transaction.update(profileRef, {
-      followerCount: increment(following ? 1 : -1),
-      followerCountUpdatedBy: user.uid
-    });
+    if (metrics.exists()) transaction.update(metricsRef, { followerCount: nextCount });
+    else transaction.set(metricsRef, { followerCount: nextCount });
     return following;
   });
+  try {
+    return await transact();
+  } catch (error) {
+    if (error.code !== "permission-denied") throw error;
+    const [follow, metrics] = await Promise.all([getDoc(followRef), getDoc(metricsRef)]);
+    if (follow.exists() === following) return following;
+    const latestMetricState = metrics.exists() ? metrics.data().followerCount : null;
+    if (latestMetricState === lastAttemptMetricState
+      && follow.exists() === lastAttemptFollowExists) throw error;
+    return transact();
+  }
 }
 
 export function subscribeFollowingFeed(tipsterIds, onChange, onError) {

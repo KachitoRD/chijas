@@ -63,7 +63,7 @@ test("CSV y PDF exportan el período completo con filtros, no solo la página vi
   const names = [];
   const associatedDocuments = [
     `users/${uid}`, `perfiles/${uid}`, `perfiles_social/${uid}`, `presencia/${uid}`,
-    `viewerPresence/${uid}`, `usernames/${username}`, `legalAcceptances/${uid}/versions/2026-10-03`
+    `viewerPresence/${uid}`, `usernames/${username}`, `legalAcceptances/${uid}/versions/2026-10-14`
   ];
   try {
   const verified = await request.post(`${authRoot}/accounts:update?key=demo-key`, {
@@ -88,9 +88,9 @@ test("CSV y PDF exportan el período completo con filtros, no solo la página vi
       twitter_url: { nullValue: null }, instagram_url: { nullValue: null }
     },
     [`usernames/${username}`]: { uid: { stringValue: uid } },
-    [`legalAcceptances/${uid}/versions/2026-10-03`]: {
-      uid: { stringValue: uid }, terms_version: { stringValue: "2026-10-03" },
-      privacy_version: { stringValue: "2026-10-03" }, age_confirmed: { booleanValue: true }, accepted_at: createdAt
+    [`legalAcceptances/${uid}/versions/2026-10-14`]: {
+      uid: { stringValue: uid }, terms_version: { stringValue: "2026-10-14" },
+      privacy_version: { stringValue: "2026-10-14" }, age_confirmed: { booleanValue: true }, accepted_at: createdAt
     }
   };
   const writes = [];

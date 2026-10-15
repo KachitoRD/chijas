@@ -9,7 +9,7 @@ import { MURAL_RATE_LIMIT_MS, normalizeBlockedTerms, validateMuralComment } from
 import { REPORT_CATEGORIES, REPORT_STATUSES } from "../models/comment-report-model.js";
 import { deleteCommentAsModerator, submitCommentReport } from "../services/comment-report-service.js";
 
-const TERMS_VERSION = "2026-10-03";
+const TERMS_VERSION = "2026-10-14";
 const $ = id => document.getElementById(id);
 
 export function mountCommunityMural() {
@@ -27,6 +27,7 @@ export function mountCommunityMural() {
   let blockedTerms = [];
   let muted = false;
   let isSubmitting = false;
+  let noticeFeedback = false;
   let dashboardOpen = false;
   let selectedPick = null;
   let comments = [];
@@ -179,6 +180,14 @@ export function mountCommunityMural() {
     const notice = $("muralNotice");
     notice.textContent = text;
     notice.dataset.error = String(error);
+    noticeFeedback = error;
+  }
+
+  function setComposerNotice(text) {
+    if (noticeFeedback) return;
+    const notice = $("muralNotice");
+    notice.textContent = text;
+    notice.dataset.error = "false";
   }
 
   function postingReason() {
@@ -199,15 +208,17 @@ export function mountCommunityMural() {
     const activeThread = Boolean(selectedPick) && !dashboardOpen;
     const verified = Boolean(user && user.emailVerified && !user.isAnonymous);
     const remaining = lastCommentAt + MURAL_RATE_LIMIT_MS - Date.now();
-    const allowed = activeThread && verified && accountReady && accountActive
-      && termsAccepted && policyReady && !muted && remaining <= 0 && !isSubmitting;
+    const canParticipate = activeThread && verified && accountReady && accountActive
+      && termsAccepted && policyReady && !muted;
+    const allowed = canParticipate && remaining <= 0 && !isSubmitting;
     $("muralForm").hidden = !activeThread;
     $("muralInput").disabled = !allowed;
     $("muralSend").disabled = !allowed;
     const canRequestConsent = Boolean(user && verified && accountReady && !termsAccepted);
     $("muralSignIn").hidden = !activeThread || (Boolean(user) && !canRequestConsent);
     $("muralSignIn").textContent = user ? "Aceptar términos" : "Iniciar sesión para comentar";
-    setNotice(postingReason());
+    if (!canParticipate) noticeFeedback = false;
+    setComposerNotice(postingReason());
     if (!canReport() && reportDraft) reportDraft = null;
     const eligible = canReport();
     if (eligible !== reportEligible) {
@@ -396,6 +407,7 @@ export function mountCommunityMural() {
       $("muralStatus").textContent = "No se pudo abrir un identificador de pronóstico válido.";
       return;
     }
+    if (selectedPick?.id !== pickId) noticeFeedback = false;
     const generation = ++threadGeneration;
     clearThreadListeners();
     selectedPick = { id: pickId, ownerUid: null };
@@ -662,6 +674,12 @@ export function mountCommunityMural() {
     }
   });
 
+  $("muralInput").addEventListener("input", () => {
+    if (!noticeFeedback) return;
+    noticeFeedback = false;
+    updateComposer();
+  });
+
   $("muralSignIn").addEventListener("click", () => {
     if (!user) {
       $("viewerLogin").click();
@@ -697,6 +715,7 @@ export function mountCommunityMural() {
     authGeneration++;
     clearUserListeners();
     clearThreadListeners();
+    noticeFeedback = false;
     user = nextUser;
     canModerateCommunity = false;
     watchUser(nextUser, authGeneration);

@@ -56,8 +56,8 @@ test.beforeEach(async ({ request, page }) => {
       uid: account.localId, role: "viewer", displayName: name, photoURL: null,
       email, created_at: new Date()
     });
-    await seed(request, `legalAcceptances/${account.localId}/versions/2026-10-03`, {
-      uid: account.localId, terms_version: "2026-10-03", privacy_version: "2026-10-03",
+    await seed(request, `legalAcceptances/${account.localId}/versions/2026-10-14`, {
+      uid: account.localId, terms_version: "2026-10-14", privacy_version: "2026-10-14",
       age_confirmed: true, accepted_at: new Date()
     });
     paths.add(`viewerPresence/${account.localId}`);
@@ -990,6 +990,19 @@ test("gestión de tipsters filtra perfiles aprobados por estado, volumen y rendi
   await page.reload();
   await expect(page.locator("#tipsterSearch")).toHaveValue("Creador Ejecutivo");
   await expect(page.locator("#tipsterVolumeFilter")).toHaveValue("10");
+  await seed(request, `perfiles/${uid}`, { tipster_status: "revoked" });
+  await page.reload();
+  await page.locator("#operations-tab").click();
+  await page.locator("#tipsterSearch").fill("");
+  await page.locator("#tipsterStatusFilter").selectOption("revoked");
+  await page.locator("#tipsterVolumeFilter").selectOption("all");
+  await page.locator("#tipsterPerformanceFilter").selectOption("all");
+  await expect(row).toBeVisible();
+  await row.getByRole("button", { name: "Asegurar contador histórico" }).click();
+  await expect(page.locator("#admin-message")).toContainText("Contador histórico verificado");
+  const metrics = await request.get(`${root}/perfiles_metricas/${uid}`, { headers });
+  expect(metrics.ok()).toBeTruthy();
+  expect((await metrics.json()).fields.followerCount).toEqual({ integerValue: "0" });
 });
 
 test("el informe global filtra volumen y resultado en unidades por fecha de publicación", async ({ page, request }) => {

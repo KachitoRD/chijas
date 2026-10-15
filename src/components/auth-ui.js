@@ -194,8 +194,8 @@ export function installViewerAccess() {
         const { user } = await createUserWithEmailAndPassword(firebaseAuth, email, password);
         created = true;
         await updateProfile(user, { displayName: byId("viewerAuthName").value.trim() });
-        await setDoc(doc(firebaseDb, "legalAcceptances", user.uid, "versions", "2026-10-03"), {
-          uid: user.uid, terms_version: "2026-10-03", privacy_version: "2026-10-03",
+        await setDoc(doc(firebaseDb, "legalAcceptances", user.uid, "versions", "2026-10-14"), {
+          uid: user.uid, terms_version: "2026-10-14", privacy_version: "2026-10-14",
           age_confirmed: true, accepted_at: serverTimestamp()
         });
         await sendEmailVerification(user);

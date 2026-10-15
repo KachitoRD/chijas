@@ -101,8 +101,8 @@ showSkeleton($("panelLoading"), { variant: "cards", label: "Comprobando acceso a
 
 
 
-const TERMS_VERSION = "2026-10-03";
-const PRIVACY_VERSION = "2026-10-03";
+const TERMS_VERSION = "2026-10-14";
+const PRIVACY_VERSION = "2026-10-14";
 const profileFields = [
   ["kickUrl", "kick_url"], ["twitchUrl", "twitch_url"], ["youtubeUrl", "youtube_url"],
   ["telegramUrl", "telegram_url"], ["twitterUrl", "twitter_url"], ["instagramUrl", "instagram_url"]
@@ -779,19 +779,25 @@ async function loadProfileRequest() {
 }
 async function loadProfile() {
   const uid = currentUser.uid;
-  const [profileSnapshot, socialSnapshot, presenceSnapshot] = await Promise.all([
+  const [profileSnapshot, socialSnapshot, presenceSnapshot, metricsSnapshot] = await Promise.all([
     getDoc(doc(db, "perfiles", uid)),
     getDoc(doc(db, "perfiles_social", uid)),
-    getDoc(doc(db, "presencia", uid))
+    getDoc(doc(db, "presencia", uid)),
+    getDoc(doc(db, "perfiles_metricas", uid))
   ]);
   if (disposed || currentUser?.uid !== uid) return;
   if (!profileSnapshot.exists()) throw new Error("No se encontró el perfil de esta cuenta.");
   const profile = profileSnapshot.data();
   if (stopFollowerCount) stopFollowerCount();
   $("followerMetric").classList.remove("hidden");
-  $("followerCount").textContent = String(profile.followerCount ?? 0);
-  stopFollowerCount = onSnapshot(doc(db, "perfiles", currentUser.uid), snapshot => {
-    $("followerCount").textContent = snapshot.exists() ? String(snapshot.data().followerCount ?? 0) : "—";
+  const legacyFollowerCount = profile.followerCount ?? 0;
+  $("followerCount").textContent = String(
+    metricsSnapshot.exists() ? metricsSnapshot.data().followerCount : legacyFollowerCount
+  );
+  stopFollowerCount = onSnapshot(doc(db, "perfiles_metricas", uid), snapshot => {
+    $("followerCount").textContent = String(
+      snapshot.exists() ? snapshot.data().followerCount : legacyFollowerCount
+    );
   }, error => {
     console.error("No se pudo cargar el contador de seguidores:", error);
     $("followerCount").textContent = "—";

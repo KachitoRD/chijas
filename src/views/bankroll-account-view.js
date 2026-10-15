@@ -250,12 +250,12 @@ export function mountBankrollAccountView(root, user, download) {
       $("export-status").textContent = failure.message || "No se pudo exportar. Reintenta la carga antes de descargar.";
     }
   });
-  const stopLegal = onSnapshot(doc(firebaseDb, "legalAcceptances", user.uid, "versions", "2026-10-03"), snapshot => {
+  const stopLegal = onSnapshot(doc(firebaseDb, "legalAcceptances", user.uid, "versions", "2026-10-14"), snapshot => {
     if (!alive()) return;
     const data = snapshot.data();
     if (!committed(snapshot)) return;
     legalLoading = false;
-    if (data?.terms_version !== "2026-10-03" || data?.privacy_version !== "2026-10-03" || data?.age_confirmed !== true) revoke();
+    if (data?.terms_version !== "2026-10-14" || data?.privacy_version !== "2026-10-14" || data?.age_confirmed !== true) revoke();
     else if (!access) { access = true; subscribe(); }
   }, revoke);
   function revoke() {
