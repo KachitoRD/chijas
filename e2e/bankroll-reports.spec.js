@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { createCanvas } from "@napi-rs/canvas";
+import { createCanvas, DOMMatrix, Path2D } from "@napi-rs/canvas";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import { executiveBankrollHTML } from "../src/views/bankroll-report.js";
@@ -189,6 +189,8 @@ test("CSV y PDF exportan el período completo con filtros, no solo la página vi
     const pdf = await preview.pdf({ preferCSSPageSize: true, printBackground: true, displayHeaderFooter: false });
     await writeFile(join(reportsDirectory, "resumen.pdf"), pdf);
     await writeFile(testInfo.outputPath("resumen.pdf"), pdf);
+    globalThis.DOMMatrix = DOMMatrix;
+    globalThis.Path2D = Path2D;
     const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
     class LocalBinaryDataFactory {
       constructor(urls) {
@@ -198,12 +200,13 @@ test("CSV y PDF exportan el período completo con filtros, no solo la página vi
         return new Uint8Array(await readFile(new URL(filename, this.urls[kind])));
       }
     }
-    const document = await getDocument({
+    const loadingTask = getDocument({
       data: new Uint8Array(pdf),
       useWorkerFetch: false,
       standardFontDataUrl: new URL("../node_modules/pdfjs-dist/standard_fonts/", import.meta.url).href,
       BinaryDataFactory: LocalBinaryDataFactory
-    }).promise;
+    });
+    const document = await loadingTask.promise;
     try {
       const pdfText = [];
       for (let number = 1; number <= document.numPages; number++) {
@@ -228,7 +231,7 @@ test("CSV y PDF exportan el período completo con filtros, no solo la página vi
         expect(pdfText.join(" ")).toContain(text);
       }
     } finally {
-      await document.destroy();
+      await loadingTask.destroy();
     }
     await preview.emulateMedia({ media: "screen" });
     await preview.setViewportSize({ width: 390, height: 900 });
@@ -297,8 +300,11 @@ test("HTML de tres monedas conserva tarjetas completas y footer en todas las pá
   await mkdir(directory, { recursive: true });
   await writeFile(join(directory, "resumen-tres-monedas.html"), html);
   await writeFile(join(directory, "resumen-tres-monedas.pdf"), pdf);
+  globalThis.DOMMatrix = DOMMatrix;
+  globalThis.Path2D = Path2D;
   const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  const document = await getDocument({ data: new Uint8Array(pdf), useSystemFonts: true }).promise;
+  const loadingTask = getDocument({ data: new Uint8Array(pdf), useSystemFonts: true });
+  const document = await loadingTask.promise;
   try {
     expect(document.numPages).toBeGreaterThan(1);
     const currencies = [];
@@ -328,6 +334,6 @@ test("HTML de tres monedas conserva tarjetas completas y footer en todas las pá
     }
     expect(currencies.sort()).toEqual(["EUR", "PEN", "USD"]);
   } finally {
-    await document.destroy();
+    await loadingTask.destroy();
   }
 });
